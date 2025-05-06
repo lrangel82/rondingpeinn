@@ -28,7 +28,7 @@ class MainActivity : AppCompatActivity() {
 
         val copyRAdmin: TextView = findViewById<TextView>(R.id.textCopyright)
         copyRAdmin.setOnClickListener{
-            val clickRequired: Int = 4
+            val clickRequired: Int = 9
             if (counterAdmin++ >= clickRequired ) {
                 // Modo Admin
                 val intent: Intent = Intent(this, ProgramarTags::class.java )

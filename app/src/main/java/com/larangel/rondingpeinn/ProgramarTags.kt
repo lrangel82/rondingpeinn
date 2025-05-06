@@ -5,11 +5,14 @@ import CheckPointAdapter
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.IntentFilter.MalformedMimeTypeException
 import android.content.pm.PackageManager
 import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.nfc.NdefMessage
 import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
@@ -26,6 +29,7 @@ import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.addTextChangedListener
@@ -50,6 +54,7 @@ class ProgramarTags : AppCompatActivity() {
 
     private var wichCheckpointToSave: CheckPoint? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private var locationListener: LocationListener? = null
 
 
     @SuppressLint("MissingInflatedId")
@@ -156,10 +161,19 @@ class ProgramarTags : AppCompatActivity() {
         val layoutManager = LinearLayoutManager(this)
         recyclerView.layoutManager = layoutManager
 
-        Timer().schedule(0L,5000L) {
-            get_gps_location()
+        //Request GPS Permissions
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            == PackageManager.PERMISSION_GRANTED) {
+            //Timer().schedule(0L,5000L) {
+                get_gps_location_lister()
+            //}
+        } else {
+            // El permiso no ha sido concedido, solicitarlo
+            ActivityCompat.requestPermissions(this, arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION), 123)
         }
-        get_gps_location()
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
@@ -167,65 +181,136 @@ class ProgramarTags : AppCompatActivity() {
         }
     }
 
-
-    fun get_gps_location(){
-        //GPS
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        if (ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION
-                ),
-                100
-            )
-            //return
+    //Una ves solicitado el permiso manejar la respuesta
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 123) { //GPS permission
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                //Timer().schedule(0L,5000L) {
+                    get_gps_location_lister()
+                //}
+            } else {
+                // El usuario rechazó el permiso, mostrar un mensaje al usuario
+                Toast.makeText(this, "Necesitas el permiso para acceder a la ubicación", Toast.LENGTH_SHORT).show()
+            }
         }
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location : Location? ->
+    }
+
+
+    fun set_pause_gps(){
+        val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+        locationManager.removeUpdates(locationListener as LocationListener)
+    }
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
+    fun get_gps_location_lister(){
+        //GPS
+        val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+        locationListener = object : LocationListener {
+            override fun onLocationChanged(location: Location) {
+                // Actualizar la ubicación del usuario
                 val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
                 val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
                 val txtDesc: EditText = findViewById<EditText>(R.id.txtDescripcion)
-                location?.let {
-                    // Got last known location. In some rare situations this can be null.
-
-                    txtLat.text = it.latitude.toString()
-                    txtLon.text = it.longitude.toString()
-
-                    if ( txtDesc.text.length > 3 ) {
+                txtLat.text = location.latitude.toString()
+                txtLon.text = location.longitude.toString()
+                if ( txtDesc.text.length > 3 ) {
                         val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
-                        wichCheckpointToSave=CheckPoint(txtDesc.text.toString(), it.latitude, it.longitude, false )
+                        wichCheckpointToSave=CheckPoint(txtDesc.text.toString(), location.latitude, location.longitude, false )
                         btnProgramarTag.setEnabled(true)
                         btnProgramarTag.text="Programar TAG " + wichCheckpointToSave?.identificador
 
                     }
-
-                } ?: run {
-                    txtLat.text = "error get lat"
-                    txtLon.text = "error get long"
-                }
-            }.addOnFailureListener { e ->
-                Toast.makeText(this, "Failed to get location: ${e.message}", Toast.LENGTH_SHORT)
-                    .show()
             }
+
+            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
+                // ...
+            }
+
+            override fun onProviderEnabled(provider: String) {
+                //..
+                val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
+                val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
+                txtLat.text = "search GPS"
+                txtLon.text = "search GPS"
+            }
+
+            override fun onProviderDisabled(provider: String) {
+                val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
+                val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
+                txtLat.text = "error get lat"
+                txtLon.text = "error get long"
+            }
+        }
+        // Request updates for GPS provider
+        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 1f,
+            locationListener as LocationListener
+        )
+
+        // You can also request updates for NETWORK_PROVIDER (using Wi-Fi or cellular)
+        //locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0f, locationListener)
+
+
+//        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+//        if (ActivityCompat.checkSelfPermission(
+//                this,
+//                Manifest.permission.ACCESS_FINE_LOCATION
+//            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+//                this,
+//                Manifest.permission.ACCESS_COARSE_LOCATION
+//            ) != PackageManager.PERMISSION_GRANTED
+//        ) {
+//            ActivityCompat.requestPermissions(
+//                this,
+//                arrayOf(
+//                    Manifest.permission.ACCESS_FINE_LOCATION,
+//                    Manifest.permission.ACCESS_COARSE_LOCATION
+//                ),
+//                100
+//            )
+//            //return
+//        }
+//        fusedLocationClient.lastLocation
+//            .addOnSuccessListener { location : Location? ->
+//                val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
+//                val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
+//                val txtDesc: EditText = findViewById<EditText>(R.id.txtDescripcion)
+//                location?.let {
+//                    // Got last known location. In some rare situations this can be null.
+//
+//                    txtLat.text = it.latitude.toString()
+//                    txtLon.text = it.longitude.toString()
+//
+//                    if ( txtDesc.text.length > 3 ) {
+//                        val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
+//                        wichCheckpointToSave=CheckPoint(txtDesc.text.toString(), it.latitude, it.longitude, false )
+//                        btnProgramarTag.setEnabled(true)
+//                        btnProgramarTag.text="Programar TAG " + wichCheckpointToSave?.identificador
+//
+//                    }
+//
+//                } ?: run {
+//                    txtLat.text = "error get lat"
+//                    txtLon.text = "error get long"
+//                }
+//            }.addOnFailureListener { e ->
+//                Toast.makeText(this, "Failed to get location: ${e.message}", Toast.LENGTH_SHORT)
+//                    .show()
+//            }
     }
 
     public override fun onPause() {
         super.onPause()
+        set_pause_gps()
         nfcAdapter!!.disableForegroundDispatch(this)
     }
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     @SuppressLint("SetTextI18n")
     public override fun onResume() {
         super.onResume()
         val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
+        get_gps_location_lister()
         btnProgramarTag.text="Programar TAG nuevo"
         wichCheckpointToSave=null
         btnProgramarTag.setEnabled(false)

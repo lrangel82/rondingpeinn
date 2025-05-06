@@ -181,6 +181,14 @@ class StartRondinActivity : AppCompatActivity() {
 
     }
 
+    fun clearAllPointFromMap(){
+        val mapFragment = supportFragmentManager.findFragmentById(
+            R.id.map_fragment
+        ) as? SupportMapFragment
+        mapFragment?.getMapAsync { googleMap ->
+            googleMap.clear()
+        }
+    }
     fun addPointToMap(point: CheckPoint){
         val mapFragment = supportFragmentManager.findFragmentById(
             R.id.map_fragment
@@ -268,30 +276,7 @@ class StartRondinActivity : AppCompatActivity() {
         val txtLog: TextView = findViewById<TextView>(R.id.txtlog)
         txtLog.text=""
         dataList= mutableListOf()
-//        dataList= mutableListOf(
-//            CheckPoint("DR006", 20.660325, -103.446918, false),
-//            CheckPoint("EC073", 20.660463, -103.447213,  false),
-//            CheckPoint("EC013", 20.660703, -103.447302, false),
-//            CheckPoint("EC025", 20.661110, -103.447471, false),
-//            CheckPoint("EC029", 20.661559, -103.447677, false),
-//            CheckPoint("EC053", 20.661931, -103.447829, false),
-//            CheckPoint("MZ057", 20.662311, -103.448088, false),
-//            CheckPoint("MZ029", 20.662338, -103.447473, false),
-//            CheckPoint("MZ014", 20.662233, -103.4468432, false),
-//            CheckPoint("MN062", 20.662344, -103.446481, false),
-//            CheckPoint("MN038", 20.661853, -103.446457, false),
-//            CheckPoint("OL030", 20.661962, -103.447336, false),
-//            CheckPoint("RB014", 20.661485, -103.447153, false),
-//            CheckPoint("MZ018", 20.661428, -103.446513, false),
-//            CheckPoint("MZ004", 20.661151, -103.446567, false),
-//            CheckPoint("GP001", 20.661136, -103.446218, false),
-//            CheckPoint("GP049", 20.662208, -103.446128, false),
-//            CheckPoint("GP077", 20.660525, -103.446278, false),
-//            CheckPoint("GP099", 20.659650, -103.446292, false),
-//            CheckPoint("NR009", 20.661157, -103.447119, false),
-//            CheckPoint("CR006", 20.660699, -103.446889, false),
-//            CheckPoint("MZ057", 20.659835, -103.446684, false),
-//        )
+        clearAllPointFromMap()
         fillResume()
     }
 
