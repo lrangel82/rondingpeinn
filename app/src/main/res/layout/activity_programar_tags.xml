@@ -91,6 +91,11 @@
             </LinearLayout>
         </ScrollView>
 
+        <TextView
+            android:id="@+id/txtlog2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
     </LinearLayout>
 
     <LinearLayout
@@ -101,15 +106,17 @@
         app:layout_constraintBottom_toBottomOf="parent"
         tools:layout_editor_absoluteX="23dp">
 
-        <TextView
-            android:id="@+id/txtlog2"
-            android:layout_width="290dp"
-            android:layout_height="match_parent" />
+        <ImageButton
+            android:id="@+id/btnSettings"
+            android:layout_width="100dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            app:srcCompat="@android:drawable/ic_dialog_info" />
 
         <Button
             android:id="@+id/btn_cerrar"
             style="@style/Widget.AppCompat.Button"
-            android:layout_width="wrap_content"
+            android:layout_width="180dp"
             android:layout_height="wrap_content"
             android:layout_marginBottom="10dp"
             android:text="Cerrar" />

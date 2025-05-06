@@ -4,8 +4,8 @@
 
     <uses-permission android:name="android.permission.NFC" />
     <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
     <uses-feature
         android:name="android.hardware.nfc"
@@ -21,6 +21,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.RondinGPEINN"
         tools:targetApi="31">
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="false" />
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
@@ -34,14 +37,12 @@
             android:exported="false"
             android:label="RondinEnProceso"
             android:launchMode="singleTask">
-
             <intent-filter>
                 <action android:name="android.nfc.action.NDEF_DISCOVERED" />
 
                 <category android:name="android.intent.category.DEFAULT" />
 
-                <data
-                    android:mimeType="application/rondingpeinn" />
+                <data android:mimeType="application/rondingpeinn" />
             </intent-filter>
             <!-- <meta-data android:name="android.nfc.action.TECH_DISCOVERED" -->
             <!-- android:resource="@xml/techlist" /> -->
@@ -56,6 +57,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="com.larangel.rondingpeinn"

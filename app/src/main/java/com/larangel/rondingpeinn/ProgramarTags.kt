@@ -5,7 +5,6 @@ import CheckPointAdapter
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.PendingIntent
-import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.IntentFilter.MalformedMimeTypeException
@@ -18,10 +17,12 @@ import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.Ndef
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -32,16 +33,9 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.core.widget.addTextChangedListener
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
-import com.larangel.rondingpeinn.R
 import java.nio.charset.Charset
-import java.util.Timer
-import java.util.TimerTask
-import kotlin.concurrent.schedule
 
 class ProgramarTags : AppCompatActivity() {
     private var nfcAdapter: NfcAdapter? = null
@@ -53,7 +47,6 @@ class ProgramarTags : AppCompatActivity() {
     private lateinit var myAdapter: CheckPointAdapter
 
     private var wichCheckpointToSave: CheckPoint? = null
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var locationListener: LocationListener? = null
 
 
@@ -65,7 +58,7 @@ class ProgramarTags : AppCompatActivity() {
 
         nfcAdapter =  NfcAdapter.getDefaultAdapter(this)
         // Check the NFC adapter
-        if (nfcAdapter == null && false) {
+        if (nfcAdapter == null && !isRunningOnEmulator()) {
             val builder = AlertDialog.Builder(this@ProgramarTags)
             builder.setMessage("Este dispositivo no tiene NFC.")
             //Return to MAIN
@@ -121,6 +114,10 @@ class ProgramarTags : AppCompatActivity() {
             startActivity(intent)
         }
 
+        val btnSettings: ImageButton = findViewById<ImageButton>(R.id.btnSettings)
+        btnSettings.setOnClickListener{
+            startActivity(Intent(this, SettingsActivity::class.java ))
+        }
 
         //LISTADO de checkpoints
         recyclerView = findViewById(R.id.recyclerView)
@@ -180,6 +177,25 @@ class ProgramarTags : AppCompatActivity() {
             insets
         }
     }
+
+    private fun isRunningOnEmulator(): Boolean {
+        return (Build.FINGERPRINT.startsWith("generic")
+                || Build.FINGERPRINT.contains("unknown")
+                || Build.MODEL.contains("google_sdk")
+                || Build.MODEL.contains("Emulator")
+                || Build.MODEL.contains("Android SDK built for x86")
+                || Build.HARDWARE.contains("goldfish")
+                || Build.HARDWARE.contains("ranchu")
+                || Build.MANUFACTURER.contains("Genymotion")
+                || Build.PRODUCT.contains("sdk_google")
+                || Build.PRODUCT.contains("google_sdk")
+                || Build.PRODUCT.contains("sdk")
+                || Build.PRODUCT.contains("sdk_x86")
+                || Build.PRODUCT.contains("vbox86p")
+                || Build.PRODUCT.contains("emulator")
+                || Build.PRODUCT.contains("simulator"))
+    }
+
 
     //Una ves solicitado el permiso manejar la respuesta
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])

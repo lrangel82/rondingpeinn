@@ -1,6 +1,7 @@
 package com.larangel.rondingpeinn
 
 import CheckPoint
+import MySettings
 //import coil.load
 import android.app.PendingIntent
 import android.content.Context
@@ -14,6 +15,7 @@ import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
 import android.nfc.Tag
 import android.nfc.tech.Ndef
+import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.Settings
@@ -35,8 +37,6 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.PolylineOptions
-import com.larangel.rondingpeinn.R
-import kotlinx.coroutines.delay
 import java.io.File
 import java.io.FileOutputStream
 import java.time.LocalDateTime
@@ -44,24 +44,29 @@ import androidx.core.graphics.createBitmap
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 
 class StartRondinActivity : AppCompatActivity() {
-    private val CUANTOS_POR_ESCANEAR: Int = 22
+    private var mySettings: MySettings? = null
+    private var CUANTOS_POR_ESCANEAR: Int = 0
     private var nfcAdapter: NfcAdapter? = null
     private var pendingIntent: PendingIntent? = null
     private var intentFiltersArray: Array<IntentFilter>? = null
 
     private var dataList =  mutableListOf<CheckPoint>()
-    val lock = Object()
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_start_rondin)
+
+        mySettings=MySettings(this)
+
+        CUANTOS_POR_ESCANEAR = mySettings?.getInt("rondin_num_tags",0)!!
+
         nfcAdapter =  NfcAdapter.getDefaultAdapter(this)
         // Check the NFC adapter
-        if (nfcAdapter == null && false) {
+        if (nfcAdapter == null && !isRunningOnEmulator()) {
             sendAlertOK("Este dispositivo no tiene NFC.")
-            val intent: Intent = Intent(this, MainActivity::class.java)
+            val intent = Intent(this, MainActivity::class.java)
             startActivity(intent)
 
         }
@@ -94,7 +99,7 @@ class StartRondinActivity : AppCompatActivity() {
         btncancelar.setOnClickListener{
             //Reset
             resetData()
-            val intent: Intent = Intent(this, MainActivity::class.java )
+            val intent = Intent(this, MainActivity::class.java )
             startActivity(intent)
         }
 
@@ -157,7 +162,7 @@ class StartRondinActivity : AppCompatActivity() {
                 ndefMessage?.records?.forEach { record ->
                     if (record.tnf == NdefRecord.TNF_MIME_MEDIA) {
                         // This is a MIME type record
-                        val mimeType = String(record.type, Charsets.UTF_8)
+                        //val mimeType = String(record.type, Charsets.UTF_8)
                         val data = String(record.payload, Charsets.UTF_8)
                         // Process the mimeType and data
                         //txtLog.append("a mimeType:" + mimeType + "\n")
@@ -179,6 +184,24 @@ class StartRondinActivity : AppCompatActivity() {
             txtLog.append("NO VALID TAG\n")
         }
 
+    }
+
+    private fun isRunningOnEmulator(): Boolean {
+        return (Build.FINGERPRINT.startsWith("generic")
+                || Build.FINGERPRINT.contains("unknown")
+                || Build.MODEL.contains("google_sdk")
+                || Build.MODEL.contains("Emulator")
+                || Build.MODEL.contains("Android SDK built for x86")
+                || Build.HARDWARE.contains("goldfish")
+                || Build.HARDWARE.contains("ranchu")
+                || Build.MANUFACTURER.contains("Genymotion")
+                || Build.PRODUCT.contains("sdk_google")
+                || Build.PRODUCT.contains("google_sdk")
+                || Build.PRODUCT.contains("sdk")
+                || Build.PRODUCT.contains("sdk_x86")
+                || Build.PRODUCT.contains("vbox86p")
+                || Build.PRODUCT.contains("emulator")
+                || Build.PRODUCT.contains("simulator"))
     }
 
     fun clearAllPointFromMap(){
@@ -260,7 +283,7 @@ class StartRondinActivity : AppCompatActivity() {
 
     fun fillResume(){
         //val listIterator = dataList.listIterator()
-        var cuantoOk: Int = dataList.size
+        val cuantoOk: Int = dataList.size
 //        while (listIterator.hasNext()) {
 //            val element: CheckPoint = listIterator.next()
 //            if (element.escanedo)
@@ -287,7 +310,7 @@ class StartRondinActivity : AppCompatActivity() {
         val myDialog = builder.create()
         myDialog.setCanceledOnTouchOutside(false)
         myDialog.show()
-        val intent: Intent = Intent(this, MainActivity::class.java)
+        val intent = Intent(this, MainActivity::class.java)
         startActivity(intent)
     }
 
