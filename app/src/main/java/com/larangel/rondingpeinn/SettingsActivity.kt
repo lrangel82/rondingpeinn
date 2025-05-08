@@ -26,8 +26,10 @@ class SettingsActivity : AppCompatActivity() {
         btnGuardar.setOnClickListener{
             val txtNumTags: EditText = findViewById(R.id.txtNumTags)
             val txtMapToken: EditText = findViewById(R.id.txtMapToken)
+            val txtSheetPermisos: EditText = findViewById(R.id.txtPermisosSheet)
             mySettings?.saveInt("rondin_num_tags",txtNumTags.text.toString().toInt())
             mySettings?.saveString("rondin_map_token",txtMapToken.text.toString())
+            mySettings?.saveString("url_googlesheet_permisos", txtSheetPermisos.text.toString())
             startActivity(Intent(this, ProgramarTags::class.java ))
         }
         btnCancel.setOnClickListener{
@@ -44,8 +46,9 @@ class SettingsActivity : AppCompatActivity() {
     fun readConfig(){
         val txtNumTags: EditText = findViewById(R.id.txtNumTags)
         val txtMapToken: EditText = findViewById(R.id.txtMapToken)
+        val txtSheetPermisos: EditText = findViewById(R.id.txtPermisosSheet)
         txtNumTags.setText( mySettings?.getInt("rondin_num_tags",22).toString() )
         txtMapToken.setText(mySettings?.getString("rondin_map_token",""))
-
+        txtSheetPermisos.setText(mySettings?.getString("url_googlesheet_permisos",""))
     }
 }

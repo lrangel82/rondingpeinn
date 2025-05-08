@@ -1,16 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:elevation="8dp"
-    app:cardCornerRadius="8dp">
+    android:elevation="16dp"
+    app:cardCornerRadius="16dp">
+
 
     <RelativeLayout
+        android:id="@+id/itemPermiso"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="2dp">
+        android:layout_margin="2dp"
+        android:background="@color/white">
 
         <ImageView
             android:id="@+id/idIVTipo"
@@ -53,7 +55,10 @@
                 android:id="@+id/idTVFechaFinal"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginLeft="10dp"
+                android:layout_marginRight="10dp"
                 android:text="FechaFinal"
+                android:textAlignment="textEnd"
                 android:textColor="@color/black"
                 android:textSize="15sp" />
         </LinearLayout>

@@ -161,9 +161,9 @@ class ProgramarTags : AppCompatActivity() {
         //Request GPS Permissions
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
             == PackageManager.PERMISSION_GRANTED) {
-            //Timer().schedule(0L,5000L) {
+
                 get_gps_location_lister()
-            //}
+
         } else {
             // El permiso no ha sido concedido, solicitarlo
             ActivityCompat.requestPermissions(this, arrayOf(
@@ -263,57 +263,7 @@ class ProgramarTags : AppCompatActivity() {
             locationListener as LocationListener
         )
 
-        // You can also request updates for NETWORK_PROVIDER (using Wi-Fi or cellular)
-        //locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0f, locationListener)
 
-
-//        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-
-//        if (ActivityCompat.checkSelfPermission(
-//                this,
-//                Manifest.permission.ACCESS_FINE_LOCATION
-//            ) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
-//                this,
-//                Manifest.permission.ACCESS_COARSE_LOCATION
-//            ) != PackageManager.PERMISSION_GRANTED
-//        ) {
-//            ActivityCompat.requestPermissions(
-//                this,
-//                arrayOf(
-//                    Manifest.permission.ACCESS_FINE_LOCATION,
-//                    Manifest.permission.ACCESS_COARSE_LOCATION
-//                ),
-//                100
-//            )
-//            //return
-//        }
-//        fusedLocationClient.lastLocation
-//            .addOnSuccessListener { location : Location? ->
-//                val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
-//                val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
-//                val txtDesc: EditText = findViewById<EditText>(R.id.txtDescripcion)
-//                location?.let {
-//                    // Got last known location. In some rare situations this can be null.
-//
-//                    txtLat.text = it.latitude.toString()
-//                    txtLon.text = it.longitude.toString()
-//
-//                    if ( txtDesc.text.length > 3 ) {
-//                        val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
-//                        wichCheckpointToSave=CheckPoint(txtDesc.text.toString(), it.latitude, it.longitude, false )
-//                        btnProgramarTag.setEnabled(true)
-//                        btnProgramarTag.text="Programar TAG " + wichCheckpointToSave?.identificador
-//
-//                    }
-//
-//                } ?: run {
-//                    txtLat.text = "error get lat"
-//                    txtLon.text = "error get long"
-//                }
-//            }.addOnFailureListener { e ->
-//                Toast.makeText(this, "Failed to get location: ${e.message}", Toast.LENGTH_SHORT)
-//                    .show()
-//            }
     }
 
     public override fun onPause() {
