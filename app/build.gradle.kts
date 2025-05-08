@@ -55,6 +55,7 @@ dependencies {
     implementation(libs.coil)
     implementation(libs.play.services.location)
     implementation(libs.play.services.maps)
+    implementation(libs.glide)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -25,6 +25,11 @@ class MainActivity : AppCompatActivity() {
             val intent: Intent = Intent(this, StartRondinActivity::class.java )
             startActivity(intent)
         }
+        val btnPermisos: Button = findViewById(R.id.btn_permisos)
+        btnPermisos.setOnClickListener{
+            val intent: Intent = Intent(this, PermisosActivity::class.java )
+            startActivity(intent)
+        }
 
         val copyRAdmin: TextView = findViewById<TextView>(R.id.textCopyright)
         copyRAdmin.setOnClickListener{
