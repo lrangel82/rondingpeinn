@@ -127,7 +127,9 @@ class PermisosActivity : AppCompatActivity() {
     }
 
     private fun fetchSheetData() {
-        val url = mySettings?.getString("url_googlesheet_permisos","https://docs.google.com/spreadsheets/d/e/2PACX-1vTk443om2jiXzF62FFliGAhjqHZikVR-1ziu3lg8-wk3TmWrd31fawCu_z7S0Kp41zTxaJnSZXLexRz/pub?output=csv")!!
+        //Coto1: https://docs.google.com/spreadsheets/d/e/2PACX-1vTk443om2jiXzF62FFliGAhjqHZikVR-1ziu3lg8-wk3TmWrd31fawCu_z7S0Kp41zTxaJnSZXLexRz/pub?output=csv
+        //Coto2: https://docs.google.com/spreadsheets/d/e/2PACX-1vTXQSO3BMLsPdRW3nF-b6wWJlbBPvf_0cF9v6dPkyuVN0ihKOMbhVGDPx5PqHq4Ai6u_aalCIMbK_Zt/pub?output=csv
+        val url = mySettings?.getString("url_googlesheet_permisos","")!!
         if (url.isNotEmpty()) {
             progressBar.visibility = View.VISIBLE
             CoroutineScope(Dispatchers.IO).launch {
