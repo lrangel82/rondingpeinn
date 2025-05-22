@@ -26,6 +26,7 @@ data class PermisosModal (
     var descripcion: String,
     var nombrePersonas: String,
     var aprobado: Boolean,
+    var motivo_denegado: String,
     var procesado: Boolean
 )
 data class SheetRow(
@@ -52,7 +53,7 @@ class PermisosRVAdapter(
 
         // Setting data to our text views.
         val direccion: String = permisosModal.calle.substring(0,3) + permisosModal.numero
-        val desc: String = "[${permisosModal.tipoAcceso}] -->" + permisosModal.descripcion + "\n Personas:\n" + permisosModal.nombrePersonas
+        val desc: String = "[${permisosModal.tipoAcceso}] -->" + permisosModal.descripcion + "\n Personas:\n" + permisosModal.nombrePersonas +"\n\n"+permisosModal.motivo_denegado
         holder.domicilioTV.text = direccion
         holder.fecha_inicioTV.text = permisosModal.fechaInicio.toString()
         holder.fecha_finTV.text = permisosModal.fechaFin.toString()

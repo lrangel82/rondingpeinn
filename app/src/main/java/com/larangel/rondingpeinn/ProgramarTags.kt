@@ -5,6 +5,7 @@ import CheckPointAdapter
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.IntentFilter.MalformedMimeTypeException
@@ -20,6 +21,7 @@ import android.nfc.tech.Ndef
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -92,6 +94,7 @@ class ProgramarTags : AppCompatActivity() {
         btnProgramarTag.setOnClickListener{
             val myText = "Scanning...."
             btnProgramarTag.text = myText
+            hideKeyboard()
 
             // Setup an intent filter for all MIME based dispatches
             val ndef = IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED).apply {
@@ -119,44 +122,24 @@ class ProgramarTags : AppCompatActivity() {
             startActivity(Intent(this, SettingsActivity::class.java ))
         }
 
-        //LISTADO de checkpoints
-        recyclerView = findViewById(R.id.recyclerView)
+//        //LISTADO de checkpoints
+//        recyclerView = findViewById(R.id.recyclerView)
 
-        dataList = mutableListOf(
-            CheckPoint("DR006", 20.660325, -103.446918, false),
-            CheckPoint("EC073", 20.660463, -103.447213,  false),
-            CheckPoint("EC013", 20.660703, -103.447302, false),
-            CheckPoint("EC025", 20.661110, -103.447471, false),
-            CheckPoint("EC029", 20.661559, -103.447677, false),
-            CheckPoint("EC053", 20.661931, -103.447829, false),
-            CheckPoint("MZ057", 20.662311, -103.448088, false),
-            CheckPoint("MZ029", 20.662338, -103.447473, false),
-            CheckPoint("MZ014", 20.662233, -103.4468432, false),
-            CheckPoint("MN062", 20.662344, -103.446481, false),
-            CheckPoint("MN038", 20.661853, -103.446457, false),
-            CheckPoint("OL030", 20.661962, -103.447336, false),
-            CheckPoint("RB014", 20.661485, -103.447153, false),
-            CheckPoint("MZ018", 20.661428, -103.446513, false),
-            CheckPoint("MZ004", 20.661151, -103.446567, false),
-            CheckPoint("GP001", 20.661136, -103.446218, false),
-            CheckPoint("GP049", 20.662208, -103.446128, false),
-            CheckPoint("GP077", 20.660525, -103.446278, false),
-            CheckPoint("GP099", 20.659650, -103.446292, false),
-            CheckPoint("NR009", 20.661157, -103.447119, false),
-            CheckPoint("CR006", 20.660699, -103.446889, false),
-            CheckPoint("MZ057", 20.659835, -103.446684, false),
-        )
+//        dataList = mutableListOf(
+//            CheckPoint("DR006", 20.660325, -103.446918, false),
+//
+//        )
 
-        myAdapter = CheckPointAdapter(dataList) { item ->
-            val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
-            btnProgramarTag.setEnabled(true)
-            btnProgramarTag.text="Programar TAG " + item.identificador
-            wichCheckpointToSave=item
-        }
-        recyclerView.adapter = myAdapter
+//        myAdapter = CheckPointAdapter(dataList) { item ->
+//            val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
+//            btnProgramarTag.setEnabled(true)
+//            btnProgramarTag.text="Programar TAG " + item.identificador
+//            wichCheckpointToSave=item
+//        }
+//        recyclerView.adapter = myAdapter
 
-        val layoutManager = LinearLayoutManager(this)
-        recyclerView.layoutManager = layoutManager
+//        val layoutManager = LinearLayoutManager(this)
+//        recyclerView.layoutManager = layoutManager
 
         //Request GPS Permissions
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
@@ -220,50 +203,67 @@ class ProgramarTags : AppCompatActivity() {
     }
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     fun get_gps_location_lister(){
-        //GPS
-        val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
-        locationListener = object : LocationListener {
-            override fun onLocationChanged(location: Location) {
-                // Actualizar la ubicación del usuario
-                val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
-                val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
-                val txtDesc: EditText = findViewById<EditText>(R.id.txtDescripcion)
-                txtLat.text = location.latitude.toString()
-                txtLon.text = location.longitude.toString()
-                if ( txtDesc.text.length > 3 ) {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            == PackageManager.PERMISSION_GRANTED) {
+            //GPS
+            val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+            locationListener = object : LocationListener {
+                override fun onLocationChanged(location: Location) {
+                    // Actualizar la ubicación del usuario
+                    val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
+                    val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
+                    val txtDesc: EditText = findViewById<EditText>(R.id.txtDescripcion)
+                    txtLat.text = location.latitude.toString()
+                    txtLon.text = location.longitude.toString()
+                    if (txtDesc.text.length >= 3) {
                         val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
-                        wichCheckpointToSave=CheckPoint(txtDesc.text.toString(), location.latitude, location.longitude, false )
+                        wichCheckpointToSave = CheckPoint(
+                            txtDesc.text.toString(),
+                            location.latitude,
+                            location.longitude,
+                            false
+                        )
                         btnProgramarTag.setEnabled(true)
-                        btnProgramarTag.text="Programar TAG " + wichCheckpointToSave?.identificador
+                        btnProgramarTag.text =
+                            "Programar TAG " + wichCheckpointToSave?.identificador
 
                     }
-            }
+                }
 
-            override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
-                // ...
-            }
+                override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
+                    // ...
+                }
 
-            override fun onProviderEnabled(provider: String) {
-                //..
-                val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
-                val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
-                txtLat.text = "search GPS"
-                txtLon.text = "search GPS"
-            }
+                override fun onProviderEnabled(provider: String) {
+                    //..
+                    val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
+                    val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
+                    txtLat.text = "search GPS"
+                    txtLon.text = "search GPS"
+                }
 
-            override fun onProviderDisabled(provider: String) {
-                val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
-                val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
-                txtLat.text = "error get lat"
-                txtLon.text = "error get long"
+                override fun onProviderDisabled(provider: String) {
+                    val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
+                    val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
+                    txtLat.text = "error get lat"
+                    txtLon.text = "error get long"
+                }
             }
+            // Request updates for GPS provider
+            locationManager.requestLocationUpdates(
+                LocationManager.GPS_PROVIDER, 5000, 1f,
+                locationListener as LocationListener
+            )
         }
-        // Request updates for GPS provider
-        locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000, 1f,
-            locationListener as LocationListener
-        )
 
+    }
 
+    fun hideKeyboard() {
+        val view = currentFocus
+        if (view != null) {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(view.windowToken, 0)
+        }
     }
 
     public override fun onPause() {
@@ -314,9 +314,8 @@ class ProgramarTags : AppCompatActivity() {
                 //code to handle the received data
                 // Received data would be in the form of a byte array that can be converted to string
                 //NFC_READ_COMMAND would be the custom command you would have to send to your NFC Tag in order to read it
-                txtLog.append(txtdata+"\n" )
-                txtLog.append("Exitoso!!!\n" )
-
+                val tmptext = txtLog.text
+                txtLog.text = "EXITOSO!!!: " + txtdata + "\n\n" + tmptext
 
             }else{
                 val myText = "Error: Not connected"

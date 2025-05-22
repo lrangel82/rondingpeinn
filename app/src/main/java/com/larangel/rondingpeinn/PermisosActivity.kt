@@ -79,6 +79,53 @@ class PermisosActivity : AppCompatActivity() {
         }
     }
 
+    private fun parseLenientDateTime(dateTimeString: String): LocalDateTime {
+        val formats = listOf(
+            "d/MM/yyyy HH:mm:ss",
+            "yyyy/MM/dd HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy/MM/dd HH:mm:ss",
+            "yyyy/MM/dd'T'HH:mm:ss",
+            "dd-MM-yyyy HH:mm:ss",
+            "dd/MM/yyyy HH:mm:ss",
+            "MM-dd-yyyy HH:mm:ss",
+            "MM/dd/yyyy HH:mm:ss",
+            "yyyyMMdd HHmmss",
+            "yyyyMMdd'T'HHmmss"
+        ).map { DateTimeFormatter.ofPattern(it) }
+
+        for (format in formats) {
+            try {
+                return LocalDateTime.parse(dateTimeString, format)
+            } catch (e: Exception) {
+                // Try the next format if parsing fails
+            }
+        }
+        return LocalDateTime.MIN // Return null if no format matches
+    }
+    private fun parseLenientDate(dateTimeString: String): LocalDate {
+        val formats = listOf(
+            "d/MM/yyyy",
+            "yyyy/MM/dd",
+            "yyyy-MM-dd",
+            "dd-MM-yyyy",
+            "dd/MM/yyyy",
+            "MM-dd-yyyy",
+            "MM/dd/yyyy",
+            "yyyyMMdd"
+        ).map { DateTimeFormatter.ofPattern(it) }
+
+        for (format in formats) {
+            try {
+                return LocalDate.parse(dateTimeString, format)
+            } catch (e: Exception) {
+                // Try the next format if parsing fails
+            }
+        }
+        return LocalDate.MIN // Return null if no format matches
+    }
+
     private fun fetchSheetData() {
         val url = mySettings?.getString("url_googlesheet_permisos","https://docs.google.com/spreadsheets/d/e/2PACX-1vTk443om2jiXzF62FFliGAhjqHZikVR-1ziu3lg8-wk3TmWrd31fawCu_z7S0Kp41zTxaJnSZXLexRz/pub?output=csv")!!
         if (url.isNotEmpty()) {
@@ -104,25 +151,23 @@ class PermisosActivity : AppCompatActivity() {
                         }
                         if (row.cells.size >= 4) {
 
-                            val formatter = DateTimeFormatter.ofPattern("d/MM/yyyy")
-                            val formatter_created =
-                                DateTimeFormatter.ofPattern("d/MM/yyyy HH:mm:ss")
                             val stringTrue = arrayOf("1", "Si", "si", "SI", "x", "X")
                             // Ensure the row has enough columns
                             val userModal = PermisosModal(
-                                fechaCreado = LocalDateTime.parse(row.cells[0], formatter_created),
+                                fechaCreado = parseLenientDateTime(row.cells[0]),
                                 calle = row.cells[1],
                                 numero = row.cells[2],
                                 solicitante = row.cells[3],
                                 correo = row.cells[4],
                                 tipoAcceso = row.cells[5],
                                 tipo = row.cells[6],
-                                fechaInicio = LocalDate.parse(row.cells[7], formatter),
-                                fechaFin = LocalDate.parse(row.cells[8], formatter),
+                                fechaInicio = parseLenientDate(row.cells[7]),
+                                fechaFin = parseLenientDate(row.cells[8]),
                                 descripcion = row.cells[9],
                                 nombrePersonas = row.cells[10],
                                 aprobado = stringTrue.contains(row.cells[11]),
-                                procesado = stringTrue.contains(row.cells[12])
+                                motivo_denegado = row.cells[12],
+                                procesado = stringTrue.contains(row.cells[13])
                             )
                             if (filterPermisos(userModal)) {
                                 permisosModalArrayList.add(userModal)
@@ -169,6 +214,6 @@ class PermisosActivity : AppCompatActivity() {
             currentDate.isBefore(itemPermiso.fechaInicio) -> return false
             currentDate.isAfter(itemPermiso.fechaFin) -> return false
         }
-        return true
+        return itemPermiso.procesado
     }
 }
