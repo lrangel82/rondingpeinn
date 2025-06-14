@@ -155,24 +155,28 @@ class PermisosActivity : AppCompatActivity() {
 
                             val stringTrue = arrayOf("1", "Si", "si", "SI", "x", "X")
                             // Ensure the row has enough columns
-                            val userModal = PermisosModal(
-                                fechaCreado = parseLenientDateTime(row.cells[0]),
-                                calle = row.cells[1],
-                                numero = row.cells[2],
-                                solicitante = row.cells[3],
-                                correo = row.cells[4],
-                                tipoAcceso = row.cells[5],
-                                tipo = row.cells[6],
-                                fechaInicio = parseLenientDate(row.cells[7]),
-                                fechaFin = parseLenientDate(row.cells[8]),
-                                descripcion = row.cells[9],
-                                nombrePersonas = row.cells[10],
-                                aprobado = stringTrue.contains(row.cells[11]),
-                                motivo_denegado = row.cells[12],
-                                procesado = stringTrue.contains(row.cells[13])
-                            )
-                            if (filterPermisos(userModal)) {
-                                permisosModalArrayList.add(userModal)
+                            try{
+                                val userModal = PermisosModal(
+                                    fechaCreado = parseLenientDateTime(row.cells[0]),
+                                    calle = row.cells[1],
+                                    numero = row.cells[2],
+                                    solicitante = row.cells[3],
+                                    correo = row.cells[4],
+                                    tipoAcceso = row.cells[5],
+                                    tipo = row.cells[6],
+                                    fechaInicio = parseLenientDate(row.cells[7]),
+                                    fechaFin = parseLenientDate(row.cells[8]),
+                                    descripcion = row.cells[9],
+                                    nombrePersonas = row.cells[10],
+                                    aprobado = stringTrue.contains(row.cells[11]),
+                                    motivo_denegado = row.cells[12],
+                                    procesado = stringTrue.contains(row.cells[13])
+                                )
+                                if (filterPermisos(userModal)) {
+                                    permisosModalArrayList.add(userModal)
+                                }
+                            }catch (e: Exception) {
+                                println("Error: ${e.message}")
                             }
                         }
                     }

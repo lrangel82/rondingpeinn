@@ -213,8 +213,8 @@ class ProgramarTags : AppCompatActivity() {
                     val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
                     val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
                     val txtDesc: EditText = findViewById<EditText>(R.id.txtDescripcion)
-                    txtLat.text = location.latitude.toString()
-                    txtLon.text = location.longitude.toString()
+                    txtLat.text = String.format("%.6f", location.latitude)
+                    txtLon.text = String.format("%.6f",location.longitude)
                     if (txtDesc.text.length >= 3) {
                         val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
                         wichCheckpointToSave = CheckPoint(
@@ -269,7 +269,9 @@ class ProgramarTags : AppCompatActivity() {
     public override fun onPause() {
         super.onPause()
         set_pause_gps()
-        nfcAdapter!!.disableForegroundDispatch(this)
+        if (nfcAdapter != null && !isRunningOnEmulator()) {
+            nfcAdapter!!.disableForegroundDispatch(this)
+        }
     }
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     @SuppressLint("SetTextI18n")
@@ -293,8 +295,8 @@ class ProgramarTags : AppCompatActivity() {
             txtLog.append("NFC TAG:"+tagFromIntent?.id+"\n")
             val txtdata = "Checkpoint:"+ wichCheckpointToSave?.identificador +
                     " [" +
-                        wichCheckpointToSave?.latitud.toString() + "," +
-                        wichCheckpointToSave?.longitud.toString() +
+                        String.format("%.6f",wichCheckpointToSave?.latitud) + "," +
+                    String.format("%.6f",wichCheckpointToSave?.longitud) +
                       "]"
             val outRecord = NdefRecord.createMime(
                 "application/rondingpeinn",
