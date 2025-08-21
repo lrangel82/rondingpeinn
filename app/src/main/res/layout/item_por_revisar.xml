@@ -12,32 +12,36 @@
         android:id="@+id/streetText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:padding="4dp"
         android:text="Street: "
-        android:textSize="16sp"
-        android:padding="4dp"/>
+        android:textColor="#050505"
+        android:textSize="16sp" />
 
     <TextView
         android:id="@+id/numberText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:padding="4dp"
         android:text="Number: "
-        android:textSize="16sp"
-        android:padding="4dp"/>
+        android:textColor="#050505"
+        android:textSize="16sp" />
 
     <TextView
         android:id="@+id/timeText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:padding="4dp"
         android:text="Time: "
-        android:textSize="16sp"
-        android:padding="4dp"/>
+        android:textColor="#050505"
+        android:textSize="16sp" />
 
     <TextView
         android:id="@+id/slotText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:padding="4dp"
         android:text="Slot: "
-        android:textSize="16sp"
-        android:padding="4dp"/>
+        android:textColor="#050505"
+        android:textSize="16sp" />
 
 </LinearLayout>

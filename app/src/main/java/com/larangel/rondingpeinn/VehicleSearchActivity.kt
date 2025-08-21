@@ -360,21 +360,28 @@ class VehicleSearchActivity : AppCompatActivity() {
     }
 
     private fun processImage(image: InputImage) {
-        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-        recognizer.process(image)
-            .addOnSuccessListener { visionText ->
-                var plate = visionText.textBlocks.joinToString(" ") { it.text }.trim()
-                var re = Regex("[^A-Za-z0-9 ]")
-                plate = re.replace(plate, "" ) //Eliminar carcteres no deseados
-                re = Regex("[A-Z]{3}[0-9]{3,4}")
-                val matchRegult = re.find(plate) //Match Placa
-                plate = if (matchRegult != null) { matchRegult.value } else {""}
-                plateInput.setText(plate)
-                searchVehicle(plate)
-            }
-            .addOnFailureListener { e ->
-                Toast.makeText(this, "OCR failed: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
+        val plate = plateInput.text.toString().trim()
+        if (plate.isEmpty()) {
+            val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+            recognizer.process(image)
+                .addOnSuccessListener { visionText ->
+                    var plate = visionText.textBlocks.joinToString(" ") { it.text }.trim()
+                    var re = Regex("[^A-Za-z0-9 ]")
+                    plate = re.replace(plate, "") //Eliminar carcteres no deseados
+                    re = Regex("[A-Z]{3}[0-9]{3,4}")
+                    val matchRegult = re.find(plate) //Match Placa
+                    plate = if (matchRegult != null) {
+                        matchRegult.value
+                    } else {
+                        ""
+                    }
+                    plateInput.setText(plate)
+                    searchVehicle(plate)
+                }
+                .addOnFailureListener { e ->
+                    Toast.makeText(this, "OCR failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+        }
     }
 
     private fun searchVehicle(plate: String) {
@@ -623,6 +630,9 @@ class VehicleSearchActivity : AppCompatActivity() {
                                 val time = LocalDateTime.now()
                                 val event = EventModal(plate, date, time, localPhotoPath, selectedKey)
                                 saveEventToSheet(event)
+                                if (selectedKey in listOf("LugarProhibido", "BloqueoPeatonal", "ObstruyeCochera")) {
+                                    handleSpecialKey(selectedKey, plate, localPhotoPath)
+                                }
                             }
                             .setNegativeButton("Cancel") { _, _ -> }
                             .show()
@@ -633,6 +643,139 @@ class VehicleSearchActivity : AppCompatActivity() {
             }
         } else {
             ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), REQUEST_LOCATION_PERMISSION)
+        }
+    }
+
+    private fun handleSpecialKey(selectedKey: String, plate: String, localPhotoPath: String) {
+        val now = LocalDateTime.now()
+        val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val formattedTime = now.format(timeFormatter)
+        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+        if (selectedKey == "ObstruyeCochera") {
+            AlertDialog.Builder(this)
+                .setTitle("Multa Directa")
+                .setMessage("Es multa directa por Obstruir Cochera")
+                .setPositiveButton("OK") { _, _ ->
+                    saveToMultasGeneradas(plate, "$selectedKey ($formattedTime)")
+                    shareViaWhatsApp(plate, selectedKey, localPhotoPath)
+                }
+                .show()
+        } else if (selectedKey in listOf("LugarProhibido", "BloqueoPeatonal")) {
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    val response = sheetsService.spreadsheets().values()
+                        .get(yourEventsSpreadSheetID, "DomicilioWarnings!A:C")
+                        .execute()
+                    val rows = response.getValues() ?: emptyList()
+                    var existingRowIndex: Int? = null
+                    var currentCount = 0
+                    rows.forEachIndexed { index, row ->
+                        if (row.size >= 2 && row[0].toString() == vehicleStreet && row[1].toString() == vehicleNumber) {
+                            existingRowIndex = index + 1
+                            currentCount = row[2].toString().toIntOrNull() ?: 0
+                            return@forEachIndexed
+                        }
+                    }
+                    val newCount = currentCount + 1
+                    val values = listOf(
+                        listOf(
+                            vehicleStreet,
+                            vehicleNumber,
+                            newCount.toString()
+                        )
+                    )
+                    val body = ValueRange().setValues(values)
+                    if (existingRowIndex != null) {
+                        sheetsService.spreadsheets().values()
+                            .update(yourEventsSpreadSheetID, "DomicilioWarnings!A$existingRowIndex:C$existingRowIndex", body)
+                            .setValueInputOption("RAW")
+                            .execute()
+                    } else {
+                        sheetsService.spreadsheets().values()
+                            .append(yourEventsSpreadSheetID, "DomicilioWarnings!A:C", body)
+                            .setValueInputOption("RAW")
+                            .execute()
+                    }
+                    withContext(Dispatchers.Main) {
+                        if (newCount >= 3) {
+                            AlertDialog.Builder(this@VehicleSearchActivity)
+                                .setTitle("Acredor a Multa")
+                                .setMessage("El domicilio es acredor a una multa (3er aviso)")
+                                .setPositiveButton("OK") { _, _ ->
+                                    saveToMultasGeneradas( plate, "$selectedKey ($formattedTime)")
+                                    shareViaWhatsApp(plate, selectedKey, localPhotoPath)
+                                }
+                                .show()
+                        } else {
+                            Toast.makeText(this@VehicleSearchActivity, "Warning recorded, count: $newCount", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@VehicleSearchActivity, "Error handling warning: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun saveToMultasGeneradas(plate: String, concatenatedSlots: String) {
+        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+        val now = LocalDateTime.now()
+        val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val formattedTime = now.format(timeFormatter)
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val values = listOf(
+                    listOf(
+                        formattedTime,
+                        vehicleStreet,
+                        vehicleNumber,
+                        plate,
+                        concatenatedSlots
+                    )
+                )
+                val body = ValueRange().setValues(values)
+                sheetsService.spreadsheets().values()
+                    .append(yourEventsSpreadSheetID, "MultasGeneradas!A:E", body)
+                    .setValueInputOption("RAW")
+                    .execute()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@VehicleSearchActivity, "Fine recorded in MultasGeneradas", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@VehicleSearchActivity, "Error saving to MultasGeneradas: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun shareViaWhatsApp(plate: String, selectedKey: String, localPhotoPath: String) {
+        val now = LocalDateTime.now()
+        val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val formattedTime = now.format(timeFormatter)
+        val text = "Automovil con placas $plate en calle $vehicleStreet numero $vehicleNumber amerita multa por $selectedKey. Detalle del evento: $formattedTime"
+
+        val intent = Intent(Intent.ACTION_SEND)
+        intent.type = "text/plain"
+        intent.putExtra(Intent.EXTRA_TEXT, text)
+        intent.setPackage("com.whatsapp")
+
+        if (localPhotoPath.isNotEmpty()) {
+            val file = JavaFile(localPhotoPath)
+            if (file.exists()) {
+                val uri = FileProvider.getUriForFile(this, "${packageName}.fileprovider", file)
+                intent.type = "image/jpeg"
+                intent.putExtra(Intent.EXTRA_STREAM, uri)
+                intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+        }
+
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "WhatsApp not installed", Toast.LENGTH_SHORT).show()
         }
     }
 
