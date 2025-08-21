@@ -113,6 +113,12 @@ class StartRondinActivity : AppCompatActivity() {
 
         }
 
+        val btn_vehiculos: Button = findViewById(R.id.bnt_vehiculos)
+        btn_vehiculos.setOnClickListener{
+            val intent = Intent(this, VehicleSearchActivity::class.java )
+            startActivity(intent)
+        }
+
 
 
         resetData()
@@ -346,7 +352,7 @@ class StartRondinActivity : AppCompatActivity() {
                 val imageUri: Uri? = try {
                     FileProvider.getUriForFile(
                         applicationContext,
-                        "com.larangel.rondingpeinn", // Replace with your actual provider authority
+                        "${packageName}.fileprovider", // Replace with your actual provider authority
                         imageFile
                     )
                 } catch (e: IllegalArgumentException) {

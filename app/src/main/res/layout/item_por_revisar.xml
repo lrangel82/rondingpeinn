@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp"
+    android:layout_margin="4dp"
+    android:background="@android:color/white"
+    android:elevation="2dp">
+
+    <TextView
+        android:id="@+id/streetText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Street: "
+        android:textSize="16sp"
+        android:padding="4dp"/>
+
+    <TextView
+        android:id="@+id/numberText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Number: "
+        android:textSize="16sp"
+        android:padding="4dp"/>
+
+    <TextView
+        android:id="@+id/timeText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Time: "
+        android:textSize="16sp"
+        android:padding="4dp"/>
+
+    <TextView
+        android:id="@+id/slotText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Slot: "
+        android:textSize="16sp"
+        android:padding="4dp"/>
+
+</LinearLayout>

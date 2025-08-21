@@ -30,6 +30,11 @@ class MainActivity : AppCompatActivity() {
             val intent: Intent = Intent(this, PermisosActivity::class.java )
             startActivity(intent)
         }
+        val btn_vehiculos: Button = findViewById(R.id.btn_vehiculos)
+        btn_vehiculos.setOnClickListener{
+            val intent: Intent = Intent(this, VehicleSearchActivity::class.java )
+            startActivity(intent)
+        }
 
         val copyRAdmin: TextView = findViewById<TextView>(R.id.textCopyright)
         copyRAdmin.setOnClickListener{

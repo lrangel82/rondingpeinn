@@ -85,9 +85,9 @@ class PermisosRVAdapter(
 
     }
 
-    private fun pxToSp(px: Float, context: Context): Float {
-        return px / context.resources.displayMetrics.scaledDensity
-    }
+//    private fun pxToSp(px: Float, context: Context): Float {
+//        return px / context.resources.displayMetrics.scaledDensity
+//    }
     override fun getItemCount(): Int {
 
         // Returning the size of the array list.

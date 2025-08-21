@@ -6,10 +6,16 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
 
     <uses-feature
         android:name="android.hardware.nfc"
+        android:required="true" />
+    <uses-feature
+        android:name="android.hardware.camera"
         android:required="true" />
 
     <application
@@ -23,10 +29,24 @@
         android:theme="@style/Theme.RondinGPEINN"
         tools:targetApi="31">
         <activity
+            android:name=".VehicleSearchActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".ParkingSlotsActivity"
+            android:exported="false" />
+        <activity
             android:name=".PermisosActivity"
             android:exported="false" />
         <activity
             android:name=".SettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".PorRevisarListActivity"
             android:exported="false" />
 
         <meta-data
@@ -64,7 +84,7 @@
 
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="com.larangel.rondingpeinn"
+            android:authorities="com.larangel.rondingpeinn.fileprovider"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
