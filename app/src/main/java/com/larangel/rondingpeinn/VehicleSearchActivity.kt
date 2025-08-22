@@ -62,6 +62,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.core.graphics.scale
 import java.io.File
 import java.io.FileOutputStream
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ProgressBar
+import android.widget.FrameLayout
 
 class VehicleSearchActivity : AppCompatActivity() {
     private var mySettings: MySettings? = null
@@ -90,6 +94,8 @@ class VehicleSearchActivity : AppCompatActivity() {
     private var domicilioWarningsSheetId: Int = 0
     private val handler = Handler(Looper.getMainLooper())
     private val checkRunnable = Runnable { checkPorRevisarLocations() }
+    private var loadingOverlay: View? = null
+    private var progressBar: ProgressBar? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -153,6 +159,42 @@ class VehicleSearchActivity : AppCompatActivity() {
 
         loadPorRevisar()
         updatePorRevisarButton()
+    }
+
+    private fun waitingOn() {
+        if (loadingOverlay == null) {
+            val rootView = findViewById<ViewGroup>(android.R.id.content)
+            loadingOverlay = View(this).apply {
+                setBackgroundColor(Color.parseColor("#80000000")) // Semi-transparent black
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                isClickable = true
+                isFocusable = true
+            }
+
+            progressBar = ProgressBar(this).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    gravity = android.view.Gravity.CENTER
+                }
+            }
+
+            rootView.addView(loadingOverlay)
+            rootView.addView(progressBar)
+        }
+    }
+    private fun waitingOff() {
+        loadingOverlay?.let { overlay ->
+            val rootView = findViewById<ViewGroup>(android.R.id.content)
+            rootView.removeView(overlay)
+            rootView.removeView(progressBar)
+            loadingOverlay = null
+            progressBar = null
+        }
     }
 
     private fun updatePorRevisarButton() {
@@ -385,6 +427,7 @@ class VehicleSearchActivity : AppCompatActivity() {
     }
 
     private fun searchVehicle(plate: String) {
+        waitingOn()
         vehicleStreet = null
         vehicleNumber = null
         vehicleSource = null
@@ -428,25 +471,30 @@ class VehicleSearchActivity : AppCompatActivity() {
                     }
                 }
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     if (vehicleFound) {
                         resultText.append("\nVehicle: $plate\nStreet: $vehicleStreet\nNumber: $vehicleNumber\nRegistrado como: $vehicleSource")
                     } else {
                         resultText.append("\nNo vehicle found for plate: $plate en $vehicleSource")
                     }
                     loadEvents(plate)
+
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     println("LARANGEL Caught a general exception in searchVehicle: ${e}")
                     e.printStackTrace()
                     Toast.makeText(this@VehicleSearchActivity, "Error searching vehicle: ${e.message}", Toast.LENGTH_SHORT).show()
                     loadEvents(plate)
+
                 }
             }
         }
     }
 
     private fun loadEvents(plate: String) {
+        waitingOn()
         val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         events.clear()
         lifecycleScope.launch(Dispatchers.IO) {
@@ -473,12 +521,14 @@ class VehicleSearchActivity : AppCompatActivity() {
                             )
                         )
                     }
+                    waitingOff()
                     eventsRecyclerView.adapter?.notifyDataSetChanged()
                     resultText.append("\nTotal Events: ${events.size}")
                     checkForFine(plateEvents)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     println("LARANGEL exception loadEvents plate:${plate} error:${e}")
                     e.printStackTrace()
                     Toast.makeText(this@VehicleSearchActivity, "Error loading events: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -488,6 +538,7 @@ class VehicleSearchActivity : AppCompatActivity() {
     }
 
     private fun checkForFine(events: List<List<Any>>) {
+        waitingOn()
         val dateFormat = SimpleDateFormat("yyyy-MM-dd")
         val eventDates = events.mapNotNull { row ->
             try {
@@ -502,6 +553,7 @@ class VehicleSearchActivity : AppCompatActivity() {
             if (diff == 1L) {
                 consecutiveDays++
                 if (consecutiveDays >= 10) {
+                    waitingOff()
                     AlertDialog.Builder(this)
                         .setTitle("Fine Alert")
                         .setMessage("Automovil acredor de multa, por exceder mas de 10 dias consecutivos en visita")
@@ -513,12 +565,14 @@ class VehicleSearchActivity : AppCompatActivity() {
                     break
                 }
             } else {
+                waitingOff()
                 consecutiveDays = 1
             }
         }
     }
 
     private fun handleFineConfirmation(events: List<List<Any>>, consecutiveDays: Int) {
+        waitingOn()
         val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         val plate = events[0][0].toString()
         val now = LocalDateTime.now()
@@ -553,10 +607,12 @@ class VehicleSearchActivity : AppCompatActivity() {
                     .setValueInputOption("RAW")
                     .execute()
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     Toast.makeText(this@VehicleSearchActivity, "Registro guardado en MultasGeneradas", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     Toast.makeText(this@VehicleSearchActivity, "Error saving to MultasGeneradas: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -609,13 +665,16 @@ class VehicleSearchActivity : AppCompatActivity() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
             fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
                 if (location != null) {
+                    waitingOn()
                     fetchClosestParkingSlots(location.latitude, location.longitude) { closestSlots ->
                         if (closestSlots.isEmpty()) {
                             Toast.makeText(this, "No parking slots found", Toast.LENGTH_SHORT).show()
+                            waitingOff()
                             return@fetchClosestParkingSlots
                         }
                         // Show dialog to select one of the closest slots
                         val slotDescriptions = closestSlots.map { "${it.key} (${String.format("%.2f", it.distance)} m)" }.toTypedArray()
+                        waitingOff()
                         AlertDialog.Builder(this)
                             .setTitle("Select Parking Slot")
                             .setItems(slotDescriptions) { _, which ->
@@ -661,6 +720,7 @@ class VehicleSearchActivity : AppCompatActivity() {
                 }
                 .show()
         } else if (selectedKey in listOf("LugarProhibido", "BloqueoPeatonal")) {
+            waitingOn()
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     val response = sheetsService.spreadsheets().values()
@@ -697,6 +757,7 @@ class VehicleSearchActivity : AppCompatActivity() {
                             .execute()
                     }
                     withContext(Dispatchers.Main) {
+                        waitingOff()
                         if (newCount >= 3) {
                             AlertDialog.Builder(this@VehicleSearchActivity)
                                 .setTitle("Acredor a Multa")
@@ -712,6 +773,7 @@ class VehicleSearchActivity : AppCompatActivity() {
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
+                        waitingOff()
                         Toast.makeText(this@VehicleSearchActivity, "Error handling warning: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -724,6 +786,7 @@ class VehicleSearchActivity : AppCompatActivity() {
         val now = LocalDateTime.now()
         val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         val formattedTime = now.format(timeFormatter)
+        waitingOn()
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val values = listOf(
@@ -741,10 +804,12 @@ class VehicleSearchActivity : AppCompatActivity() {
                     .setValueInputOption("RAW")
                     .execute()
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     Toast.makeText(this@VehicleSearchActivity, "Fine recorded in MultasGeneradas", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     Toast.makeText(this@VehicleSearchActivity, "Error saving to MultasGeneradas: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -871,6 +936,7 @@ class VehicleSearchActivity : AppCompatActivity() {
             )
         )
         val bodyEventos = ValueRange().setValues(valuesEventos)
+        waitingOn()
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -899,6 +965,7 @@ class VehicleSearchActivity : AppCompatActivity() {
                     if (lat == null || lon == null) {
                         // Skip if not found
                         withContext(Dispatchers.Main) {
+                            waitingOff()
                             Toast.makeText(this@VehicleSearchActivity, "Ubicación no encontrada para ${vehicleStreet} ${vehicleNumber}", Toast.LENGTH_SHORT).show()
                         }
                     } else {
@@ -974,15 +1041,17 @@ class VehicleSearchActivity : AppCompatActivity() {
                 }
 
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     events.add(event)
                     eventsRecyclerView.adapter?.notifyDataSetChanged()
-                    photoThumbnail.visibility = android.view.View.GONE // Reset thumbnail after saving
+                    photoThumbnail.visibility = View.GONE // Reset thumbnail after saving
                     photoUri = null // Reset photoUri
                     updatePorRevisarButton()
                     Toast.makeText(this@VehicleSearchActivity, "Event saved", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     Toast.makeText(this@VehicleSearchActivity, "Failed to save event: ${e.message}", Toast.LENGTH_SHORT).show()
                     println("LARANGEL exception saveEventToSheet: ${e}")
                     e.printStackTrace()
@@ -1041,25 +1110,42 @@ class VehicleSearchActivity : AppCompatActivity() {
             handler.postDelayed(checkRunnable, 1000)
             return
         }
+        waitingOn()
         fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
             if (location != null) {
                 val currentLat = location.latitude
                 val currentLon = location.longitude
                 val now = LocalDateTime.now()
                 val toDelete = mutableListOf<PorRevisarRecord>()
+                var nearbyRecord: PorRevisarRecord? = null
                 porRevisarRecords.forEach { record ->
                     val ageHours = Duration.between(record.time, now).toHours()
                     if (ageHours > 20) {
                         toDelete.add(record)
                     } else {
                         val distance = calculateDistance(currentLat, currentLon, record.latitude, record.longitude)
-                        if (distance < 5.0) {
-                            showVerificationAlert(record)
+                        if (distance < 10.0) {
+                            nearbyRecord = record
                         }
                     }
                 }
                 toDelete.forEach { deletePorRevisarRecord(it) }
+                nearbyRecord?.let { record ->
+                    // Show verification alert for nearby record
+                    //showVerificationAlert(record)
+                    // Start PorRevisarListActivity with notification
+                    val intent = Intent(this, PorRevisarListActivity::class.java).apply {
+                        putExtra("street", record.street)
+                        putExtra("number", record.number)
+                        putExtra("notification", "Domicilio por verificar en ${record.street} ${record.number}")
+                    }
+                    startActivity(intent)
+                }
+                handler.postDelayed(checkRunnable, 1000)
             }
+            waitingOff()
+        }.addOnFailureListener {
+            waitingOff()
             handler.postDelayed(checkRunnable, 1000)
         }
     }

@@ -55,6 +55,8 @@ import android.graphics.Bitmap
 import androidx.core.graphics.scale
 import java.io.ByteArrayOutputStream
 import java.time.LocalDate
+import android.widget.ProgressBar
+import android.widget.FrameLayout
 
 class PorRevisarListActivity : AppCompatActivity() {
     private var mySettings: MySettings? = null
@@ -70,9 +72,10 @@ class PorRevisarListActivity : AppCompatActivity() {
     private var domicilioWarningsSheetId: Int = 0
     private val REQUEST_LOCATION_PERMISSION = 101
     private val REQUEST_IMAGE_CAPTURE = 102
-
     private var verificationPhotoUri: Uri? = null
     private var verificationRecord: PorRevisarRecord? = null
+    private var loadingOverlay: View? = null
+    private var progressBar: ProgressBar? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,6 +97,61 @@ class PorRevisarListActivity : AppCompatActivity() {
 
         loadPorRevisar()
         getCurrentLocation()
+
+        // Handle intent from VehicleSearchActivity
+        intent.getStringExtra("notification")?.let { notification ->
+            val street = intent.getStringExtra("street")
+            val number = intent.getStringExtra("number")
+            Toast.makeText(this, notification, Toast.LENGTH_LONG).show()
+            // Optionally highlight the record in the RecyclerView
+            if (street != null && number != null) {
+                porRevisarRecyclerView.post {
+                    val adapter = porRevisarRecyclerView.adapter as? PorRevisarAdapter
+                    val position = porRevisarRecords.indexOfFirst { it.street == street && it.number == number }
+                    if (position != -1) {
+                        porRevisarRecyclerView.scrollToPosition(position)
+                        // Optionally trigger verification for this record
+                        showVerificationAlert(porRevisarRecords[position])
+                    }
+                }
+            }
+        }
+    }
+
+    private fun waitingOn() {
+        if (loadingOverlay == null) {
+            val rootView = findViewById<ViewGroup>(android.R.id.content)
+            loadingOverlay = View(this).apply {
+                setBackgroundColor(Color.parseColor("#80000000")) // Semi-transparent black
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                isClickable = true
+                isFocusable = true
+            }
+
+            progressBar = ProgressBar(this).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    gravity = android.view.Gravity.CENTER
+                }
+            }
+
+            rootView.addView(loadingOverlay)
+            rootView.addView(progressBar)
+        }
+    }
+    private fun waitingOff() {
+        loadingOverlay?.let { overlay ->
+            val rootView = findViewById<ViewGroup>(android.R.id.content)
+            rootView.removeView(overlay)
+            rootView.removeView(progressBar)
+            loadingOverlay = null
+            progressBar = null
+        }
     }
 
     private fun initializeGoogleServices() {
@@ -124,6 +182,7 @@ class PorRevisarListActivity : AppCompatActivity() {
     }
 
     private fun loadPorRevisar() {
+        waitingOn()
         val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -132,6 +191,7 @@ class PorRevisarListActivity : AppCompatActivity() {
                     .execute()
                 val rows = response.getValues() ?: emptyList()
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     porRevisarRecords.clear()
                     val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
                     rows.forEach { row ->
@@ -151,6 +211,7 @@ class PorRevisarListActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     Toast.makeText(this@PorRevisarListActivity, "Error loading PorRevisar: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -173,6 +234,7 @@ class PorRevisarListActivity : AppCompatActivity() {
     }
 
     private fun updateList() {
+        waitingOn()
         val now = LocalDateTime.now()
         val filtered = porRevisarRecords.filter { Duration.between(it.time, now).toHours() <= 20 }
         val sorted = filtered.sortedBy { calculateDistance(currentLat, currentLon, it.latitude, it.longitude) }
@@ -180,8 +242,10 @@ class PorRevisarListActivity : AppCompatActivity() {
         porRevisarRecords.addAll(filtered)
         porRevisarRecyclerView.layoutManager = LinearLayoutManager(this)
         porRevisarRecyclerView.adapter = PorRevisarAdapter(sorted) { record ->
+            waitingOff()
             showVerificationAlert(record)
         }
+        waitingOff()
     }
 
     private fun showVerificationAlert(record: PorRevisarRecord) {
@@ -272,7 +336,7 @@ class PorRevisarListActivity : AppCompatActivity() {
         val date = LocalDate.now()
         val time = LocalDateTime.now()
         val event = EventModal(plate, date, time, localPhotoPath, "CocheraVacia")
-
+        waitingOn()
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -343,6 +407,7 @@ class PorRevisarListActivity : AppCompatActivity() {
                         .execute()
                 }
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     if (newCount > 3) {
                         saveToMultasGeneradas(record, newEvent, formattedDate)
                         shareViaWhatsApp(record, newEvent, formattedDate, formattedTime,newCount)
@@ -354,6 +419,7 @@ class PorRevisarListActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     Toast.makeText(this@PorRevisarListActivity, "Error incrementing warning: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -362,6 +428,7 @@ class PorRevisarListActivity : AppCompatActivity() {
 
     private fun saveToMultasGeneradas(record: PorRevisarRecord, newEvent: EventModal, formattedDate: String) {
         val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+        waitingOn()
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 // Fetch the last event with matching parkingSlotKey
@@ -404,10 +471,12 @@ class PorRevisarListActivity : AppCompatActivity() {
                     .setValueInputOption("RAW")
                     .execute()
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     Toast.makeText(this@PorRevisarListActivity, "Fine recorded in MultasGeneradas", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
+                    waitingOff()
                     Toast.makeText(this@PorRevisarListActivity, "Error saving to MultasGeneradas: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }

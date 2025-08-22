@@ -2,14 +2,18 @@ package com.larangel.rondingpeinn
 
 import CheckPoint
 import MySettings
+import PorRevisarRecord
+import android.Manifest
 //import coil.load
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.IntentFilter.MalformedMimeTypeException
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.location.Location
 import android.net.Uri
 import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
@@ -18,15 +22,19 @@ import android.nfc.tech.Ndef
 import android.os.Build
 import android.os.Bundle
 import android.os.Environment
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
+import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.content.FileProvider
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
@@ -41,7 +49,21 @@ import java.io.File
 import java.io.FileOutputStream
 import java.time.LocalDateTime
 import androidx.core.graphics.createBitmap
+import androidx.lifecycle.lifecycleScope
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.api.client.json.gson.GsonFactory
+import com.google.api.services.sheets.v4.Sheets
+import com.larangel.rondingpeinn.VehicleSearchActivity
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.Duration
+import java.time.format.DateTimeFormatter
+import kotlin.math.sqrt
 
 class StartRondinActivity : AppCompatActivity() {
     private var mySettings: MySettings? = null
@@ -49,8 +71,14 @@ class StartRondinActivity : AppCompatActivity() {
     private var nfcAdapter: NfcAdapter? = null
     private var pendingIntent: PendingIntent? = null
     private var intentFiltersArray: Array<IntentFilter>? = null
-
     private var dataList =  mutableListOf<CheckPoint>()
+
+    private lateinit var sheetsService: Sheets
+    private var porRevisarSheetId: Int = 0
+    private val porRevisarRecords = mutableListOf<PorRevisarRecord>()
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private val handler = Handler(Looper.getMainLooper())
+    private val checkRunnable = Runnable { checkPorRevisarLocations() }
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -119,7 +147,10 @@ class StartRondinActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
-
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        // Initialize Google services (requires Google Sign-In setup)
+        initializeGoogleServices()
+        loadPorRevisar()
 
         resetData()
 
@@ -131,9 +162,115 @@ class StartRondinActivity : AppCompatActivity() {
             insets
         }
     }
+
+    private fun initializeGoogleServices() {
+        val serviceAccountStream = applicationContext.resources.openRawResource(R.raw.json_google_service_account)
+        val credential = GoogleCredential.fromStream(serviceAccountStream)
+            .createScoped(listOf("https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"))
+        sheetsService = Sheets.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance(), credential)
+            .setApplicationName("My First Project")
+            .build()
+
+        // Get sheet ID for PorRevisar
+        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val spreadsheet = sheetsService.spreadsheets().get(yourEventsSpreadSheetID).execute()
+                for (sheet in spreadsheet.sheets) {
+                    when (sheet.properties.title) {
+                        "PorRevisar" -> porRevisarSheetId = sheet.properties.sheetId
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@StartRondinActivity, "Error initializing sheet ID: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+    private fun loadPorRevisar() {
+        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val response = sheetsService.spreadsheets().values()
+                    .get(yourEventsSpreadSheetID, "PorRevisar!A:G")
+                    .execute()
+                val rows = response.getValues() ?: emptyList()
+                withContext(Dispatchers.Main) {
+                    porRevisarRecords.clear()
+                    val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                    rows.forEach { row ->
+                        if (row.size >= 7) {
+                            val street = row[0].toString()
+                            val number = row[1].toString()
+                            val timeStr = row[2].toString()
+                            val slot = row[3].toString()
+                            val validation = row[4].toString()
+                            val lat = row[5].toString().toDoubleOrNull() ?: return@forEach
+                            val lon = row[6].toString().toDoubleOrNull() ?: return@forEach
+                            val time = LocalDateTime.parse(timeStr, timeFormatter)
+                            porRevisarRecords.add(PorRevisarRecord(street, number, time, slot, validation, lat, lon))
+                        }
+                    }
+                    //updatePorRevisarButton()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@StartRondinActivity, "Error loading PorRevisar: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+    private fun checkPorRevisarLocations() {
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            handler.postDelayed(checkRunnable, 1000)
+            return
+        }
+        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+            if (location != null) {
+                val currentLat = location.latitude
+                val currentLon = location.longitude
+                var nearbyRecord: PorRevisarRecord? = null
+                porRevisarRecords.forEach { record ->
+                    val distance = calculateDistance(currentLat, currentLon, record.latitude, record.longitude)
+                    if (distance < 10.0) {
+                        nearbyRecord = record
+                    }
+                }
+                nearbyRecord?.let { record ->
+                    // Show verification alert for nearby record
+                    //showVerificationAlert(record)
+                    // Start PorRevisarListActivity with notification
+                    val intent = Intent(this, PorRevisarListActivity::class.java).apply {
+                        putExtra("street", record.street)
+                        putExtra("number", record.number)
+                        putExtra("notification", "Domicilio por verificar en ${record.street} ${record.number}")
+                    }
+                    startActivity(intent)
+                }
+                handler.postDelayed(checkRunnable, 1000)
+            }
+        }.addOnFailureListener {
+            handler.postDelayed(checkRunnable, 1000)
+        }
+    }
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val R = 6371e3 // Earth's radius in meters
+        val lat1Rad = Math.toRadians(lat1)
+        val lat2Rad = Math.toRadians(lat2)
+        val deltaLat = Math.toRadians(lat2 - lat1)
+        val deltaLon = Math.toRadians(lon2 - lon1)
+        val a = Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+                Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(deltaLon / 2) * Math.sin(deltaLon / 2)
+        val c = 2 * Math.atan2(sqrt(a), sqrt(1 - a))
+        return R * c
+    }
+
+
     public override fun onPause() {
         super.onPause()
         nfcAdapter!!.disableForegroundDispatch(this)
+        handler.removeCallbacks(checkRunnable)
     }
     public override fun onResume() {
         super.onResume()
@@ -153,6 +290,9 @@ class StartRondinActivity : AppCompatActivity() {
         // Setup a tech list for all Ndef tags
         val techListsArray = arrayOf(arrayOf<String>(Ndef::class.java.name))
         nfcAdapter?.enableForegroundDispatch(this, pendingIntent, intentFiltersArray, techListsArray)
+
+        loadPorRevisar()
+        handler.postDelayed(checkRunnable, 1000)
 
     }
     override fun onNewIntent(intent: Intent) {
