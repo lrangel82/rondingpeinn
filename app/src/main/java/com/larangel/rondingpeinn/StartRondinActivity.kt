@@ -94,9 +94,9 @@ class StartRondinActivity : AppCompatActivity() {
         // Check the NFC adapter
         if (nfcAdapter == null && !isRunningOnEmulator()) {
             sendAlertOK("Este dispositivo no tiene NFC.")
-            val intent = Intent(this, MainActivity::class.java)
-            startActivity(intent)
-
+            //val intent = Intent(this, MainActivity::class.java)
+            //startActivity(intent)
+            finish()
         }
         else if (nfcAdapter != null && nfcAdapter?.isEnabled ==false) {
             val builder = AlertDialog.Builder(this@StartRondinActivity)//, R.style.MyAlertDialogStyle)
@@ -125,10 +125,19 @@ class StartRondinActivity : AppCompatActivity() {
         val btncancelar: Button = findViewById<Button>(R.id.btn_cancelar)
         btncancelar.text="Cancelar"
         btncancelar.setOnClickListener{
-            //Reset
-            resetData()
-            val intent = Intent(this, MainActivity::class.java )
-            startActivity(intent)
+            AlertDialog.Builder(this)
+                .setTitle("Confirmar")
+                .setMessage("¿Seguro que quieres cerrar esto eliminara cualquier registro, si deseas solo ir al incio selecciona NO para mantener en memoria?")
+                .setPositiveButton("Sí") { _, _ ->
+                    //Reset
+                    resetData()
+                    finish()
+                }
+                .setNegativeButton("No") { _, _ ->
+                    val intent = Intent(this, MainActivity::class.java )
+                    startActivity(intent)
+                }
+                .show()
         }
 
         val btnFinalizar: Button = findViewById<Button>(R.id.btn_Finalizar)
@@ -139,6 +148,12 @@ class StartRondinActivity : AppCompatActivity() {
 
             btncancelar.text="Limpiar y apagar Scaner"
 
+        }
+
+        val btn_rondin_permisos: Button = findViewById(R.id.btn_rondi_permisos)
+        btn_rondin_permisos.setOnClickListener{
+            val intent = Intent(this, PermisosActivity::class.java )
+            startActivity(intent)
         }
 
         val btn_vehiculos: Button = findViewById(R.id.bnt_vehiculos)
@@ -152,7 +167,9 @@ class StartRondinActivity : AppCompatActivity() {
         initializeGoogleServices()
         loadPorRevisar()
 
-        resetData()
+        //Hay datos guardados?
+        dataList = mySettings?.getListCheckPoint("LIST_CHECKPOINT")!!.toMutableList()
+        reloadData()
 
 
 
@@ -223,7 +240,7 @@ class StartRondinActivity : AppCompatActivity() {
     }
     private fun checkPorRevisarLocations() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            handler.postDelayed(checkRunnable, 1000)
+            handler.postDelayed(checkRunnable, 2000)
             return
         }
         fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
@@ -248,10 +265,10 @@ class StartRondinActivity : AppCompatActivity() {
                     }
                     startActivity(intent)
                 }
-                handler.postDelayed(checkRunnable, 1000)
+                handler.postDelayed(checkRunnable, 2000)
             }
         }.addOnFailureListener {
-            handler.postDelayed(checkRunnable, 1000)
+            handler.postDelayed(checkRunnable, 2000)
         }
     }
     private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
@@ -269,7 +286,7 @@ class StartRondinActivity : AppCompatActivity() {
 
     public override fun onPause() {
         super.onPause()
-        nfcAdapter!!.disableForegroundDispatch(this)
+        if (nfcAdapter != null) nfcAdapter!!.disableForegroundDispatch(this)
         handler.removeCallbacks(checkRunnable)
     }
     public override fun onResume() {
@@ -292,7 +309,7 @@ class StartRondinActivity : AppCompatActivity() {
         nfcAdapter?.enableForegroundDispatch(this, pendingIntent, intentFiltersArray, techListsArray)
 
         loadPorRevisar()
-        handler.postDelayed(checkRunnable, 1000)
+        handler.postDelayed(checkRunnable, 2000)
 
     }
     override fun onNewIntent(intent: Intent) {
@@ -313,9 +330,10 @@ class StartRondinActivity : AppCompatActivity() {
                         // Process the mimeType and data
                         //txtLog.append("a mimeType:" + mimeType + "\n")
                         val checkP = convertTagStringToCheckPoint(data)
+                        checkP.strTime =  LocalDateTime.now().toString()
                         if (setCheckPoint(checkP)) {
                             txtLog.append(
-                                "-----------\nAT:" + LocalDateTime.now().toString() + "\n"
+                                "-----------\nAT:" + checkP.strTime + "\n"
                             )
                             txtLog.append(data +"\n")
                             addPointToMap(checkP)
@@ -358,12 +376,13 @@ class StartRondinActivity : AppCompatActivity() {
             googleMap.clear()
         }
     }
-    fun addPointToMap(point: CheckPoint){
+    fun addPointToMap(point: CheckPoint, numero: Int = 0){
         val mapFragment = supportFragmentManager.findFragmentById(
             R.id.map_fragment
         ) as? SupportMapFragment
         mapFragment?.getMapAsync { googleMap ->
-            val bitmap = createCustomMarker(this, dataList.size.toString())
+            val strTag = if(numero==0)  dataList.size.toString() else numero.toString()
+            val bitmap = createCustomMarker(this, strTag)
             val marker = googleMap.addMarker(
                 MarkerOptions()
                     .flat(true)
@@ -391,6 +410,9 @@ class StartRondinActivity : AppCompatActivity() {
         return bitmap
     }
     fun moveCameraToPoints(){
+        if (dataList.isEmpty()){
+            return
+        }
         val mapFragment = supportFragmentManager.findFragmentById(
             R.id.map_fragment
         ) as? SupportMapFragment
@@ -423,6 +445,7 @@ class StartRondinActivity : AppCompatActivity() {
         }
         //Add new one
         dataList.add(checkP)
+        mySettings?.saveListCheckPoint("LIST_CHECKPOINT",dataList.toList())
         moveCameraToPoints()
         return true
     }
@@ -445,7 +468,21 @@ class StartRondinActivity : AppCompatActivity() {
         val txtLog: TextView = findViewById<TextView>(R.id.txtlog)
         txtLog.text=""
         dataList= mutableListOf()
+        mySettings?.saveListCheckPoint("LIST_CHECKPOINT",dataList.toList())
         clearAllPointFromMap()
+        fillResume()
+    }
+    fun reloadData(){
+        clearAllPointFromMap()
+        val txtLog: TextView = findViewById<EditText>(R.id.txtlog)
+        txtLog.text=""
+        for ((index,point) in dataList.withIndex()){
+            addPointToMap(point,index)
+            txtLog.append(
+                "-----------\nAT:" + point.strTime + "\n"
+            )
+        }
+        moveCameraToPoints()
         fillResume()
     }
 

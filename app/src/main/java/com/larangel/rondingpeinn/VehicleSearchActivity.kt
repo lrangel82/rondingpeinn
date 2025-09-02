@@ -333,15 +333,32 @@ class VehicleSearchActivity : AppCompatActivity() {
     }
 
     private fun pickFromGallery() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-            val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-            if (intent.resolveActivity(packageManager) != null) {
-                startActivityForResult(intent, REQUEST_IMAGE_PICK)
-            } else {
-                Toast.makeText(this, "No gallery app available", Toast.LENGTH_SHORT).show()
-            }
+        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_IMAGES
         } else {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE), REQUEST_STORAGE_PERMISSION)
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q || ActivityCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
+            startGalleryIntent()
+        } else {
+            ActivityCompat.requestPermissions(this, arrayOf(permission), REQUEST_STORAGE_PERMISSION)
+        }
+    }
+    private fun startGalleryIntent() {
+        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
+            type = "image/*"
+            addCategory(Intent.CATEGORY_OPENABLE)
+        }
+        if (intent.resolveActivity(packageManager) != null) {
+            startActivityForResult(intent, REQUEST_IMAGE_PICK)
+        } else {
+            // Fallback to ACTION_PICK if ACTION_GET_CONTENT fails
+            val fallbackIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+            if (fallbackIntent.resolveActivity(packageManager) != null) {
+                startActivityForResult(fallbackIntent, REQUEST_IMAGE_PICK)
+            } else {
+                Toast.makeText(this, "No gallery or file picker app available. Please install one.", Toast.LENGTH_LONG).show()
+            }
         }
     }
 
@@ -410,7 +427,7 @@ class VehicleSearchActivity : AppCompatActivity() {
                     var plate = visionText.textBlocks.joinToString(" ") { it.text }.trim()
                     var re = Regex("[^A-Za-z0-9 ]")
                     plate = re.replace(plate, "") //Eliminar carcteres no deseados
-                    re = Regex("[A-Z]{3}[0-9]{3,4}")
+                    re = Regex("[A-Z]{3}[0-9]{3,4}[A-Z]?")
                     val matchRegult = re.find(plate) //Match Placa
                     plate = if (matchRegult != null) {
                         matchRegult.value
@@ -504,7 +521,7 @@ class VehicleSearchActivity : AppCompatActivity() {
                     .execute()
                 val rows = response.getValues() ?: emptyList()
                 withContext(Dispatchers.Main) {
-                    val plateEvents = rows.filter { it.size >= 5 && it[0].toString().equals(plate, ignoreCase = true) }
+                    val plateEvents = rows.filter { it.size >= 5 && it[0].toString().equals(plate, ignoreCase = true) }.reversed()
                     plateEvents.forEach { row ->
                         val date = LocalDate.parse(row[1].toString())
                         val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
@@ -538,6 +555,7 @@ class VehicleSearchActivity : AppCompatActivity() {
     }
 
     private fun checkForFine(events: List<List<Any>>) {
+        if (events.isEmpty()) return
         waitingOn()
         val dateFormat = SimpleDateFormat("yyyy-MM-dd")
         val eventDates = events.mapNotNull { row ->
@@ -569,6 +587,7 @@ class VehicleSearchActivity : AppCompatActivity() {
                 consecutiveDays = 1
             }
         }
+        waitingOff()
     }
 
     private fun handleFineConfirmation(events: List<List<Any>>, consecutiveDays: Int) {
@@ -689,6 +708,7 @@ class VehicleSearchActivity : AppCompatActivity() {
                                 val time = LocalDateTime.now()
                                 val event = EventModal(plate, date, time, localPhotoPath, selectedKey)
                                 saveEventToSheet(event)
+                                loadEvents(plate)
                                 if (selectedKey in listOf("LugarProhibido", "BloqueoPeatonal", "ObstruyeCochera")) {
                                     handleSpecialKey(selectedKey, plate, localPhotoPath)
                                 }
@@ -896,7 +916,10 @@ class VehicleSearchActivity : AppCompatActivity() {
         try {
             val inputStream = contentResolver.openInputStream(uri)
             val bitmap = BitmapFactory.decodeStream(inputStream)
-            val reducedBitmap = bitmap.scale(300, 200) // Reduced size
+            val aspectRatio = bitmap.height.toFloat() / bitmap.width.toFloat()
+            val targetWidth = 400
+            val targetHeight = (targetWidth * aspectRatio).toInt()
+            val reducedBitmap = bitmap.scale(targetHeight,targetWidth) // Reduced size
             val outputStream = ByteArrayOutputStream()
             reducedBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
             val byteArray = outputStream.toByteArray()
@@ -1042,7 +1065,7 @@ class VehicleSearchActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     waitingOff()
-                    events.add(event)
+                    events.add(0,event)
                     eventsRecyclerView.adapter?.notifyDataSetChanged()
                     photoThumbnail.visibility = View.GONE // Reset thumbnail after saving
                     photoUri = null // Reset photoUri
@@ -1097,7 +1120,7 @@ class VehicleSearchActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         loadPorRevisar()
-        handler.postDelayed(checkRunnable, 1000)
+        handler.postDelayed(checkRunnable, 2000)
     }
 
     override fun onPause() {
@@ -1107,10 +1130,10 @@ class VehicleSearchActivity : AppCompatActivity() {
 
     private fun checkPorRevisarLocations() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            handler.postDelayed(checkRunnable, 1000)
+            handler.postDelayed(checkRunnable, 2000)
             return
         }
-        waitingOn()
+
         fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
             if (location != null) {
                 val currentLat = location.latitude
@@ -1141,12 +1164,12 @@ class VehicleSearchActivity : AppCompatActivity() {
                     }
                     startActivity(intent)
                 }
-                handler.postDelayed(checkRunnable, 1000)
+                handler.postDelayed(checkRunnable, 2000)
             }
-            waitingOff()
+
         }.addOnFailureListener {
-            waitingOff()
-            handler.postDelayed(checkRunnable, 1000)
+
+            handler.postDelayed(checkRunnable, 2000)
         }
     }
 
@@ -1275,7 +1298,27 @@ class VehicleSearchActivity : AppCompatActivity() {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     pickFromGallery()
                 } else {
-                    Toast.makeText(this, "Storage permission denied", Toast.LENGTH_SHORT).show()
+                    println("Storage permission denied")
+                    val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        Manifest.permission.READ_MEDIA_IMAGES
+                    } else {
+                        Manifest.permission.READ_EXTERNAL_STORAGE
+                    }
+                    if (!ActivityCompat.shouldShowRequestPermissionRationale(this, permission)) {
+                        println("Storage permission permanently denied")
+                        AlertDialog.Builder(this)
+                            .setTitle("Permission Required")
+                            .setMessage("Storage permission is needed to select photos from the gallery. Please enable it in Settings.")
+                            .setPositiveButton("Go to Settings") { _, _ ->
+                                val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                intent.data = Uri.parse("package:$packageName")
+                                startActivity(intent)
+                            }
+                            .setNegativeButton("Cancel") { _, _ -> }
+                            .show()
+                    } else {
+                        Toast.makeText(this, "Storage permission denied. Cannot access gallery.", Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }

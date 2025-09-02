@@ -4,8 +4,10 @@ import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.larangel.rondingpeinn.R
+import kotlinx.serialization.Serializable
 
-data class CheckPoint(val identificador: String, val latitud: Double, val longitud: Double, var escanedo: Boolean)
+@Serializable
+data class CheckPoint(val identificador: String, val latitud: Double, val longitud: Double, var escanedo: Boolean, var strTime: String = "")
 
 class CheckPointAdapter(
     private val dataList: List<CheckPoint>,

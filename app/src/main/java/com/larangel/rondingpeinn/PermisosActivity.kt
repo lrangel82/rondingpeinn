@@ -65,8 +65,9 @@ class PermisosActivity : AppCompatActivity() {
         }
 
         btnCerrar.setOnClickListener{
-            val intent: Intent = Intent(this, MainActivity::class.java )
-            startActivity(intent)
+//            val intent: Intent = Intent(this, MainActivity::class.java )
+//            startActivity(intent)
+            finish()
         }
 
         //First INIT LOADING DATA....

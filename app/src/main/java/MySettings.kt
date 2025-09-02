@@ -1,11 +1,24 @@
+import CheckPoint
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 
 class MySettings(context: Context) {
 
     private val sharedPreferences: SharedPreferences =
         context.getSharedPreferences("larangel.rondingpeinn", Context.MODE_PRIVATE)
+
+    fun saveListCheckPoint(key: String, ListaCheckP: List<CheckPoint>){
+        val jsonString = Json.encodeToString(ListaCheckP)
+        sharedPreferences.edit() { putString(key, jsonString) }
+    }
+    fun getListCheckPoint(key: String): List<CheckPoint> {
+        val jsonString=sharedPreferences.getString(key, "[]") ?: "[]"
+        val objectList = Json.decodeFromString<List<CheckPoint>>(jsonString)
+        return objectList
+    }
 
     fun saveString(key: String, value: String) {
         sharedPreferences.edit() { putString(key, value) }
