@@ -21,19 +21,18 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:orientation="vertical"
         android:color="@color/white"
+        android:orientation="vertical"
         android:padding="16dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Permisos"
-            android:textSize="20sp"
-            android:textColor="@color/black"
-            android:textStyle="bold"
             android:layout_gravity="center_horizontal"
-            />
+            android:text="Permisos"
+            android:textColor="@color/black"
+            android:textSize="20sp"
+            android:textStyle="bold" />
 
         <Button
             android:id="@+id/fetchButton"
@@ -46,9 +45,9 @@
             android:id="@+id/sheetRecyclerView"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
             android:layout_marginTop="16dp"
-            tools:listitem="@layout/item_permisos"/>
+            android:layout_weight="1"
+            tools:listitem="@layout/item_permisos" />
 
         <Button
             android:id="@+id/btnCerrarPermisos"
