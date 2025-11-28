@@ -99,7 +99,9 @@ class VehicleSearchActivity : AppCompatActivity() {
     // Variables de cache y tiempo
     private var platesCache: List<List<Any>>? = null
     private var parkingSlotsCache: List<List<Any>>? = null
+    private var autosEventosCache: MutableList<List<Any>>? = null
     private var platesCacheTimestamp: Long = 0
+    private var autosEventosCacheTimestamp: Long = 0
     private val CACHE_DURATION_MS = 60 * 60 * 1000 // 1 hora
 
 
@@ -164,6 +166,7 @@ class VehicleSearchActivity : AppCompatActivity() {
         cleanOldThumbnails()
 
         loadPorRevisar()
+        refreshContadorEventos()
         updatePorRevisarButton()
     }
 
@@ -572,28 +575,121 @@ class VehicleSearchActivity : AppCompatActivity() {
                     } else {
                         resultText.append("\nNo se encontro la placa en ningun registro: $plate")
                     }
-                    loadEvents(plate)
+                    showEventsPlate(plate)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     waitingOff()
                     resultText.append("\nError searching plate: ${e.message}")
-                    loadEvents(plate)
+                    showEventsPlate(plate)
                 }
             }
         }
     }
 
-    private fun loadEvents(plate: String) {
+
+    //AutoEventos
+    private fun getAutosEventos(): List<List<Any>>{
+        val now = System.currentTimeMillis()
+        // 1. Revisa caché de memoria RAM
+        val isMemoryFresh = autosEventosCache != null && now - autosEventosCacheTimestamp <= CACHE_DURATION_MS
+        if (isMemoryFresh) return autosEventosCache!!
+
+        // 2. Si RAM no, revisa persisted cache (MySettings)
+        val cacheList = mySettings?.getList("EVENTOS_CACHE")!!.toMutableList()
+        val cacheTimestamp = mySettings?.getLong("EVENTOS_CACHE_TIMESTAMP", 0L) ?: 0L
+        val isDiskFresh = cacheList?.isEmpty() == false && now - cacheTimestamp <= CACHE_DURATION_MS
+
+        if (isDiskFresh) {
+            autosEventosCache = cacheList as MutableList<List<Any>>
+            autosEventosCacheTimestamp = cacheTimestamp
+            return autosEventosCache!!
+        }
+
+        // 3. Si hace falta actualizar y hay Internet
+        if (isNetworkAvailable()) {
+            try {
+                //AUTOS EVENTOS
+                val allRows = mutableListOf<List<Any>>()
+                val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+                val response = sheetsService.spreadsheets().values()
+                    .get(yourEventsSpreadSheetID, "AutosEventos!A:E") // placa, date, time, localPhotoPath, ParkingSlotKey
+                    .execute()
+                val rows = response.getValues() ?: emptyList()
+                val date15daysAgo = LocalDate.now().minusDays(15)
+                val solo15dias= rows.filter { it.size >= 5 && it[1].toString().length==10 && LocalDate.parse(it[1].toString()) >= date15daysAgo }.reversed()
+                allRows.addAll(solo15dias)
+
+
+                // Cachear y timestamp
+                mySettings?.saveList("EVENTOS_CACHE", allRows as List<List<String>>)
+                mySettings?.saveLong("EVENTOS_CACHE_TIMESTAMP", now)
+                autosEventosCache = allRows
+                autosEventosCacheTimestamp = now
+                return allRows
+            } catch (e: Exception) {
+                // Si falla recarga, pero hay cache local reciente, úsala
+                if (autosEventosCache != null) return autosEventosCache!!
+                throw e
+            }
+        } else {
+            // Sin red, usar cache vieja si existe
+            if (autosEventosCache != null) return autosEventosCache!!
+            // Si no hay nada, regresa vacío
+            return emptyList()
+        }
+    }
+    private fun getAutosEventos_6horas(): List<List<Any>>{
+        val rows = getAutosEventos()
+        val date6HoursAgo = LocalDateTime.now().minusHours(6)
+        val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val plateEvents = rows.filter { LocalDateTime.parse(it[2].toString(),timeFormatter) >= date6HoursAgo }.reversed()
+        return plateEvents ?: emptyList()
+    }
+    private fun _addEventCache(row: List<String>){
+        autosEventosCache?.add(row)
+        mySettings?.saveList("EVENTOS_CACHE", autosEventosCache as List<List<String>>)
+        mySettings?.saveLong("EVENTOS_CACHE_TIMESTAMP", System.currentTimeMillis())
+    }
+    private fun refreshContadorEventos(){
         waitingOn()
-        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val rows = getAutosEventos()
+                withContext(Dispatchers.Main) {
+                    //Solo ULTIMAS 6 HORAS
+                    val plateEvents = getAutosEventos_6horas()
+                    val parkSlots = getParkingSlots()
+
+                    val tFaltantes: TextView = findViewById<TextView>(R.id.vehicleText_PSFaltantes)
+                    val tCompletados: TextView = findViewById<TextView>(R.id.vehicleText_PSCompletos)
+
+                    tFaltantes.text = (parkSlots.size - plateEvents.size).toString()
+                    tCompletados.text= plateEvents.size.toString()
+
+                    waitingOff()
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    waitingOff()
+                    println("LARANGEL exception refreshContadorEventos error:${e}")
+                    e.printStackTrace()
+                    Toast.makeText(
+                        this@VehicleSearchActivity,
+                        "Error refreshContadorEventos: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+    }
+
+    private fun showEventsPlate(plate: String) {
+        waitingOn()
         events.clear()
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val response = sheetsService.spreadsheets().values()
-                    .get(yourEventsSpreadSheetID, "AutosEventos!A:E") // Plate, Date, Time, Photo URL, Parking Slot Key
-                    .execute()
-                val rows = response.getValues() ?: emptyList()
+                val rows = getAutosEventos()
                 withContext(Dispatchers.Main) {
                     val plateEvents = rows.filter { it.size >= 5 && it[0].toString().equals(plate, ignoreCase = true) }.reversed()
                     plateEvents.forEach { row ->
@@ -620,7 +716,7 @@ class VehicleSearchActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     waitingOff()
-                    println("LARANGEL exception loadEvents plate:${plate} error:${e}")
+                    println("LARANGEL exception showEventsPlate plate:${plate} error:${e}")
                     e.printStackTrace()
                     Toast.makeText(this@VehicleSearchActivity, "Error loading events: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
@@ -745,16 +841,41 @@ class VehicleSearchActivity : AppCompatActivity() {
     }
 
     private fun saveNewEvent() {
-        val plate = plateInput.text.toString().trim()
+        var plate = plateInput.text.toString().trim()
+        if (plate.isEmpty()) {
+            showEmptyPlateDialog { finalPlate ->
+                if (finalPlate.isNullOrEmpty()) {
+                    Toast.makeText(this, "Ingrese la Placa primero", Toast.LENGTH_SHORT).show()
+                    return@showEmptyPlateDialog
+                }
+                continueSaveNewEvent(finalPlate)
+            }
+        } else {
+            continueSaveNewEvent(plate)
+        }
+    }
+    private fun showEmptyPlateDialog(callback: (String?) -> Unit) {
+        AlertDialog.Builder(this)
+            .setTitle("No hay placa")
+            .setMessage("El lugar está VACÍO sin carro?, ¿es correcto?")
+            .setPositiveButton("Sí") { dialog, which ->
+                callback("VACIO")
+            }
+            .setNegativeButton("No") { dialog, which ->
+                Toast.makeText(this, "Ingrese la PLACA por favor", Toast.LENGTH_SHORT).show()
+                callback(null)
+            }
+            .setOnCancelListener {
+                callback(null)
+            }
+            .show()
+    }
 
+    // Esta función contiene el salvar con el valor de placa
+    private fun continueSaveNewEvent(plate: String) {
         if (photoUri == null) {
             Toast.makeText(this, "Debe tomar una FOTO", Toast.LENGTH_SHORT).show()
             captureImage()
-            //return
-        }
-        if (plate.isEmpty()) {
-            Toast.makeText(this, "Ingrese la Placa primero", Toast.LENGTH_SHORT).show()
-            return
         }
 
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
@@ -767,14 +888,12 @@ class VehicleSearchActivity : AppCompatActivity() {
                             waitingOff()
                             return@fetchClosestParkingSlots
                         }
-                        // Show dialog to select one of the closest slots
                         val slotDescriptions = closestSlots.map { "${it.key} (${String.format("%.2f", it.distance)} m)" }.toTypedArray()
                         waitingOff()
                         AlertDialog.Builder(this)
                             .setTitle("Selecciona LUGAR de Estacionamiento")
                             .setItems(slotDescriptions) { _, which ->
                                 val selectedKey = closestSlots[which].key
-                                // Proceed with saving the event using the selected key
                                 val localPhotoPath = savePhotoLocally(photoUri)
                                 if (localPhotoPath == null) {
                                     Toast.makeText(this, "Failed to save photo locally", Toast.LENGTH_SHORT).show()
@@ -784,7 +903,7 @@ class VehicleSearchActivity : AppCompatActivity() {
                                 val time = LocalDateTime.now()
                                 val event = EventModal(plate, date, time, localPhotoPath, selectedKey)
                                 saveEventToSheet(event)
-                                loadEvents(plate)
+                                showEventsPlate(plate)
                                 if (selectedKey in listOf("LugarProhibido", "BloqueoPeatonal", "ObstruyeCochera")) {
                                     handleSpecialKey(selectedKey, plate, localPhotoPath)
                                 }
@@ -792,7 +911,7 @@ class VehicleSearchActivity : AppCompatActivity() {
                             .setNegativeButton("Cancel") { _, _ -> }
                             .show()
                     }
-                }else {
+                } else {
                     Toast.makeText(this, "Unable to get location", Toast.LENGTH_SHORT).show()
                 }
             }
@@ -940,41 +1059,50 @@ class VehicleSearchActivity : AppCompatActivity() {
         }
     }
 
+    private fun getParkingSlots(): List<List<Any>>{
+        if (parkingSlotsCache == null) { //Si no hay cache buscar en los settings
+            // 1. Si RAM no, revisa persisted cache (MySettings)
+            val cacheList = mySettings?.getList("PARKINGSLOTS_CACHE")!!.toMutableList()
+            if (cacheList?.isEmpty() == false)
+                parkingSlotsCache = cacheList
+
+            // 2. Sin mySettings no, descargar de red
+            if (parkingSlotsCache == null) {
+                val yourEventsSpreadSheetID =  mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+                val response = sheetsService.spreadsheets().values()
+                    .get(
+                        yourEventsSpreadSheetID,
+                        "ParkingSlots!A:C"
+                    ) // Latitude, Longitude, Key
+                    .execute()
+                val allRows = response.getValues() ?: emptyList()
+                mySettings?.saveList("PARKINGSLOTS_CACHE", allRows as List<List<String>>)
+                parkingSlotsCache = allRows
+            }
+        }
+        return parkingSlotsCache ?: emptyList()
+    }
     private fun fetchClosestParkingSlots(latitude: Double, longitude: Double, callback: (List<ParkingSlot>) -> Unit) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                if (parkingSlotsCache == null) { //Si no hay cache buscar en los settings
-                    // 1. Si RAM no, revisa persisted cache (MySettings)
-                    val cacheList = mySettings?.getList("PARKINGSLOTS_CACHE")!!.toMutableList()
-                    if (cacheList?.isEmpty() == false)
-                        parkingSlotsCache = cacheList
 
-                    // 2. Sin mySettings no, descargar de red
-                    if (parkingSlotsCache == null) {
-                        val yourEventsSpreadSheetID =  mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                        val response = sheetsService.spreadsheets().values()
-                            .get(
-                                yourEventsSpreadSheetID,
-                                "ParkingSlots!A:C"
-                            ) // Latitude, Longitude, Key
-                            .execute()
-                        val allRows = response.getValues() ?: emptyList()
-                        mySettings?.saveList("PARKINGSLOTS_CACHE", allRows as List<List<String>>)
-                        parkingSlotsCache = allRows
-                    }
-                }
-
+                val parkSlots = getParkingSlots()
+                val plateEvents6Horas = getAutosEventos_6horas()
                 val slots = mutableListOf<ParkingSlot>()
-                if (parkingSlotsCache != null) {
-                    for (row in parkingSlotsCache) {
-                        val lat = row[0].toString().toDoubleOrNull() ?: continue
-                        val lon = row[1].toString().toDoubleOrNull() ?: continue
-                        val key = row[2].toString()
-                        val dist = calculateDistance(latitude, longitude, lat, lon)
-                        slots.add(ParkingSlot(lat, lon, key, dist))
+                for (row in parkSlots) {
+                    val lat = row[0].toString().toDoubleOrNull() ?: continue
+                    val lon = row[1].toString().toDoubleOrNull() ?: continue
+                    val key = row[2].toString()
+                    val dist = calculateDistance(latitude, longitude, lat, lon)
+                    slots.add(ParkingSlot(lat, lon, key, dist))
+                }
+
+                //LOS 8 MAS CERCANOS filtrando los ya capturados
+                val closest = slots.sortedBy { it.distance }.take(8).filter { slot ->
+                    plateEvents6Horas.none { row ->
+                        row[4].toString() == slot.key
                     }
                 }
-                val closest = slots.sortedBy { it.distance }.take(8)
                 val additionalSlots = listOf(
                     ParkingSlot(latitude, longitude, "LugarProhibido", 0.0),
                     ParkingSlot(latitude, longitude, "ObstruyeCochera", 0.0),
@@ -1044,15 +1172,15 @@ class VehicleSearchActivity : AppCompatActivity() {
 
         // Create the values list with formatted strings for AutosEventos
         val valuesEventos = listOf(
-            listOf(
                 event.plate,
                 formattedDate,
                 formattedTime,
                 event.localPhotoPath,
                 event.parkingSlotKey
-            )
         )
-        val bodyEventos = ValueRange().setValues(valuesEventos)
+        val bodyEventos = ValueRange().setValues(listOf(valuesEventos))
+        _addEventCache(valuesEventos)
+        refreshContadorEventos()
         waitingOn()
 
         lifecycleScope.launch(Dispatchers.IO) {
@@ -1164,6 +1292,7 @@ class VehicleSearchActivity : AppCompatActivity() {
                     photoThumbnail.visibility = View.GONE // Reset thumbnail after saving
                     photoUri = null // Reset photoUri
                     updatePorRevisarButton()
+                    refreshContadorEventos()
                     Toast.makeText(this@VehicleSearchActivity, "Event saved", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {

@@ -66,5 +66,59 @@
             android:layout_height="wrap_content"
             android:text="Salvar Placa en CAJON VISITA" />
 
+        <TableLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <TextView
+                    android:id="@+id/vehicletextView1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Cajones Faltantes"
+                    android:textAlignment="center" />
+
+                <TextView
+                    android:id="@+id/vehicletextView2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Cajones Completados"
+                    android:textAlignment="center" />
+            </TableRow>
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <TextView
+                    android:id="@+id/vehicleText_PSFaltantes"
+                    android:layout_width="203dp"
+                    android:layout_height="wrap_content"
+                    android:ems="10"
+                    android:fontFamily="sans-serif-black"
+                    android:text="34"
+                    android:textAlignment="center"
+                    android:textColor="#E91E63"
+                    android:textSize="48sp" />
+
+                <TextView
+                    android:id="@+id/vehicleText_PSCompletos"
+                    android:layout_width="203dp"
+                    android:layout_height="wrap_content"
+                    android:ems="10"
+                    android:fontFamily="sans-serif-black"
+                    android:text="34"
+                    android:textAlignment="center"
+                    android:textColor="#4CAF50"
+                    android:textColorHint="#009688"
+                    android:textSize="48sp" />
+            </TableRow>
+
+        </TableLayout>
+
+
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
