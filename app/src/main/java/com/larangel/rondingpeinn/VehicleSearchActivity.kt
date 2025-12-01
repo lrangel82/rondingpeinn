@@ -1,6 +1,7 @@
 package com.larangel.rondingpeinn
 
 import MySettings
+import DataRawRondin
 import EventAdapter
 import EventModal
 import PorRevisarRecord
@@ -69,6 +70,7 @@ import android.widget.FrameLayout
 
 class VehicleSearchActivity : AppCompatActivity() {
     private var mySettings: MySettings? = null
+    private var dataRaw: DataRawRondin? = null
     private lateinit var plateInput: EditText
     private lateinit var searchButton: Button
     private lateinit var cameraButton: ImageButton
@@ -96,14 +98,6 @@ class VehicleSearchActivity : AppCompatActivity() {
     private val checkRunnable = Runnable { checkPorRevisarLocations() }
     private var loadingOverlay: View? = null
     private var progressBar: ProgressBar? = null
-    // Variables de cache y tiempo
-    private var platesCache: List<List<Any>>? = null
-    private var parkingSlotsCache: List<List<Any>>? = null
-    private var autosEventosCache: MutableList<List<Any>>? = null
-    private var platesCacheTimestamp: Long = 0
-    private var autosEventosCacheTimestamp: Long = 0
-    private val CACHE_DURATION_MS = 60 * 60 * 1000 // 1 hora
-
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -121,6 +115,7 @@ class VehicleSearchActivity : AppCompatActivity() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         mySettings = MySettings(this)
+        dataRaw = DataRawRondin(this)
 
         // Initialize Google services (requires Google Sign-In setup)
         initializeGoogleServices()
@@ -452,67 +447,6 @@ class VehicleSearchActivity : AppCompatActivity() {
         }
     }
 
-    // Función nueva: cargar y actualizar datos si es necesario
-    private suspend fun getCachedVehiclesData(): List<List<Any>> {
-        val now = System.currentTimeMillis()
-        // 1. Revisa caché de memoria RAM
-        val isMemoryFresh = platesCache != null && now - platesCacheTimestamp <= CACHE_DURATION_MS
-        if (isMemoryFresh) return platesCache!!
-
-        // 2. Si RAM no, revisa persisted cache (MySettings)
-        val cacheList = mySettings?.getList("VEHICLE_CACHE")!!.toMutableList()
-        val cacheTimestamp = mySettings?.getLong("VEHICLE_CACHE_TIMESTAMP", 0L) ?: 0L
-        val isDiskFresh = cacheList?.isEmpty() == false && now - cacheTimestamp <= CACHE_DURATION_MS
-
-        if (isDiskFresh) {
-            platesCache = cacheList
-            platesCacheTimestamp = cacheTimestamp
-            return platesCache!!
-        }
-
-        // 3. Si hace falta actualizar y hay Internet
-        if (isNetworkAvailable()) {
-            try {
-                //Vehiculos VISITANTES
-                val yourSpreadSheetID = mySettings?.getString("REGISTRO_CARROS_SPREADSHEET_ID", "")
-                val sheets = listOf("ingreso", "salida")
-                val allRows = mutableListOf<List<Any>>()
-                for (sheet in sheets) {
-                    val response = sheetsService.spreadsheets().values()
-                        .get(yourSpreadSheetID, "$sheet!C:E") //fechaCreado fechaIngreso placa calle numero tipo conductor
-                        .execute()
-                    val rows = response.getValues() ?: emptyList()
-                    allRows.addAll(rows)
-                }
-
-                //Vehiculos RESIDENTES
-                val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                vehicleSource = "AutosRegistrados"
-                val response = sheetsService.spreadsheets().values()
-                    .get(yourEventsSpreadSheetID, "AutosRegistrados!A:C") // placa, calle, numero, marca, modelo, color
-                    .execute()
-                val rows = response.getValues() ?: emptyList()
-                allRows.addAll(rows)
-
-
-                // Cachear y timestamp
-                mySettings?.saveList("VEHICLE_CACHE", allRows as List<List<String>>)
-                mySettings?.saveLong("VEHICLE_CACHE_TIMESTAMP", now)
-                platesCache = allRows
-                platesCacheTimestamp = now
-                return allRows
-            } catch (e: Exception) {
-                // Si falla recarga, pero hay cache local reciente, úsala
-                if (platesCache != null) return platesCache!!
-                throw e
-            }
-        } else {
-            // Sin red, usar cache vieja si existe
-            if (platesCache != null) return platesCache!!
-            // Si no hay nada, regresa vacío
-            return emptyList()
-        }
-    }
     // Utilidad simple para detectar red
     fun isNetworkAvailable(): Boolean {
         val cm = getSystemService(CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
@@ -539,20 +473,23 @@ class VehicleSearchActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val vehicles = getCachedVehiclesData()
+                //val vehicles = getCachedVehiclesData()
+                val vehicles = dataRaw?.getCachedVehiclesData(sheetsService,isNetworkAvailable())
                 var match: List<Any>? = null
 
                 // 1. Buscar coincidencia exacta
-                for (row in vehicles) {
-                    if (row.size >= 3 && row[0].toString().equals(plate, ignoreCase = true)) {
-                        match = row
-                        break
+                if (vehicles != null) {
+                    for (row in vehicles) {
+                        if (row.size >= 3 && row[0].toString().equals(plate, ignoreCase = true)) {
+                            match = row
+                            break
+                        }
                     }
                 }
 
                 // 2. Si no hay coincidencia exacta, buscar similar
                 var similarMatches: MutableList<List<Any>> = mutableListOf()
-                if (match == null) {
+                if (match == null && vehicles != null) {
                     // Búsqueda tolerante
                     for (row in vehicles) {
                         if (row.size >= 3 && oneCharDifference(row[0].toString().toUpperCase(), plate.toUpperCase())) {
@@ -589,83 +526,29 @@ class VehicleSearchActivity : AppCompatActivity() {
 
 
     //AutoEventos
-    private fun getAutosEventos(): List<List<Any>>{
-        val now = System.currentTimeMillis()
-        // 1. Revisa caché de memoria RAM
-        val isMemoryFresh = autosEventosCache != null && now - autosEventosCacheTimestamp <= CACHE_DURATION_MS
-        if (isMemoryFresh) return autosEventosCache!!
+//    private fun getAutosEventos_6horas(): List<List<Any>>{
+//        val rows = dataRaw?.getAutosEventos(sheetsService,isNetworkAvailable())
+//        val date6HoursAgo = LocalDateTime.now().minusHours(6)
+//        val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+//        val plateEvents = rows?.filter { LocalDateTime.parse(it[2].toString(),timeFormatter) >= date6HoursAgo }
+//            ?.reversed()
+//        return plateEvents ?: emptyList()
+//    }
 
-        // 2. Si RAM no, revisa persisted cache (MySettings)
-        val cacheList = mySettings?.getList("EVENTOS_CACHE")!!.toMutableList()
-        val cacheTimestamp = mySettings?.getLong("EVENTOS_CACHE_TIMESTAMP", 0L) ?: 0L
-        val isDiskFresh = cacheList?.isEmpty() == false && now - cacheTimestamp <= CACHE_DURATION_MS
-
-        if (isDiskFresh) {
-            autosEventosCache = cacheList as MutableList<List<Any>>
-            autosEventosCacheTimestamp = cacheTimestamp
-            return autosEventosCache!!
-        }
-
-        // 3. Si hace falta actualizar y hay Internet
-        if (isNetworkAvailable()) {
-            try {
-                //AUTOS EVENTOS
-                val allRows = mutableListOf<List<Any>>()
-                val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                val response = sheetsService.spreadsheets().values()
-                    .get(yourEventsSpreadSheetID, "AutosEventos!A:E") // placa, date, time, localPhotoPath, ParkingSlotKey
-                    .execute()
-                val rows = response.getValues() ?: emptyList()
-                val date15daysAgo = LocalDate.now().minusDays(15)
-                val solo15dias= rows.filter { it.size >= 5 && it[1].toString().length==10 && LocalDate.parse(it[1].toString()) >= date15daysAgo }.reversed()
-                allRows.addAll(solo15dias)
-
-
-                // Cachear y timestamp
-                mySettings?.saveList("EVENTOS_CACHE", allRows as List<List<String>>)
-                mySettings?.saveLong("EVENTOS_CACHE_TIMESTAMP", now)
-                autosEventosCache = allRows
-                autosEventosCacheTimestamp = now
-                return allRows
-            } catch (e: Exception) {
-                // Si falla recarga, pero hay cache local reciente, úsala
-                if (autosEventosCache != null) return autosEventosCache!!
-                throw e
-            }
-        } else {
-            // Sin red, usar cache vieja si existe
-            if (autosEventosCache != null) return autosEventosCache!!
-            // Si no hay nada, regresa vacío
-            return emptyList()
-        }
-    }
-    private fun getAutosEventos_6horas(): List<List<Any>>{
-        val rows = getAutosEventos()
-        val date6HoursAgo = LocalDateTime.now().minusHours(6)
-        val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-        val plateEvents = rows.filter { LocalDateTime.parse(it[2].toString(),timeFormatter) >= date6HoursAgo }.reversed()
-        return plateEvents ?: emptyList()
-    }
-    private fun _addEventCache(row: List<String>){
-        autosEventosCache?.add(row)
-        mySettings?.saveList("EVENTOS_CACHE", autosEventosCache as List<List<String>>)
-        mySettings?.saveLong("EVENTOS_CACHE_TIMESTAMP", System.currentTimeMillis())
-    }
     private fun refreshContadorEventos(){
         waitingOn()
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val rows = getAutosEventos()
                 withContext(Dispatchers.Main) {
                     //Solo ULTIMAS 6 HORAS
-                    val plateEvents = getAutosEventos_6horas()
-                    val parkSlots = getParkingSlots()
+                    val plateEvents = dataRaw?.getAutosEventos_6horas(sheetsService,isNetworkAvailable())
+                    val parkSlots = dataRaw?.getParkingSlots(sheetsService)
 
                     val tFaltantes: TextView = findViewById<TextView>(R.id.vehicleText_PSFaltantes)
                     val tCompletados: TextView = findViewById<TextView>(R.id.vehicleText_PSCompletos)
 
-                    tFaltantes.text = (parkSlots.size - plateEvents.size).toString()
-                    tCompletados.text= plateEvents.size.toString()
+                    tFaltantes.text = (parkSlots?.size?.minus(plateEvents?.size ?: 0)).toString()
+                    tCompletados.text= plateEvents?.size.toString()
 
                     waitingOff()
                 }
@@ -689,10 +572,12 @@ class VehicleSearchActivity : AppCompatActivity() {
         events.clear()
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val rows = getAutosEventos()
+                val rows = dataRaw?.getAutosEventos(sheetsService,isNetworkAvailable())
                 withContext(Dispatchers.Main) {
-                    val plateEvents = rows.filter { it.size >= 5 && it[0].toString().equals(plate, ignoreCase = true) }.reversed()
-                    plateEvents.forEach { row ->
+                    val plateEvents =
+                        rows?.filter { it.size >= 5 && it[0].toString().equals(plate, ignoreCase = true) }
+                            ?.reversed()
+                    plateEvents?.forEach { row ->
                         val date = LocalDate.parse(row[1].toString())
                         val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
                         val time = LocalDateTime.parse(row[2].toString(), timeFormatter)
@@ -711,7 +596,8 @@ class VehicleSearchActivity : AppCompatActivity() {
                     waitingOff()
                     eventsRecyclerView.adapter?.notifyDataSetChanged()
                     resultText.append("\nTotal Events: ${events.size}")
-                    checkForFine(plateEvents)
+                    if (plateEvents != null)
+                        checkForFine(plateEvents)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -1059,49 +945,52 @@ class VehicleSearchActivity : AppCompatActivity() {
         }
     }
 
-    private fun getParkingSlots(): List<List<Any>>{
-        if (parkingSlotsCache == null) { //Si no hay cache buscar en los settings
-            // 1. Si RAM no, revisa persisted cache (MySettings)
-            val cacheList = mySettings?.getList("PARKINGSLOTS_CACHE")!!.toMutableList()
-            if (cacheList?.isEmpty() == false)
-                parkingSlotsCache = cacheList
-
-            // 2. Sin mySettings no, descargar de red
-            if (parkingSlotsCache == null) {
-                val yourEventsSpreadSheetID =  mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                val response = sheetsService.spreadsheets().values()
-                    .get(
-                        yourEventsSpreadSheetID,
-                        "ParkingSlots!A:C"
-                    ) // Latitude, Longitude, Key
-                    .execute()
-                val allRows = response.getValues() ?: emptyList()
-                mySettings?.saveList("PARKINGSLOTS_CACHE", allRows as List<List<String>>)
-                parkingSlotsCache = allRows
-            }
-        }
-        return parkingSlotsCache ?: emptyList()
-    }
+//    private fun getParkingSlots(): List<List<Any>>{
+//        if (parkingSlotsCache == null) { //Si no hay cache buscar en los settings
+//            // 1. Si RAM no, revisa persisted cache (MySettings)
+//            val cacheList = mySettings?.getList("PARKINGSLOTS_CACHE")!!.toMutableList()
+//            if (cacheList?.isEmpty() == false)
+//                parkingSlotsCache = cacheList
+//
+//            // 2. Sin mySettings no, descargar de red
+//            if (parkingSlotsCache == null) {
+//                val yourEventsSpreadSheetID =  mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+//                val response = sheetsService.spreadsheets().values()
+//                    .get(
+//                        yourEventsSpreadSheetID,
+//                        "ParkingSlots!A:C"
+//                    ) // Latitude, Longitude, Key
+//                    .execute()
+//                val allRows = response.getValues() ?: emptyList()
+//                mySettings?.saveList("PARKINGSLOTS_CACHE", allRows as List<List<String>>)
+//                parkingSlotsCache = allRows
+//            }
+//        }
+//        return parkingSlotsCache ?: emptyList()
+//    }
     private fun fetchClosestParkingSlots(latitude: Double, longitude: Double, callback: (List<ParkingSlot>) -> Unit) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
 
-                val parkSlots = getParkingSlots()
-                val plateEvents6Horas = getAutosEventos_6horas()
+                //val parkSlots = getParkingSlots()
+                val parkSlots = dataRaw?.getParkingSlots(sheetsService)
+                val plateEvents6Horas = dataRaw?.getAutosEventos_6horas(sheetsService,isNetworkAvailable())
                 val slots = mutableListOf<ParkingSlot>()
-                for (row in parkSlots) {
-                    val lat = row[0].toString().toDoubleOrNull() ?: continue
-                    val lon = row[1].toString().toDoubleOrNull() ?: continue
-                    val key = row[2].toString()
-                    val dist = calculateDistance(latitude, longitude, lat, lon)
-                    slots.add(ParkingSlot(lat, lon, key, dist))
+                if (parkSlots != null) {
+                    for (row in parkSlots) {
+                        val lat = row[0].toString().toDoubleOrNull() ?: continue
+                        val lon = row[1].toString().toDoubleOrNull() ?: continue
+                        val key = row[2].toString()
+                        val dist = calculateDistance(latitude, longitude, lat, lon)
+                        slots.add(ParkingSlot(lat, lon, key, dist))
+                    }
                 }
 
                 //LOS 8 MAS CERCANOS filtrando los ya capturados
                 val closest = slots.sortedBy { it.distance }.take(8).filter { slot ->
-                    plateEvents6Horas.none { row ->
+                    plateEvents6Horas?.none { row ->
                         row[4].toString() == slot.key
-                    }
+                    } ?: true
                 }
                 val additionalSlots = listOf(
                     ParkingSlot(latitude, longitude, "LugarProhibido", 0.0),
@@ -1179,7 +1068,7 @@ class VehicleSearchActivity : AppCompatActivity() {
                 event.parkingSlotKey
         )
         val bodyEventos = ValueRange().setValues(listOf(valuesEventos))
-        _addEventCache(valuesEventos)
+        dataRaw?._addEventCache(valuesEventos)
         refreshContadorEventos()
         waitingOn()
 

@@ -2,6 +2,7 @@ package com.larangel.rondingpeinn
 
 import CheckPoint
 import MySettings
+import DataRawRondin
 import PorRevisarRecord
 import android.Manifest
 //import coil.load
@@ -13,6 +14,7 @@ import android.content.IntentFilter.MalformedMimeTypeException
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.location.Location
 import android.net.Uri
 import android.nfc.NdefRecord
@@ -45,6 +47,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.gms.maps.model.PolylineOptions
+import com.google.android.gms.maps.model.CircleOptions
 import java.io.File
 import java.io.FileOutputStream
 import java.time.LocalDateTime
@@ -53,6 +56,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.Circle
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
@@ -67,6 +71,7 @@ import kotlin.math.sqrt
 
 class StartRondinActivity : AppCompatActivity() {
     private var mySettings: MySettings? = null
+    private var dataRaw: DataRawRondin? = null
     private var CUANTOS_POR_ESCANEAR: Int = 0
     private var nfcAdapter: NfcAdapter? = null
     private var pendingIntent: PendingIntent? = null
@@ -87,6 +92,7 @@ class StartRondinActivity : AppCompatActivity() {
         setContentView(R.layout.activity_start_rondin)
 
         mySettings=MySettings(this)
+        dataRaw = DataRawRondin(this)
 
         CUANTOS_POR_ESCANEAR = mySettings?.getInt("rondin_num_tags",0)!!
 
@@ -180,6 +186,12 @@ class StartRondinActivity : AppCompatActivity() {
         }
     }
 
+    // Utilidad simple para detectar red
+    private fun isNetworkAvailable(): Boolean {
+        val cm = getSystemService(CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val network = cm.activeNetworkInfo
+        return network?.isConnected == true
+    }
     private fun initializeGoogleServices() {
         val serviceAccountStream = applicationContext.resources.openRawResource(R.raw.json_google_service_account)
         val credential = GoogleCredential.fromStream(serviceAccountStream)
@@ -376,6 +388,22 @@ class StartRondinActivity : AppCompatActivity() {
             googleMap.clear()
         }
     }
+    fun addVehicleToMap(point: CheckPoint){
+        val mapFragment = supportFragmentManager.findFragmentById(
+            R.id.map_fragment
+        ) as? SupportMapFragment
+        mapFragment?.getMapAsync { googleMap ->
+            var color = Color.GREEN
+            if ( !point.escanedo) color = Color.RED
+            val markerVehicle = googleMap.addCircle(
+               CircleOptions()
+                    .center(LatLng(point.latitud,point.longitud)).radius(2.0)
+                    .strokeColor(color)
+                    .fillColor(color)
+            )
+            println("LARANGEL vehicle spot markerVehicle:${markerVehicle}")
+        }
+    }
     fun addPointToMap(point: CheckPoint, numero: Int = 0){
         val mapFragment = supportFragmentManager.findFragmentById(
             R.id.map_fragment
@@ -482,6 +510,23 @@ class StartRondinActivity : AppCompatActivity() {
                 "-----------\nAT:" + point.strTime + "\n"
             )
         }
+        //Pintar Lugares de Visita
+        val plateEvents6Horas = dataRaw?.getAutosEventos_6horas(sheetsService,isNetworkAvailable())
+        val allSlots = dataRaw?.getParkingSlots(sheetsService)
+        if (allSlots != null) {
+            for (slot in allSlots){
+                val eventoSlot = plateEvents6Horas.takeIf { it.toString() == slot[2].toString() }
+                val lat = slot[0].toString().toDoubleOrNull() ?: continue
+                val lon = slot[1].toString().toDoubleOrNull() ?: continue
+                val slotPoint = CheckPoint(
+                    slot[2].toString(),
+                    lat,lon,
+                    eventoSlot!=null
+                )
+                addVehicleToMap(slotPoint)
+            }
+        }
+
         moveCameraToPoints()
         fillResume()
     }

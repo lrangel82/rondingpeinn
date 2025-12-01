@@ -1,18 +1,39 @@
 package com.larangel.rondingpeinn
 
+import MySettings
+import DataRawRondin
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
+import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
+import android.widget.FrameLayout
+import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
+import com.google.api.client.http.javanet.NetHttpTransport
+import com.google.api.client.json.gson.GsonFactory
+import com.google.api.services.sheets.v4.Sheets
 import com.larangel.rondingpeinn.R
+import com.larangel.rondingpeinn.VehicleSearchActivity
 import com.larangel.rondingpeinn.databinding.ActivityMainBinding
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private var counterAdmin: Int = 0
+    private var mySettings: MySettings? = null
+    private var dataRaw: DataRawRondin? = null
+    private lateinit var sheetsService: Sheets
+    private var loadingOverlay: View? = null
+    private var progressBar: ProgressBar? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -51,6 +72,9 @@ class MainActivity : AppCompatActivity() {
 
         }
 
+        LoadingSheetDATA()
+
+
 //        val navView: BottomNavigationView = binding.navView
 //
 //        val navController = findNavController(R.id.nav_host_fragment_activity_main)
@@ -64,4 +88,95 @@ class MainActivity : AppCompatActivity() {
 //        setupActionBarWithNavController(navController, appBarConfiguration)
 //        navView.setupWithNavController(navController)
     }
+
+    private fun LoadingSheetDATA(){
+        //Loading all the sheets
+        if (isNetworkAvailable()) {
+            // Initialize Google services (requires Google Sign-In setup)
+            initializeGoogleServices()
+            mySettings = MySettings(this)
+            dataRaw = DataRawRondin(this)
+            waitingOn()
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    withContext(Dispatchers.Main) {
+                        val autosEventos = dataRaw?.getAutosEventos(sheetsService,isNetworkAvailable())
+                        println("LARANGEL total autos: ${autosEventos?.size}")
+                        waitingOff()
+                    }
+                }catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        waitingOff()
+                        println("LARANGEL exception Loading Sheet DATA error:${e}")
+                        e.printStackTrace()
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Error Loading Sheet DATA: ${e.message}",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+            waitingOff()
+        }
+    }
+
+    // Utilidad simple para detectar red
+    private fun isNetworkAvailable(): Boolean {
+        val cm = getSystemService(CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val network = cm.activeNetworkInfo
+        return network?.isConnected == true
+    }
+    private fun initializeGoogleServices() {
+        val serviceAccountStream =
+            applicationContext.resources.openRawResource(R.raw.json_google_service_account)
+        val credential = GoogleCredential.fromStream(serviceAccountStream)
+            .createScoped(
+                listOf(
+                    "https://www.googleapis.com/auth/drive",
+                    "https://www.googleapis.com/auth/spreadsheets"
+                )
+            )
+        sheetsService =
+            Sheets.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance(), credential)
+                .setApplicationName("My First Project")
+                .build()
+        println("LARANGEL sheetsService:${sheetsService}")
+    }
+    private fun waitingOn() {
+        if (loadingOverlay == null) {
+            val rootView = findViewById<ViewGroup>(android.R.id.content)
+            loadingOverlay = View(this).apply {
+                setBackgroundColor(Color.parseColor("#80000000")) // Semi-transparent black
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.MATCH_PARENT,
+                    FrameLayout.LayoutParams.MATCH_PARENT
+                )
+                isClickable = true
+                isFocusable = true
+            }
+
+            progressBar = ProgressBar(this).apply {
+                layoutParams = FrameLayout.LayoutParams(
+                    FrameLayout.LayoutParams.WRAP_CONTENT,
+                    FrameLayout.LayoutParams.WRAP_CONTENT
+                ).apply {
+                    gravity = android.view.Gravity.CENTER
+                }
+            }
+
+            rootView.addView(loadingOverlay)
+            rootView.addView(progressBar)
+        }
+    }
+    private fun waitingOff() {
+        loadingOverlay?.let { overlay ->
+            val rootView = findViewById<ViewGroup>(android.R.id.content)
+            rootView.removeView(overlay)
+            rootView.removeView(progressBar)
+            loadingOverlay = null
+            progressBar = null
+        }
+    }
+
 }
