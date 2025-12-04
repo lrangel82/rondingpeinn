@@ -53,12 +53,18 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp" />
 
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/eventsRecyclerView"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_marginTop="16dp"
-            android:layout_weight="1" />
+            android:layout_height="337dp">
+
+            <fragment
+                android:id="@+id/map_fragment_vehicle"
+                class="com.google.android.gms.maps.SupportMapFragment"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                app:mapId="839c8b86b29f05fd" />
+
+        </FrameLayout>
 
         <Button
             android:id="@+id/saveEventButton"
@@ -119,6 +125,12 @@
 
         </TableLayout>
 
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/eventsRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="16dp"
+            android:layout_weight="1" />
 
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

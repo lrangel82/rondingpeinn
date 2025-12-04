@@ -34,7 +34,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
-import com.google.api.client.http.InputStreamContent
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.sheets.v4.Sheets
@@ -46,7 +45,6 @@ import com.google.api.services.sheets.v4.model.ValueRange
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File as JavaFile
 import java.text.SimpleDateFormat
@@ -67,6 +65,13 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ProgressBar
 import android.widget.FrameLayout
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.CircleOptions
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.MarkerOptions
 
 class VehicleSearchActivity : AppCompatActivity() {
     private var mySettings: MySettings? = null
@@ -98,6 +103,7 @@ class VehicleSearchActivity : AppCompatActivity() {
     private val checkRunnable = Runnable { checkPorRevisarLocations() }
     private var loadingOverlay: View? = null
     private var progressBar: ProgressBar? = null
+    private var googleMap: GoogleMap? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -157,12 +163,22 @@ class VehicleSearchActivity : AppCompatActivity() {
         val parent = saveEventButton.parent as? LinearLayout
         parent?.addView(porRevisarButton)
 
+        // Carga el fragmento solo si aún no existe
+        if (supportFragmentManager.findFragmentById(R.id.map_fragment_vehicle) == null) {
+            val mapFragment = SupportMapFragment.newInstance()
+            supportFragmentManager.beginTransaction()
+                .replace(R.id.map_fragment_vehicle, mapFragment)
+                .commit()
+        }
+
         // Run cleanup on app start
         cleanOldThumbnails()
 
         loadPorRevisar()
         refreshContadorEventos()
+        setupMap()
         updatePorRevisarButton()
+
     }
 
     private fun waitingOn() {
@@ -200,6 +216,117 @@ class VehicleSearchActivity : AppCompatActivity() {
             progressBar = null
         }
     }
+
+    private fun setupMap() {
+        val mapFragment = supportFragmentManager.findFragmentById(R.id.map_fragment_vehicle) as SupportMapFragment
+        mapFragment.getMapAsync { gMap ->
+            googleMap = gMap
+            updateMapMarkers()
+            // Centrar en la ubicación actual si tienes permiso:
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                gMap.isMyLocationEnabled = true
+                fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
+                    if (loc != null) {
+                        val userLatLng = LatLng(loc.latitude, loc.longitude)
+                        gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 21f))
+                    }
+                }
+            }
+        }
+    }
+
+    private fun updateMapMarkers() {
+        googleMap?.let { gMap ->
+            gMap.clear()
+
+            // 1. Obtén la lista de espacios (your implementation here)
+            val parkSlots = dataRaw?.getParkingSlots(sheetsService)
+
+            // 2. Filtra eventos de las últimas horas
+            val eventosRecientes = dataRaw?.getAutosEventos_6horas(sheetsService,isNetworkAvailable())
+
+            // 3. Por cada espacio
+            parkSlots?.forEach { slot ->
+                val lat = slot[0].toString().toDoubleOrNull() ?: return@forEach
+                val lon = slot[1].toString().toDoubleOrNull() ?: return@forEach
+                val key = slot[2].toString()
+                val ocupado = eventosRecientes?.any { it[4].toString() == key } == true
+                val color = if (ocupado) Color.GREEN else Color.RED
+                gMap.addCircle(
+                    CircleOptions()
+                        .center(LatLng(lat, lon))
+                        .radius(1.5) // metros visuales
+                        .fillColor(color)
+                        .strokeColor(Color.BLACK)
+                        .strokeWidth(2f)
+                )
+                // Pon una etiqueta encima
+                gMap.addMarker(
+                    MarkerOptions()
+                        .position(LatLng(lat, lon))
+                        .title(key)
+                        .icon(BitmapDescriptorFactory.defaultMarker(if (ocupado) 120f else 0f)) // Cambia el color si quieres
+                )
+            }
+
+            // 4. Setea listener para selección del círculo o marker
+            gMap.setOnMarkerClickListener { marker ->
+                val tagLugar = marker.title ?: ""
+                preguntarYProcesarLugar(tagLugar)
+                true
+            }
+        }
+    }
+
+    private fun preguntarYProcesarLugar(key: String) {
+        if (photoUri == null) {
+            Toast.makeText(this, "Debe tomar una FOTO", Toast.LENGTH_SHORT).show()
+            captureImage()
+        }
+
+        val plate = plateInput.text.toString().trim()
+        val eventosRecientes = dataRaw?.getAutosEventos_6horas(sheetsService,isNetworkAvailable())
+        val eventoPrevio = eventosRecientes?.find { it[4].toString() == key }
+        if (eventoPrevio != null) {
+            AlertDialog.Builder(this)
+                .setTitle("Ya existe un registro")
+                .setMessage("¿Desea eliminar el evento anterior y registrar uno nuevo en el lugar $key?")
+                .setPositiveButton("Sí") { _, _ -> procesarEventLugar(key, plate, true) }
+                .setNegativeButton("No", null)
+                .show()
+        } else if (plate.isEmpty()) {
+            AlertDialog.Builder(this)
+                .setTitle("Lugar Vacío")
+                .setMessage("¿Está seguro que el lugar $key está vacío?")
+                .setPositiveButton("Sí") { _, _ -> procesarEventLugar(key, "VACIO", false) }
+                .setNegativeButton("No", { _, _ ->
+                    //Limpiar url y placas
+                    cleanFrom()
+                })
+                .show()
+        } else {
+            AlertDialog.Builder(this)
+                .setTitle("Registrar evento")
+                .setMessage("¿Deseas agregar el evento a $key con placa $plate?")
+                .setPositiveButton("Sí") { _, _ -> procesarEventLugar(key, plate, false) }
+                .setNegativeButton("No", null)
+                .show()
+        }
+    }
+    private fun procesarEventLugar(key: String, plate: String, eliminarAnterior: Boolean) {
+        // Si eliminarAnterior, elimina el evento previo...
+        // ... aquí tu código para borrar evento anterior en Google Sheets ...
+
+        // Luego, toma/usa foto, y llama tu lógica normal de registro
+        if (photoUri == null) {
+            Toast.makeText(this, "Debe tomar una FOTO", Toast.LENGTH_SHORT).show()
+            captureImage()
+        } else {
+            // Modifica saveNewEvent o crea saveNewEventConSlot para aceptar el key
+            continueSaveNewEvent(plate, key)
+        }
+    }
+
 
     private fun updatePorRevisarButton() {
         porRevisarButton.text = "Por Revisar (${porRevisarRecords.size})"
@@ -464,6 +591,12 @@ class VehicleSearchActivity : AppCompatActivity() {
         return diff == 1
     }
 
+    fun cleanFrom(){
+        resultText.text = ""
+        plateInput.setText("")
+        photoUri == null
+    }
+
     private fun searchVehicle(plate: String) {
         waitingOn()
         vehicleStreet = null
@@ -523,17 +656,6 @@ class VehicleSearchActivity : AppCompatActivity() {
             }
         }
     }
-
-
-    //AutoEventos
-//    private fun getAutosEventos_6horas(): List<List<Any>>{
-//        val rows = dataRaw?.getAutosEventos(sheetsService,isNetworkAvailable())
-//        val date6HoursAgo = LocalDateTime.now().minusHours(6)
-//        val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-//        val plateEvents = rows?.filter { LocalDateTime.parse(it[2].toString(),timeFormatter) >= date6HoursAgo }
-//            ?.reversed()
-//        return plateEvents ?: emptyList()
-//    }
 
     private fun refreshContadorEventos(){
         waitingOn()
@@ -758,52 +880,86 @@ class VehicleSearchActivity : AppCompatActivity() {
     }
 
     // Esta función contiene el salvar con el valor de placa
-    private fun continueSaveNewEvent(plate: String) {
+    private fun continueSaveNewEvent(plate: String, KeySlot: String = "") {
         if (photoUri == null) {
             Toast.makeText(this, "Debe tomar una FOTO", Toast.LENGTH_SHORT).show()
             captureImage()
         }
 
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-                if (location != null) {
-                    waitingOn()
-                    fetchClosestParkingSlots(location.latitude, location.longitude) { closestSlots ->
-                        if (closestSlots.isEmpty()) {
-                            Toast.makeText(this, "No se encuentra lugares de estacionamiento cercanos", Toast.LENGTH_SHORT).show()
-                            waitingOff()
-                            return@fetchClosestParkingSlots
-                        }
-                        val slotDescriptions = closestSlots.map { "${it.key} (${String.format("%.2f", it.distance)} m)" }.toTypedArray()
-                        waitingOff()
-                        AlertDialog.Builder(this)
-                            .setTitle("Selecciona LUGAR de Estacionamiento")
-                            .setItems(slotDescriptions) { _, which ->
-                                val selectedKey = closestSlots[which].key
-                                val localPhotoPath = savePhotoLocally(photoUri)
-                                if (localPhotoPath == null) {
-                                    Toast.makeText(this, "Failed to save photo locally", Toast.LENGTH_SHORT).show()
-                                    return@setItems
-                                }
-                                val date = LocalDate.now()
-                                val time = LocalDateTime.now()
-                                val event = EventModal(plate, date, time, localPhotoPath, selectedKey)
-                                saveEventToSheet(event)
-                                showEventsPlate(plate)
-                                if (selectedKey in listOf("LugarProhibido", "BloqueoPeatonal", "ObstruyeCochera")) {
-                                    handleSpecialKey(selectedKey, plate, localPhotoPath)
-                                }
+        if (KeySlot != "")
+            saveEventPlateSlot(plate,KeySlot)
+        else {
+            if (ActivityCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+            ) {
+                fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+                    if (location != null) {
+                        waitingOn()
+                        fetchClosestParkingSlots(
+                            location.latitude,
+                            location.longitude
+                        ) { closestSlots ->
+                            if (closestSlots.isEmpty()) {
+                                Toast.makeText(
+                                    this,
+                                    "No se encuentra lugares de estacionamiento cercanos",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                waitingOff()
+                                return@fetchClosestParkingSlots
                             }
-                            .setNegativeButton("Cancel") { _, _ -> }
-                            .show()
+                            val slotDescriptions = closestSlots.map {
+                                "${it.key} (${
+                                    String.format(
+                                        "%.2f",
+                                        it.distance
+                                    )
+                                } m)"
+                            }.toTypedArray()
+                            waitingOff()
+                            AlertDialog.Builder(this)
+                                .setTitle("Selecciona LUGAR de Estacionamiento")
+                                .setItems(slotDescriptions) { _, which ->
+                                    val selectedKey = closestSlots[which].key
+                                    //Salvar Evento en cajon de estacionamiento
+                                    if (!saveEventPlateSlot(plate, selectedKey))
+                                        return@setItems
+                                }
+                                .setNegativeButton("Cancel") { _, _ -> }
+                                .show()
+                        }
+                    } else {
+                        Toast.makeText(this, "Unable to get location", Toast.LENGTH_SHORT).show()
                     }
-                } else {
-                    Toast.makeText(this, "Unable to get location", Toast.LENGTH_SHORT).show()
                 }
+            } else {
+                ActivityCompat.requestPermissions(
+                    this,
+                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                    REQUEST_LOCATION_PERMISSION
+                )
             }
-        } else {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), REQUEST_LOCATION_PERMISSION)
         }
+    }
+
+    private fun saveEventPlateSlot(plate: String,keySlot: String): Boolean{
+        val localPhotoPath = savePhotoLocally(photoUri)
+        if (localPhotoPath == null) {
+            Toast.makeText(this, "Failed to save photo locally", Toast.LENGTH_SHORT).show()
+            return false
+        }
+        val date = LocalDate.now()
+        val time = LocalDateTime.now()
+        val event = EventModal(plate, date, time, localPhotoPath, keySlot)
+        saveEventToSheet(event)
+        updateMapMarkers()
+        showEventsPlate(plate)
+        if (keySlot in listOf("LugarProhibido", "BloqueoPeatonal", "ObstruyeCochera")) {
+            handleSpecialKey(keySlot, plate, localPhotoPath)
+        }
+        return true
     }
 
     private fun handleSpecialKey(selectedKey: String, plate: String, localPhotoPath: String) {
