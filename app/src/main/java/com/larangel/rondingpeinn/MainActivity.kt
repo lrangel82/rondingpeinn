@@ -21,6 +21,7 @@ import com.google.api.services.sheets.v4.Sheets
 import com.larangel.rondingpeinn.R
 import com.larangel.rondingpeinn.VehicleSearchActivity
 import com.larangel.rondingpeinn.databinding.ActivityMainBinding
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -95,12 +96,12 @@ class MainActivity : AppCompatActivity() {
             // Initialize Google services (requires Google Sign-In setup)
             initializeGoogleServices()
             mySettings = MySettings(this)
-            dataRaw = DataRawRondin(this)
+            dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
             waitingOn()
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     withContext(Dispatchers.Main) {
-                        val autosEventos = dataRaw?.getAutosEventos(sheetsService,isNetworkAvailable())
+                        val autosEventos = dataRaw?.getAutosEventos(isNetworkAvailable())
                         println("LARANGEL total autos: ${autosEventos?.size}")
                         waitingOff()
                     }

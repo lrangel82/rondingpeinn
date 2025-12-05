@@ -62,6 +62,7 @@ import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.sheets.v4.Sheets
 import com.larangel.rondingpeinn.VehicleSearchActivity
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -92,7 +93,7 @@ class StartRondinActivity : AppCompatActivity() {
         setContentView(R.layout.activity_start_rondin)
 
         mySettings=MySettings(this)
-        dataRaw = DataRawRondin(this)
+        dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
 
         CUANTOS_POR_ESCANEAR = mySettings?.getInt("rondin_num_tags",0)!!
 
@@ -393,8 +394,7 @@ class StartRondinActivity : AppCompatActivity() {
             R.id.map_fragment
         ) as? SupportMapFragment
         mapFragment?.getMapAsync { googleMap ->
-            var color = Color.GREEN
-            if ( !point.escanedo) color = Color.RED
+            var color = if (point.escanedo) Color.GREEN else Color.RED
             val markerVehicle = googleMap.addCircle(
                CircleOptions()
                     .center(LatLng(point.latitud,point.longitud)).radius(2.0)
@@ -511,17 +511,17 @@ class StartRondinActivity : AppCompatActivity() {
             )
         }
         //Pintar Lugares de Visita
-        val plateEvents6Horas = dataRaw?.getAutosEventos_6horas(sheetsService,isNetworkAvailable())
-        val allSlots = dataRaw?.getParkingSlots(sheetsService)
+        val plateEvents6Horas = dataRaw?.getAutosEventos_6horas(isNetworkAvailable())
+        val allSlots = dataRaw?.getParkingSlots( isNetworkAvailable())
         if (allSlots != null) {
             for (slot in allSlots){
-                val eventoSlot = plateEvents6Horas.takeIf { it.toString() == slot[2].toString() }
+                val escaneadoVisita = plateEvents6Horas?.any { it[4].toString() == slot[2].toString() }
                 val lat = slot[0].toString().toDoubleOrNull() ?: continue
                 val lon = slot[1].toString().toDoubleOrNull() ?: continue
                 val slotPoint = CheckPoint(
                     slot[2].toString(),
                     lat,lon,
-                    eventoSlot!=null
+                    escaneadoVisita == true
                 )
                 addVehicleToMap(slotPoint)
             }

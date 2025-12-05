@@ -5,6 +5,7 @@ import DataRawRondin
 import EventAdapter
 import EventModal
 import PorRevisarRecord
+import kotlinx.coroutines.*
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -121,7 +122,7 @@ class VehicleSearchActivity : AppCompatActivity() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         mySettings = MySettings(this)
-        dataRaw = DataRawRondin(this)
+        dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
 
         // Initialize Google services (requires Google Sign-In setup)
         initializeGoogleServices()
@@ -240,18 +241,18 @@ class VehicleSearchActivity : AppCompatActivity() {
             gMap.clear()
 
             // 1. Obtén la lista de espacios (your implementation here)
-            val parkSlots = dataRaw?.getParkingSlots(sheetsService)
+            val parkSlots = dataRaw?.getParkingSlots(isNetworkAvailable())
 
             // 2. Filtra eventos de las últimas horas
-            val eventosRecientes = dataRaw?.getAutosEventos_6horas(sheetsService,isNetworkAvailable())
+            val eventosRecientes = dataRaw?.getAutosEventos_6horas(isNetworkAvailable())
 
             // 3. Por cada espacio
             parkSlots?.forEach { slot ->
                 val lat = slot[0].toString().toDoubleOrNull() ?: return@forEach
                 val lon = slot[1].toString().toDoubleOrNull() ?: return@forEach
                 val key = slot[2].toString()
-                val ocupado = eventosRecientes?.any { it[4].toString() == key } == true
-                val color = if (ocupado) Color.GREEN else Color.RED
+                val ocupado = eventosRecientes?.find { it[4].toString() == key }
+                val color = if (!ocupado.isNullOrEmpty()) Color.GREEN else Color.RED
                 gMap.addCircle(
                     CircleOptions()
                         .center(LatLng(lat, lon))
@@ -265,15 +266,20 @@ class VehicleSearchActivity : AppCompatActivity() {
                     MarkerOptions()
                         .position(LatLng(lat, lon))
                         .title(key)
-                        .icon(BitmapDescriptorFactory.defaultMarker(if (ocupado) 120f else 0f)) // Cambia el color si quieres
+                        .icon(BitmapDescriptorFactory.defaultMarker(if (!ocupado.isNullOrEmpty()) 120f else 0f)) // Cambia el color si quieres
+                        .snippet(if(!ocupado.isNullOrEmpty()) ocupado[0].toString() else "" )
+
                 )
             }
 
             // 4. Setea listener para selección del círculo o marker
             gMap.setOnMarkerClickListener { marker ->
-                val tagLugar = marker.title ?: ""
-                preguntarYProcesarLugar(tagLugar)
-                true
+                if (marker.snippet.isNullOrEmpty() ) {
+                    val tagLugar = marker.title ?: ""
+                    preguntarYProcesarLugar(tagLugar)
+                    true
+                }
+                false
             }
         }
     }
@@ -285,7 +291,7 @@ class VehicleSearchActivity : AppCompatActivity() {
         }
 
         val plate = plateInput.text.toString().trim()
-        val eventosRecientes = dataRaw?.getAutosEventos_6horas(sheetsService,isNetworkAvailable())
+        val eventosRecientes = dataRaw?.getAutosEventos_6horas(isNetworkAvailable())
         val eventoPrevio = eventosRecientes?.find { it[4].toString() == key }
         if (eventoPrevio != null) {
             AlertDialog.Builder(this)
@@ -592,9 +598,10 @@ class VehicleSearchActivity : AppCompatActivity() {
     }
 
     fun cleanFrom(){
+        photoThumbnail.visibility = View.GONE // Reset thumbnail
+        photoUri = null // Reset photoUri
         resultText.text = ""
         plateInput.setText("")
-        photoUri == null
     }
 
     private fun searchVehicle(plate: String) {
@@ -607,7 +614,7 @@ class VehicleSearchActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 //val vehicles = getCachedVehiclesData()
-                val vehicles = dataRaw?.getCachedVehiclesData(sheetsService,isNetworkAvailable())
+                val vehicles = dataRaw?.getCachedVehiclesData(isNetworkAvailable())
                 var match: List<Any>? = null
 
                 // 1. Buscar coincidencia exacta
@@ -663,8 +670,8 @@ class VehicleSearchActivity : AppCompatActivity() {
             try {
                 withContext(Dispatchers.Main) {
                     //Solo ULTIMAS 6 HORAS
-                    val plateEvents = dataRaw?.getAutosEventos_6horas(sheetsService,isNetworkAvailable())
-                    val parkSlots = dataRaw?.getParkingSlots(sheetsService)
+                    val plateEvents = dataRaw?.getAutosEventos_6horas(isNetworkAvailable())
+                    val parkSlots = dataRaw?.getParkingSlots(isNetworkAvailable())
 
                     val tFaltantes: TextView = findViewById<TextView>(R.id.vehicleText_PSFaltantes)
                     val tCompletados: TextView = findViewById<TextView>(R.id.vehicleText_PSCompletos)
@@ -694,7 +701,7 @@ class VehicleSearchActivity : AppCompatActivity() {
         events.clear()
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val rows = dataRaw?.getAutosEventos(sheetsService,isNetworkAvailable())
+                val rows = dataRaw?.getAutosEventos(isNetworkAvailable())
                 withContext(Dispatchers.Main) {
                     val plateEvents =
                         rows?.filter { it.size >= 5 && it[0].toString().equals(plate, ignoreCase = true) }
@@ -1101,36 +1108,13 @@ class VehicleSearchActivity : AppCompatActivity() {
         }
     }
 
-//    private fun getParkingSlots(): List<List<Any>>{
-//        if (parkingSlotsCache == null) { //Si no hay cache buscar en los settings
-//            // 1. Si RAM no, revisa persisted cache (MySettings)
-//            val cacheList = mySettings?.getList("PARKINGSLOTS_CACHE")!!.toMutableList()
-//            if (cacheList?.isEmpty() == false)
-//                parkingSlotsCache = cacheList
-//
-//            // 2. Sin mySettings no, descargar de red
-//            if (parkingSlotsCache == null) {
-//                val yourEventsSpreadSheetID =  mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-//                val response = sheetsService.spreadsheets().values()
-//                    .get(
-//                        yourEventsSpreadSheetID,
-//                        "ParkingSlots!A:C"
-//                    ) // Latitude, Longitude, Key
-//                    .execute()
-//                val allRows = response.getValues() ?: emptyList()
-//                mySettings?.saveList("PARKINGSLOTS_CACHE", allRows as List<List<String>>)
-//                parkingSlotsCache = allRows
-//            }
-//        }
-//        return parkingSlotsCache ?: emptyList()
-//    }
     private fun fetchClosestParkingSlots(latitude: Double, longitude: Double, callback: (List<ParkingSlot>) -> Unit) {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
 
                 //val parkSlots = getParkingSlots()
-                val parkSlots = dataRaw?.getParkingSlots(sheetsService)
-                val plateEvents6Horas = dataRaw?.getAutosEventos_6horas(sheetsService,isNetworkAvailable())
+                val parkSlots = dataRaw?.getParkingSlots(isNetworkAvailable())
+                val plateEvents6Horas = dataRaw?.getAutosEventos_6horas(isNetworkAvailable())
                 val slots = mutableListOf<ParkingSlot>()
                 if (parkSlots != null) {
                     for (row in parkSlots) {
@@ -1223,33 +1207,36 @@ class VehicleSearchActivity : AppCompatActivity() {
                 event.localPhotoPath,
                 event.parkingSlotKey
         )
-        val bodyEventos = ValueRange().setValues(listOf(valuesEventos))
-        dataRaw?._addEventCache(valuesEventos)
-        refreshContadorEventos()
+        //val bodyEventos = ValueRange().setValues(listOf(valuesEventos))
+
         waitingOn()
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                // Save to AutosEventos
-                sheetsService.spreadsheets().values()
-                    .append(yourEventsSpreadSheetID, "AutosEventos!A:E", bodyEventos)
-                    .setValueInputOption("RAW")
-                    .execute()
+                dataRaw?._addAutosEventCache(valuesEventos)
+                refreshContadorEventos()
+//                // Save to AutosEventos
+//                sheetsService.spreadsheets().values()
+//                    .append(yourEventsSpreadSheetID, "AutosEventos!A:E", bodyEventos)
+//                    .setValueInputOption("RAW")
+//                    .execute()
 
                 // If vehicle street and number available, save or update in PorRevisar
                 if (vehicleStreet != null && vehicleNumber != null) {
                     // Fetch lat and lon from DomicilioUbicacion
-                    val domicilioResponse = sheetsService.spreadsheets().values()
-                        .get(yourEventsSpreadSheetID, "DomicilioUbicacion!A:D") // calle, numero, latitud, longitud
-                        .execute()
-                    val domicilioRows = domicilioResponse.getValues() ?: emptyList()
+//                    val domicilioResponse = sheetsService.spreadsheets().values()
+//                        .get(yourEventsSpreadSheetID, "DomicilioUbicacion!A:D") // calle, numero, latitud, longitud
+//                        .execute()
+                    val domicilioRows =  dataRaw?.getDomiciliosUbicacion(isNetworkAvailable())  //domicilioResponse.getValues() ?: emptyList()
                     var lat: Double? = null
                     var lon: Double? = null
-                    for (row in domicilioRows) {
-                        if (row.size >= 4 && row[0].toString() == vehicleStreet && row[1].toString() == vehicleNumber) {
-                            lat = row[2].toString().toDoubleOrNull()
-                            lon = row[3].toString().toDoubleOrNull()
-                            break
+                    if (domicilioRows != null) {
+                        for (row in domicilioRows) {
+                            if (row.size >= 4 && row[0].toString() == vehicleStreet && row[1].toString() == vehicleNumber) {
+                                lat = row[2].toString().toDoubleOrNull()
+                                lon = row[3].toString().toDoubleOrNull()
+                                break
+                            }
                         }
                     }
                     if (lat == null || lon == null) {
@@ -1258,75 +1245,100 @@ class VehicleSearchActivity : AppCompatActivity() {
                             waitingOff()
                             Toast.makeText(this@VehicleSearchActivity, "Ubicación no encontrada para ${vehicleStreet} ${vehicleNumber}", Toast.LENGTH_SHORT).show()
                         }
-                    } else {
-                        // Check if record exists in PorRevisar
-                        val response = sheetsService.spreadsheets().values()
-                            .get(yourEventsSpreadSheetID, "PorRevisar!A:G") // street, number, time, parkingSlotKey, validation, lat, lon
-                            .execute()
-                        val rows = response.getValues() ?: emptyList()
-                        var existingRowIndex: Int? = null
-                        rows.forEachIndexed { index, row ->
-                            if (row.size >= 2 && row[0].toString() == vehicleStreet && row[1].toString() == vehicleNumber) {
-                                existingRowIndex = index + 1 // 1-based index for Sheets
-                                return@forEachIndexed
-                            }
-                        }
-
-                        if (existingRowIndex != null) {
-                            // Update existing record
-                            val valuesPorRevisar = listOf(
-                                listOf(
-                                    vehicleStreet,
-                                    vehicleNumber,
-                                    formattedTime,
-                                    event.parkingSlotKey,
-                                    "",
-                                    lat.toString(),
-                                    lon.toString()
-                                )
-                            )
-                            val bodyPorRevisar = ValueRange().setValues(valuesPorRevisar)
-                            sheetsService.spreadsheets().values()
-                                .update(yourEventsSpreadSheetID, "PorRevisar!A$existingRowIndex:G$existingRowIndex", bodyPorRevisar)
-                                .setValueInputOption("RAW")
-                                .execute()
-                            // Update in memory
-                            porRevisarRecords.find { it.street == vehicleStreet && it.number == vehicleNumber }?.let {
-                                it.time = LocalDateTime.parse(formattedTime, timeFormatter)
-                                it.parkingSlotKey = event.parkingSlotKey
-                                it.latitude = lat
-                                it.longitude = lon
-                            }
-                        } else {
-                            // Append new record
-                            val valuesPorRevisar = listOf(
-                                listOf(
-                                    vehicleStreet,
-                                    vehicleNumber,
-                                    formattedTime,
-                                    event.parkingSlotKey,
-                                    "",
-                                    lat.toString(),
-                                    lon.toString()
-                                )
-                            )
-                            val bodyPorRevisar = ValueRange().setValues(valuesPorRevisar)
-                            sheetsService.spreadsheets().values()
-                                .append(yourEventsSpreadSheetID, "PorRevisar!A:G", bodyPorRevisar)
-                                .setValueInputOption("RAW")
-                                .execute()
-                            // Add to memory
-                            val newRecord = PorRevisarRecord(
-                                vehicleStreet!!,
-                                vehicleNumber!!,
-                                LocalDateTime.parse(formattedTime, timeFormatter),
+                    }
+                    else {
+                        //Guardar PorRevisar registro
+                        val valuesPorRevisar = listOf(
+                                vehicleStreet,
+                                vehicleNumber,
+                                formattedTime,
                                 event.parkingSlotKey,
                                 "",
-                                lat,
-                                lon
+                                lat.toString(),
+                                lon.toString()
                             )
-                            porRevisarRecords.add(newRecord)
-                        }
+                        dataRaw?._addPorRevisarCache(valuesPorRevisar as List<String>)
+                        // Add to memory
+                        val newRecord = PorRevisarRecord(
+                            vehicleStreet!!,
+                            vehicleNumber!!,
+                            LocalDateTime.parse(formattedTime, timeFormatter),
+                            event.parkingSlotKey,
+                            "",
+                            lat,
+                            lon
+                        )
+                        porRevisarRecords.add(newRecord)
+
+
+                        // Check if record exists in PorRevisar
+//                        val response = sheetsService.spreadsheets().values()
+//                            .get(yourEventsSpreadSheetID, "PorRevisar!A:G") // street, number, time, parkingSlotKey, validation, lat, lon
+//                            .execute()
+//                        val rows = dataRaw?.getPorRevisar(isNetworkAvailable())//response.getValues() ?: emptyList()
+//                        var existingRowIndex: Int? = null
+//                        rows?.forEachIndexed { index, row ->
+//                            if (row.size >= 2 && row[0].toString() == vehicleStreet && row[1].toString() == vehicleNumber) {
+//                                existingRowIndex = index + 1 // 1-based index for Sheets
+//                                return@forEachIndexed
+//                            }
+//                        }
+
+//                        if (existingRowIndex != null) {
+//                            // Update existing record
+//                            val valuesPorRevisar = listOf(
+//                                listOf(
+//                                    vehicleStreet,
+//                                    vehicleNumber,
+//                                    formattedTime,
+//                                    event.parkingSlotKey,
+//                                    "",
+//                                    lat.toString(),
+//                                    lon.toString()
+//                                )
+//                            )
+//                            val bodyPorRevisar = ValueRange().setValues(valuesPorRevisar)
+//                            sheetsService.spreadsheets().values()
+//                                .update(yourEventsSpreadSheetID, "PorRevisar!A$existingRowIndex:G$existingRowIndex", bodyPorRevisar)
+//                                .setValueInputOption("RAW")
+//                                .execute()
+//                            // Update in memory
+//                            porRevisarRecords.find { it.street == vehicleStreet && it.number == vehicleNumber }?.let {
+//                                it.time = LocalDateTime.parse(formattedTime, timeFormatter)
+//                                it.parkingSlotKey = event.parkingSlotKey
+//                                it.latitude = lat
+//                                it.longitude = lon
+//                            }
+//                        } else {
+//                            // Append new record
+//                            val valuesPorRevisar = listOf(
+//                                listOf(
+//                                    vehicleStreet,
+//                                    vehicleNumber,
+//                                    formattedTime,
+//                                    event.parkingSlotKey,
+//                                    "",
+//                                    lat.toString(),
+//                                    lon.toString()
+//                                )
+//                            )
+//                            val bodyPorRevisar = ValueRange().setValues(valuesPorRevisar)
+//                            sheetsService.spreadsheets().values()
+//                                .append(yourEventsSpreadSheetID, "PorRevisar!A:G", bodyPorRevisar)
+//                                .setValueInputOption("RAW")
+//                                .execute()
+//                            // Add to memory
+//                            val newRecord = PorRevisarRecord(
+//                                vehicleStreet!!,
+//                                vehicleNumber!!,
+//                                LocalDateTime.parse(formattedTime, timeFormatter),
+//                                event.parkingSlotKey,
+//                                "",
+//                                lat,
+//                                lon
+//                            )
+//                            porRevisarRecords.add(newRecord)
+//                        }
                     }
                 }
 
@@ -1334,8 +1346,7 @@ class VehicleSearchActivity : AppCompatActivity() {
                     waitingOff()
                     events.add(0,event)
                     eventsRecyclerView.adapter?.notifyDataSetChanged()
-                    photoThumbnail.visibility = View.GONE // Reset thumbnail after saving
-                    photoUri = null // Reset photoUri
+                    cleanFrom()
                     updatePorRevisarButton()
                     refreshContadorEventos()
                     Toast.makeText(this@VehicleSearchActivity, "Event saved", Toast.LENGTH_SHORT).show()
@@ -1352,17 +1363,17 @@ class VehicleSearchActivity : AppCompatActivity() {
     }
 
     private fun loadPorRevisar() {
-        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+        //val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val response = sheetsService.spreadsheets().values()
-                    .get(yourEventsSpreadSheetID, "PorRevisar!A:G")
-                    .execute()
-                val rows = response.getValues() ?: emptyList()
+//                val response = sheetsService.spreadsheets().values()
+//                    .get(yourEventsSpreadSheetID, "PorRevisar!A:G")
+//                    .execute()
+                val rows = dataRaw?.getPorRevisar(isNetworkAvailable(),true)//response.getValues() ?: emptyList()
                 withContext(Dispatchers.Main) {
                     porRevisarRecords.clear()
                     val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                    rows.forEach { row ->
+                    rows?.forEach { row ->
                         if (row.size >= 7) {
                             val street = row[0].toString()
                             val number = row[1].toString()
@@ -1510,12 +1521,12 @@ class VehicleSearchActivity : AppCompatActivity() {
         val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val response = sheetsService.spreadsheets().values()
-                    .get(yourEventsSpreadSheetID, "PorRevisar!A:B") // Only need street and number to find row
-                    .execute()
-                val rows = response.getValues() ?: emptyList()
+//                val response = sheetsService.spreadsheets().values()
+//                    .get(yourEventsSpreadSheetID, "PorRevisar!A:B") // Only need street and number to find row
+//                    .execute()
+                val rows = dataRaw?.getPorRevisar(isNetworkAvailable())// response.getValues() ?: emptyList()
                 var rowIndex: Int? = null
-                rows.forEachIndexed { index, row ->
+                rows?.forEachIndexed { index, row ->
                     if (row.size >= 2 && row[0].toString() == record.street && row[1].toString() == record.number) {
                         rowIndex = index + 1
                         return@forEachIndexed
