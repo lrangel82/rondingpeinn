@@ -73,8 +73,10 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CircleOptions
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import kotlin.String
+import kotlin.collections.List
 
-class VehicleSearchActivity : AppCompatActivity() {
+class  VehicleSearchActivity : AppCompatActivity() {
     private var mySettings: MySettings? = null
     private var dataRaw: DataRawRondin? = null
     private lateinit var plateInput: EditText
@@ -124,8 +126,8 @@ class VehicleSearchActivity : AppCompatActivity() {
         mySettings = MySettings(this)
         dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
 
-        // Initialize Google services (requires Google Sign-In setup)
-        initializeGoogleServices()
+//        // Initialize Google services (requires Google Sign-In setup)
+//        initializeGoogleServices()
 
         // Setup RecyclerView
         eventsRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -241,10 +243,10 @@ class VehicleSearchActivity : AppCompatActivity() {
             gMap.clear()
 
             // 1. Obtén la lista de espacios (your implementation here)
-            val parkSlots = dataRaw?.getParkingSlots(isNetworkAvailable())
+            val parkSlots = dataRaw?.getParkingSlots()
 
             // 2. Filtra eventos de las últimas horas
-            val eventosRecientes = dataRaw?.getAutosEventos_6horas(isNetworkAvailable())
+            val eventosRecientes = dataRaw?.getAutosEventos_6horas()
 
             // 3. Por cada espacio
             parkSlots?.forEach { slot ->
@@ -291,7 +293,7 @@ class VehicleSearchActivity : AppCompatActivity() {
         }
 
         val plate = plateInput.text.toString().trim()
-        val eventosRecientes = dataRaw?.getAutosEventos_6horas(isNetworkAvailable())
+        val eventosRecientes = dataRaw?.getAutosEventos_6horas()
         val eventoPrevio = eventosRecientes?.find { it[4].toString() == key }
         if (eventoPrevio != null) {
             AlertDialog.Builder(this)
@@ -340,33 +342,33 @@ class VehicleSearchActivity : AppCompatActivity() {
         porRevisarButton.tooltipText = porRevisarRecords.size.toString()
     }
 
-    private fun initializeGoogleServices() {
-        val serviceAccountStream = applicationContext.resources.openRawResource(R.raw.json_google_service_account)
-        val credential = GoogleCredential.fromStream(serviceAccountStream)
-            .createScoped(listOf("https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"))
-        sheetsService = Sheets.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance(), credential)
-            .setApplicationName("My First Project")
-            .build()
-        println("LARANGEL sheetsService:${sheetsService}")
-
-        // Get sheet ID for PorRevisar
-        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val spreadsheet = sheetsService.spreadsheets().get(yourEventsSpreadSheetID).execute()
-                for (sheet in spreadsheet.sheets) {
-                    when (sheet.properties.title) {
-                        "PorRevisar" -> porRevisarSheetId = sheet.properties.sheetId
-                        "DomicilioWarnings" -> domicilioWarningsSheetId = sheet.properties.sheetId
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@VehicleSearchActivity, "Error initializing sheet ID: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
+//    private fun initializeGoogleServices() {
+//        val serviceAccountStream = applicationContext.resources.openRawResource(R.raw.json_google_service_account)
+//        val credential = GoogleCredential.fromStream(serviceAccountStream)
+//            .createScoped(listOf("https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"))
+//        sheetsService = Sheets.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance(), credential)
+//            .setApplicationName("My First Project")
+//            .build()
+//        println("LARANGEL sheetsService:${sheetsService}")
+//
+//        // Get sheet ID for PorRevisar
+//        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+//        lifecycleScope.launch(Dispatchers.IO) {
+//            try {
+//                val spreadsheet = sheetsService.spreadsheets().get(yourEventsSpreadSheetID).execute()
+//                for (sheet in spreadsheet.sheets) {
+//                    when (sheet.properties.title) {
+//                        "PorRevisar" -> porRevisarSheetId = sheet.properties.sheetId
+//                        "DomicilioWarnings" -> domicilioWarningsSheetId = sheet.properties.sheetId
+//                    }
+//                }
+//            } catch (e: Exception) {
+//                withContext(Dispatchers.Main) {
+//                    Toast.makeText(this@VehicleSearchActivity, "Error initializing sheet ID: ${e.message}", Toast.LENGTH_SHORT).show()
+//                }
+//            }
+//        }
+//    }
 
     private fun cleanOldThumbnails() {
         lifecycleScope.launch(Dispatchers.IO) {
@@ -394,28 +396,29 @@ class VehicleSearchActivity : AppCompatActivity() {
 
                 // Optionally update AutosEventos sheet to clear localPhotoPath for deleted files
                 if (deletedFiles.isNotEmpty()) {
-                    val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                    val response = sheetsService.spreadsheets().values()
-                        .get(yourEventsSpreadSheetID, "AutosEventos!A:E")
-                        .execute()
-                    val rows = response.getValues() ?: emptyList()
-                    val updates = mutableListOf<ValueRange>()
-                    rows.forEachIndexed { index, row ->
-                        if (row.size >= 4 && row[3] in deletedFiles) {
-                            val rowIndex = index + 1
-                            val update = ValueRange().setValues(listOf(listOf("", "", "", "", row[4])))
-                            updates.add(update.setRange("AutosEventos!A$rowIndex:E$rowIndex"))
-                        }
-                    }
-                    if (updates.isNotEmpty()) {
-                        updates.forEach { update ->
-                            sheetsService.spreadsheets().values()
-                                .update(yourEventsSpreadSheetID, update.range, update)
-                                .setValueInputOption("RAW")
-                                .execute()
-                        }
-                        println("VehicleSearchActivity Updated ${updates.size} rows in AutosEventos with cleared localPhotoPath")
-                    }
+//                    val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+////                    val response = sheetsService.spreadsheets().values()
+////                        .get(yourEventsSpreadSheetID, "AutosEventos!A:E")
+////                        .execute()
+////                    val rows = response.getValues() ?: emptyList()
+//                    val rows = dataRaw?.getAutosEventos()
+//                    val updates = mutableListOf<ValueRange>()
+//                    rows?.forEachIndexed { index, row ->
+//                        if (row.size >= 4 && row[3] in deletedFiles) {
+//                            val rowIndex = index + 1
+//                            val update = ValueRange().setValues(listOf(listOf("", "", "", "", row[4])))
+//                            updates.add(update.setRange("AutosEventos!A$rowIndex:E$rowIndex"))
+//                        }
+//                    }
+//                    if (updates.isNotEmpty()) {
+//                        updates.forEach { update ->
+//                            sheetsService.spreadsheets().values()
+//                                .update(yourEventsSpreadSheetID, update.range, update)
+//                                .setValueInputOption("RAW")
+//                                .execute()
+//                        }
+//                        println("VehicleSearchActivity Updated ${updates.size} rows in AutosEventos with cleared localPhotoPath")
+//                    }
 
                     withContext(Dispatchers.Main) {
                         Toast.makeText(
@@ -572,7 +575,11 @@ class VehicleSearchActivity : AppCompatActivity() {
                         ""
                     }
                     plateInput.setText(plate)
-                    searchVehicle(plate)
+                    if (plate.length > 3) {
+                        searchVehicle(plate)
+                    }else{
+                        Toast.makeText(this, "No PLACA en la imagen", Toast.LENGTH_SHORT).show()
+                    }
                 }
                 .addOnFailureListener { e ->
                     Toast.makeText(this, "OCR failed: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -580,12 +587,6 @@ class VehicleSearchActivity : AppCompatActivity() {
         }
     }
 
-    // Utilidad simple para detectar red
-    fun isNetworkAvailable(): Boolean {
-        val cm = getSystemService(CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
-        val network = cm.activeNetworkInfo
-        return network?.isConnected == true
-    }
     fun oneCharDifference(a: String, b: String): Boolean {
         // Devuelve true si solo difiere en una letra/número
         if (a.length != b.length) return false
@@ -614,7 +615,7 @@ class VehicleSearchActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 //val vehicles = getCachedVehiclesData()
-                val vehicles = dataRaw?.getCachedVehiclesData(isNetworkAvailable())
+                val vehicles = dataRaw?.getCachedVehiclesData()
                 var match: List<Any>? = null
 
                 // 1. Buscar coincidencia exacta
@@ -670,8 +671,8 @@ class VehicleSearchActivity : AppCompatActivity() {
             try {
                 withContext(Dispatchers.Main) {
                     //Solo ULTIMAS 6 HORAS
-                    val plateEvents = dataRaw?.getAutosEventos_6horas(isNetworkAvailable())
-                    val parkSlots = dataRaw?.getParkingSlots(isNetworkAvailable())
+                    val plateEvents = dataRaw?.getAutosEventos_6horas()
+                    val parkSlots = dataRaw?.getParkingSlots()
 
                     val tFaltantes: TextView = findViewById<TextView>(R.id.vehicleText_PSFaltantes)
                     val tCompletados: TextView = findViewById<TextView>(R.id.vehicleText_PSCompletos)
@@ -701,7 +702,7 @@ class VehicleSearchActivity : AppCompatActivity() {
         events.clear()
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val rows = dataRaw?.getAutosEventos(isNetworkAvailable())
+                val rows = dataRaw?.getAutosEventos()
                 withContext(Dispatchers.Main) {
                     val plateEvents =
                         rows?.filter { it.size >= 5 && it[0].toString().equals(plate, ignoreCase = true) }
@@ -797,23 +798,36 @@ class VehicleSearchActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val values = listOf(
-                    listOf(
                         formattedTime,
                         vehicleStreet,
                         vehicleNumber,
                         plate,
                         concatenatedSlots
                     )
-                )
-                val body = ValueRange().setValues(values)
-                sheetsService.spreadsheets().values()
-                    .append(yourEventsSpreadSheetID, "MultasGeneradas!A:E", body)
-                    .setValueInputOption("RAW")
-                    .execute()
-                withContext(Dispatchers.Main) {
-                    waitingOff()
-                    Toast.makeText(this@VehicleSearchActivity, "Registro guardado en MultasGeneradas", Toast.LENGTH_SHORT).show()
+                //Agregar MULTA
+                if (dataRaw?.addMulta(values as List<String>)== true){
+                    withContext(Dispatchers.Main) {
+                        waitingOff()
+                        Toast.makeText(this@VehicleSearchActivity, "Nueva Multas guardada", Toast.LENGTH_SHORT).show()
+                    }
+                }else{
+                    withContext(Dispatchers.Main) {
+                        waitingOff()
+                        Toast.makeText(
+                            this@VehicleSearchActivity,
+                            "NO Internet: ERROR salvando MULTA\nAuto reintento en 5 minutos",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
+//                sheetsService.spreadsheets().values()
+//                    .append(yourEventsSpreadSheetID, "MultasGeneradas!A:E", body)
+//                    .setValueInputOption("RAW")
+//                    .execute()
+//                withContext(Dispatchers.Main) {
+//                    waitingOff()
+//                    Toast.makeText(this@VehicleSearchActivity, "Registro guardado en MultasGeneradas", Toast.LENGTH_SHORT).show()
+//                }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     waitingOff()
@@ -987,42 +1001,21 @@ class VehicleSearchActivity : AppCompatActivity() {
             waitingOn()
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
-                    val response = sheetsService.spreadsheets().values()
-                        .get(yourEventsSpreadSheetID, "DomicilioWarnings!A:C")
-                        .execute()
-                    val rows = response.getValues() ?: emptyList()
-                    var existingRowIndex: Int? = null
-                    var currentCount = 0
-                    rows.forEachIndexed { index, row ->
-                        if (row.size >= 2 && row[0].toString() == vehicleStreet && row[1].toString() == vehicleNumber) {
-                            existingRowIndex = index + 1
-                            currentCount = row[2].toString().toIntOrNull() ?: 0
-                            return@forEachIndexed
-                        }
-                    }
-                    val newCount = currentCount + 1
+
+                    //var rows = dataRaw?.getDomicilioWarnings()
+                    //val newCount = currentCount + 1
                     val values = listOf(
-                        listOf(
                             vehicleStreet,
                             vehicleNumber,
-                            newCount.toString()
+                            0,
+                            selectedKey
                         )
-                    )
-                    val body = ValueRange().setValues(values)
-                    if (existingRowIndex != null) {
-                        sheetsService.spreadsheets().values()
-                            .update(yourEventsSpreadSheetID, "DomicilioWarnings!A$existingRowIndex:C$existingRowIndex", body)
-                            .setValueInputOption("RAW")
-                            .execute()
-                    } else {
-                        sheetsService.spreadsheets().values()
-                            .append(yourEventsSpreadSheetID, "DomicilioWarnings!A:C", body)
-                            .setValueInputOption("RAW")
-                            .execute()
-                    }
+
+                    val countWarnings = dataRaw?.updateDomicilioWarning(values as List<String>)
+
                     withContext(Dispatchers.Main) {
                         waitingOff()
-                        if (newCount >= 3) {
+                        if (countWarnings!! >= 3) {
                             AlertDialog.Builder(this@VehicleSearchActivity)
                                 .setTitle("Acredor a Multa")
                                 .setMessage("El domicilio es acredor a una multa (3er aviso)")
@@ -1032,7 +1025,7 @@ class VehicleSearchActivity : AppCompatActivity() {
                                 }
                                 .show()
                         } else {
-                            Toast.makeText(this@VehicleSearchActivity, "Warning recorded, count: $newCount", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@VehicleSearchActivity, "Avisos acumulados a $vehicleStreet:$vehicleNumber, count: $countWarnings", Toast.LENGTH_SHORT).show()
                         }
                     }
                 } catch (e: Exception) {
@@ -1046,7 +1039,7 @@ class VehicleSearchActivity : AppCompatActivity() {
     }
 
     private fun saveToMultasGeneradas(plate: String, concatenatedSlots: String) {
-        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+        //val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         val now = LocalDateTime.now()
         val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
         val formattedTime = now.format(timeFormatter)
@@ -1054,23 +1047,35 @@ class VehicleSearchActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val values = listOf(
-                    listOf(
                         formattedTime,
                         vehicleStreet,
                         vehicleNumber,
                         plate,
                         concatenatedSlots
                     )
-                )
-                val body = ValueRange().setValues(values)
-                sheetsService.spreadsheets().values()
-                    .append(yourEventsSpreadSheetID, "MultasGeneradas!A:E", body)
-                    .setValueInputOption("RAW")
-                    .execute()
-                withContext(Dispatchers.Main) {
-                    waitingOff()
-                    Toast.makeText(this@VehicleSearchActivity, "Fine recorded in MultasGeneradas", Toast.LENGTH_SHORT).show()
-                }
+
+                //val body = ValueRange().setValues(values)
+//                sheetsService.spreadsheets().values()
+//                    .append(yourEventsSpreadSheetID, "MultasGeneradas!A:E", body)
+//                    .setValueInputOption("RAW")
+//                    .execute()
+                //########## GUARDAR NUEVA MULTA ######################
+                if (dataRaw?.updateMulta(values  as List<String>) == false)
+                    withContext(Dispatchers.Main) {
+                        waitingOff()
+                        Toast.makeText(
+                            this@VehicleSearchActivity,
+                            "NO Internet: ERROR salvando MULTA\nAuto reintento en 5 minutos",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                else
+                    withContext(Dispatchers.Main) {
+                        waitingOff()
+                        Toast.makeText(this@VehicleSearchActivity, "Nueva Multas guardada", Toast.LENGTH_SHORT).show()
+                    }
+                //#####################################################
+
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     waitingOff()
@@ -1113,8 +1118,8 @@ class VehicleSearchActivity : AppCompatActivity() {
             try {
 
                 //val parkSlots = getParkingSlots()
-                val parkSlots = dataRaw?.getParkingSlots(isNetworkAvailable())
-                val plateEvents6Horas = dataRaw?.getAutosEventos_6horas(isNetworkAvailable())
+                val parkSlots = dataRaw?.getParkingSlots()
+                val plateEvents6Horas = dataRaw?.getAutosEventos_6horas()
                 val slots = mutableListOf<ParkingSlot>()
                 if (parkSlots != null) {
                     for (row in parkSlots) {
@@ -1191,7 +1196,12 @@ class VehicleSearchActivity : AppCompatActivity() {
     }
 
     private fun saveEventToSheet(event: EventModal) {
-        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+        //val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+        if (event.plate == "VACIO"){
+            //No ha domicilio asociado a lugar vacio
+            vehicleStreet=null
+            vehicleNumber=null
+        }
 
         // Format LocalDate and LocalDateTime to strings
         val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -1213,21 +1223,32 @@ class VehicleSearchActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                dataRaw?._addAutosEventCache(valuesEventos)
+                //########## GUARDAR NUEVO EVENTO CACHE ###############
+                if (dataRaw?._addAutosEventCache(valuesEventos) == false)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@VehicleSearchActivity,
+                            "NO Internet: ERROR salvando CAJON DE VISITAS\nAuto reintento en 5 minutos",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                else
+                    withContext(Dispatchers.Main) {
+                        waitingOff()
+                        events.add(0,event)
+                        eventsRecyclerView.adapter?.notifyDataSetChanged()
+                        cleanFrom()
+                        updatePorRevisarButton()
+                        refreshContadorEventos()
+                        Toast.makeText(this@VehicleSearchActivity, "Event saved", Toast.LENGTH_SHORT).show()
+                    }
                 refreshContadorEventos()
-//                // Save to AutosEventos
-//                sheetsService.spreadsheets().values()
-//                    .append(yourEventsSpreadSheetID, "AutosEventos!A:E", bodyEventos)
-//                    .setValueInputOption("RAW")
-//                    .execute()
+                //######################################################
 
                 // If vehicle street and number available, save or update in PorRevisar
                 if (vehicleStreet != null && vehicleNumber != null) {
                     // Fetch lat and lon from DomicilioUbicacion
-//                    val domicilioResponse = sheetsService.spreadsheets().values()
-//                        .get(yourEventsSpreadSheetID, "DomicilioUbicacion!A:D") // calle, numero, latitud, longitud
-//                        .execute()
-                    val domicilioRows =  dataRaw?.getDomiciliosUbicacion(isNetworkAvailable())  //domicilioResponse.getValues() ?: emptyList()
+                    val domicilioRows =  dataRaw?.getDomiciliosUbicacion()  //domicilioResponse.getValues() ?: emptyList()
                     var lat: Double? = null
                     var lon: Double? = null
                     if (domicilioRows != null) {
@@ -1257,7 +1278,17 @@ class VehicleSearchActivity : AppCompatActivity() {
                                 lat.toString(),
                                 lon.toString()
                             )
-                        dataRaw?._addPorRevisarCache(valuesPorRevisar as List<String>)
+                        //########## GUARDAR POR REVISAR CACHE ###############
+                        if (dataRaw?._addPorRevisarCache(valuesPorRevisar as List<String>) == false)
+                            withContext(Dispatchers.Main) {
+                                Toast.makeText(
+                                    this@VehicleSearchActivity,
+                                    "NO Internet: ERROR salvando POR REVISAR\nAuto reintento en 5 minutos",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        //######################################################
+
                         // Add to memory
                         val newRecord = PorRevisarRecord(
                             vehicleStreet!!,
@@ -1270,87 +1301,10 @@ class VehicleSearchActivity : AppCompatActivity() {
                         )
                         porRevisarRecords.add(newRecord)
 
-
-                        // Check if record exists in PorRevisar
-//                        val response = sheetsService.spreadsheets().values()
-//                            .get(yourEventsSpreadSheetID, "PorRevisar!A:G") // street, number, time, parkingSlotKey, validation, lat, lon
-//                            .execute()
-//                        val rows = dataRaw?.getPorRevisar(isNetworkAvailable())//response.getValues() ?: emptyList()
-//                        var existingRowIndex: Int? = null
-//                        rows?.forEachIndexed { index, row ->
-//                            if (row.size >= 2 && row[0].toString() == vehicleStreet && row[1].toString() == vehicleNumber) {
-//                                existingRowIndex = index + 1 // 1-based index for Sheets
-//                                return@forEachIndexed
-//                            }
-//                        }
-
-//                        if (existingRowIndex != null) {
-//                            // Update existing record
-//                            val valuesPorRevisar = listOf(
-//                                listOf(
-//                                    vehicleStreet,
-//                                    vehicleNumber,
-//                                    formattedTime,
-//                                    event.parkingSlotKey,
-//                                    "",
-//                                    lat.toString(),
-//                                    lon.toString()
-//                                )
-//                            )
-//                            val bodyPorRevisar = ValueRange().setValues(valuesPorRevisar)
-//                            sheetsService.spreadsheets().values()
-//                                .update(yourEventsSpreadSheetID, "PorRevisar!A$existingRowIndex:G$existingRowIndex", bodyPorRevisar)
-//                                .setValueInputOption("RAW")
-//                                .execute()
-//                            // Update in memory
-//                            porRevisarRecords.find { it.street == vehicleStreet && it.number == vehicleNumber }?.let {
-//                                it.time = LocalDateTime.parse(formattedTime, timeFormatter)
-//                                it.parkingSlotKey = event.parkingSlotKey
-//                                it.latitude = lat
-//                                it.longitude = lon
-//                            }
-//                        } else {
-//                            // Append new record
-//                            val valuesPorRevisar = listOf(
-//                                listOf(
-//                                    vehicleStreet,
-//                                    vehicleNumber,
-//                                    formattedTime,
-//                                    event.parkingSlotKey,
-//                                    "",
-//                                    lat.toString(),
-//                                    lon.toString()
-//                                )
-//                            )
-//                            val bodyPorRevisar = ValueRange().setValues(valuesPorRevisar)
-//                            sheetsService.spreadsheets().values()
-//                                .append(yourEventsSpreadSheetID, "PorRevisar!A:G", bodyPorRevisar)
-//                                .setValueInputOption("RAW")
-//                                .execute()
-//                            // Add to memory
-//                            val newRecord = PorRevisarRecord(
-//                                vehicleStreet!!,
-//                                vehicleNumber!!,
-//                                LocalDateTime.parse(formattedTime, timeFormatter),
-//                                event.parkingSlotKey,
-//                                "",
-//                                lat,
-//                                lon
-//                            )
-//                            porRevisarRecords.add(newRecord)
-//                        }
                     }
                 }
 
-                withContext(Dispatchers.Main) {
-                    waitingOff()
-                    events.add(0,event)
-                    eventsRecyclerView.adapter?.notifyDataSetChanged()
-                    cleanFrom()
-                    updatePorRevisarButton()
-                    refreshContadorEventos()
-                    Toast.makeText(this@VehicleSearchActivity, "Event saved", Toast.LENGTH_SHORT).show()
-                }
+
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     waitingOff()
@@ -1366,10 +1320,7 @@ class VehicleSearchActivity : AppCompatActivity() {
         //val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-//                val response = sheetsService.spreadsheets().values()
-//                    .get(yourEventsSpreadSheetID, "PorRevisar!A:G")
-//                    .execute()
-                val rows = dataRaw?.getPorRevisar(isNetworkAvailable(),true)//response.getValues() ?: emptyList()
+                val rows = dataRaw?.getPorRevisar_20horas()//response.getValues() ?: emptyList()
                 withContext(Dispatchers.Main) {
                     porRevisarRecords.clear()
                     val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
@@ -1421,17 +1372,17 @@ class VehicleSearchActivity : AppCompatActivity() {
                 val toDelete = mutableListOf<PorRevisarRecord>()
                 var nearbyRecord: PorRevisarRecord? = null
                 porRevisarRecords.forEach { record ->
-                    val ageHours = Duration.between(record.time, now).toHours()
-                    if (ageHours > 20) {
-                        toDelete.add(record)
-                    } else {
+                    //val ageHours = Duration.between(record.time, now).toHours()
+                    //if (ageHours > 20) {
+                    //    toDelete.add(record)
+                    //} else {
                         val distance = calculateDistance(currentLat, currentLon, record.latitude, record.longitude)
                         if (distance < 10.0) {
                             nearbyRecord = record
                         }
-                    }
+                   // }
                 }
-                toDelete.forEach { deletePorRevisarRecord(it) }
+                //toDelete.forEach { deletePorRevisarRecord(it) }
                 nearbyRecord?.let { record ->
                     // Show verification alert for nearby record
                     //showVerificationAlert(record)
@@ -1452,105 +1403,114 @@ class VehicleSearchActivity : AppCompatActivity() {
         }
     }
 
-    private fun showVerificationAlert(record: PorRevisarRecord) {
-        AlertDialog.Builder(this)
-            .setTitle("Verificar Cochera")
-            .setMessage("¿La cochera está vacía en ${record.street} ${record.number}?")
-            .setPositiveButton("Sí") { _, _ ->
-                lifecycleScope.launch(Dispatchers.IO) {
-                    try {
-                        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                        // Get or create warning record
-                        val response = sheetsService.spreadsheets().values()
-                            .get(yourEventsSpreadSheetID, "DomicilioWarnings!A:C")
-                            .execute()
-                        val rows = response.getValues() ?: emptyList()
-                        var existingRowIndex: Int? = null
-                        var currentCount = 0
-                        rows.forEachIndexed { index, row ->
-                            if (row.size >= 2 && row[0].toString() == record.street && row[1].toString() == record.number) {
-                                existingRowIndex = index + 1
-                                currentCount = row[2].toString().toIntOrNull() ?: 0
-                                return@forEachIndexed
-                            }
-                        }
-                        val newCount = currentCount + 1
-                        val values = listOf(
-                            listOf(
-                                record.street,
-                                record.number,
-                                newCount.toString()
-                            )
-                        )
-                        val body = ValueRange().setValues(values)
-                        if (existingRowIndex != null) {
-                            sheetsService.spreadsheets().values()
-                                .update(yourEventsSpreadSheetID, "DomicilioWarnings!A$existingRowIndex:C$existingRowIndex", body)
-                                .setValueInputOption("RAW")
-                                .execute()
-                        } else {
-                            sheetsService.spreadsheets().values()
-                                .append(yourEventsSpreadSheetID, "DomicilioWarnings!A:C", body)
-                                .setValueInputOption("RAW")
-                                .execute()
-                        }
-                        withContext(Dispatchers.Main) {
-                            val message = if (newCount < 3) "El domicilio es acredor a un aviso por tener vehículo en visita con cochera vacía."
-                            else "El domicilio es acredor a una multa por tener vehículo en visita con cochera vacía (3er aviso)."
-                            AlertDialog.Builder(this@VehicleSearchActivity)
-                                .setTitle("Acredor")
-                                .setMessage(message)
-                                .setPositiveButton("OK") { _, _ -> }
-                                .show()
-                            deletePorRevisarRecord(record)
-                        }
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(this@VehicleSearchActivity, "Error actualizando warnings: ${e.message}", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-            }
-            .setNegativeButton("No") { _, _ ->
-                deletePorRevisarRecord(record)
-            }
-            .show()
-    }
+//    private fun showVerificationAlert(record: PorRevisarRecord) {
+//        AlertDialog.Builder(this)
+//            .setTitle("Verificar Cochera")
+//            .setMessage("¿La cochera está vacía en ${record.street} ${record.number}?")
+//            .setPositiveButton("Sí") { _, _ ->
+//                lifecycleScope.launch(Dispatchers.IO) {
+//                    try {
+//                        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+//                        // Get or create warning record
+//                        val response = sheetsService.spreadsheets().values()
+//                            .get(yourEventsSpreadSheetID, "DomicilioWarnings!A:C")
+//                            .execute()
+//                        val rows = response.getValues() ?: emptyList()
+//                        var existingRowIndex: Int? = null
+//                        var currentCount = 0
+//                        rows.forEachIndexed { index, row ->
+//                            if (row.size >= 2 && row[0].toString() == record.street && row[1].toString() == record.number) {
+//                                existingRowIndex = index + 1
+//                                currentCount = row[2].toString().toIntOrNull() ?: 0
+//                                return@forEachIndexed
+//                            }
+//                        }
+//                        val newCount = currentCount + 1
+//                        val values = listOf(
+//                            listOf(
+//                                record.street,
+//                                record.number,
+//                                newCount.toString()
+//                            )
+//                        )
+//                        val body = ValueRange().setValues(values)
+//                        if (existingRowIndex != null) {
+//                            sheetsService.spreadsheets().values()
+//                                .update(yourEventsSpreadSheetID, "DomicilioWarnings!A$existingRowIndex:C$existingRowIndex", body)
+//                                .setValueInputOption("RAW")
+//                                .execute()
+//                        } else {
+//                            sheetsService.spreadsheets().values()
+//                                .append(yourEventsSpreadSheetID, "DomicilioWarnings!A:C", body)
+//                                .setValueInputOption("RAW")
+//                                .execute()
+//                        }
+//                        withContext(Dispatchers.Main) {
+//                            val message = if (newCount < 3) "El domicilio es acredor a un aviso por tener vehículo en visita con cochera vacía."
+//                            else "El domicilio es acredor a una multa por tener vehículo en visita con cochera vacía (3er aviso)."
+//                            AlertDialog.Builder(this@VehicleSearchActivity)
+//                                .setTitle("Acredor")
+//                                .setMessage(message)
+//                                .setPositiveButton("OK") { _, _ -> }
+//                                .show()
+//                            deletePorRevisarRecord(record)
+//                        }
+//                    } catch (e: Exception) {
+//                        withContext(Dispatchers.Main) {
+//                            Toast.makeText(this@VehicleSearchActivity, "Error actualizando warnings: ${e.message}", Toast.LENGTH_SHORT).show()
+//                        }
+//                    }
+//                }
+//            }
+//            .setNegativeButton("No") { _, _ ->
+//                deletePorRevisarRecord(record)
+//            }
+//            .show()
+//    }
 
     private fun deletePorRevisarRecord(record: PorRevisarRecord) {
         val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-//                val response = sheetsService.spreadsheets().values()
-//                    .get(yourEventsSpreadSheetID, "PorRevisar!A:B") // Only need street and number to find row
-//                    .execute()
-                val rows = dataRaw?.getPorRevisar(isNetworkAvailable())// response.getValues() ?: emptyList()
-                var rowIndex: Int? = null
-                rows?.forEachIndexed { index, row ->
-                    if (row.size >= 2 && row[0].toString() == record.street && row[1].toString() == record.number) {
-                        rowIndex = index + 1
-                        return@forEachIndexed
-                    }
-                }
-                if (rowIndex != null) {
-                    val dimensionRange = DimensionRange()
-                        .setSheetId(porRevisarSheetId)
-                        .setDimension("ROWS")
-                        .setStartIndex(rowIndex!! - 1)
-                        .setEndIndex(rowIndex!!)
-                    val deleteRequest = DeleteDimensionRequest().setRange(dimensionRange)
-                    val request = Request().setDeleteDimension(deleteRequest)
-                    val batchRequest = BatchUpdateSpreadsheetRequest().setRequests(listOf(request))
-                    sheetsService.spreadsheets().batchUpdate(yourEventsSpreadSheetID, batchRequest).execute()
+
+                //########## ELIMINAR POR REVISAR CACHE ###############
+                if (dataRaw?.eliminarPorRevisar(record.street,record.number,record.parkingSlotKey) == false)
                     withContext(Dispatchers.Main) {
-                        porRevisarRecords.remove(record)
-                        updatePorRevisarButton()
-                        Toast.makeText(this@VehicleSearchActivity, "Registro eliminado", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@VehicleSearchActivity,
+                            "NO Internet: al eliminar registro antiguo",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
-                }
+                //######################################################
+
+//                val rows = dataRaw?.getPorRevisar()// response.getValues() ?: emptyList()
+//                var rowIndex: Int? = null
+//                rows?.forEachIndexed { index, row ->
+//                    if (row.size >= 2 && row[0].toString() == record.street && row[1].toString() == record.number) {
+//                        rowIndex = index + 1
+//                        return@forEachIndexed
+//                    }
+//                }
+//                if (rowIndex != null) {
+//                    val dimensionRange = DimensionRange()
+//                        .setSheetId(porRevisarSheetId)
+//                        .setDimension("ROWS")
+//                        .setStartIndex(rowIndex!! - 1)
+//                        .setEndIndex(rowIndex!!)
+//                    val deleteRequest = DeleteDimensionRequest().setRange(dimensionRange)
+//                    val request = Request().setDeleteDimension(deleteRequest)
+//                    val batchRequest = BatchUpdateSpreadsheetRequest().setRequests(listOf(request))
+//                    sheetsService.spreadsheets().batchUpdate(yourEventsSpreadSheetID, batchRequest).execute()
+//                    withContext(Dispatchers.Main) {
+//                        porRevisarRecords.remove(record)
+//                        updatePorRevisarButton()
+//                        Toast.makeText(this@VehicleSearchActivity, "Registro eliminado", Toast.LENGTH_SHORT).show()
+//                    }
+//                }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(this@VehicleSearchActivity, "Error eliminando registro: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@VehicleSearchActivity, "Error eliminando registro: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }

@@ -12,6 +12,7 @@ import android.widget.FrameLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
@@ -35,9 +36,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sheetsService: Sheets
     private var loadingOverlay: View? = null
     private var progressBar: ProgressBar? = null
+    private lateinit var resultText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        resultText = findViewById(R.id.txtMainResult)
+        mySettings = MySettings(this)
+        dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -91,17 +97,21 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun LoadingSheetDATA(){
+        waitingOn()
+        val autosEventos = dataRaw?.getAutosEventos()
+        val vehiculosData = dataRaw?.getCachedVehiclesData()
+        val domiciliosUbicacion = dataRaw?.getDomiciliosUbicacion()
+        val porRevisar = dataRaw?.getPorRevisar()
+        val parkingSlots = dataRaw?.getParkingSlots()
+        val multas = dataRaw?.getMultas()
+        val domiciliosWarnings = dataRaw?.getDomicilioWarnings()
         //Loading all the sheets
         if (isNetworkAvailable()) {
             // Initialize Google services (requires Google Sign-In setup)
             initializeGoogleServices()
-            mySettings = MySettings(this)
-            dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
-            waitingOn()
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     withContext(Dispatchers.Main) {
-                        val autosEventos = dataRaw?.getAutosEventos(isNetworkAvailable())
                         println("LARANGEL total autos: ${autosEventos?.size}")
                         waitingOff()
                     }
@@ -112,13 +122,45 @@ class MainActivity : AppCompatActivity() {
                         e.printStackTrace()
                         Toast.makeText(
                             this@MainActivity,
-                            "Error Loading Sheet DATA: ${e.message}",
+                            "Error al cargar INFORMACION, no hay conexion a INTERNET: ${e.message}",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
                 }
             }
             waitingOff()
+        }else{
+            lifecycleScope.launch(Dispatchers.IO) {
+                withContext(Dispatchers.Main) {
+                    waitingOff()
+                    Toast.makeText(
+                        this@MainActivity,
+                        "No hay conexion a INTERNET, usando CACHE",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+        }
+        lifecycleScope.launch(Dispatchers.IO) {
+            withContext(Dispatchers.Main) {
+                waitingOff()
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Datos cargados")
+                    .setMessage("Multas: ${multas?.count()}\n" +
+                            "Advertencias: ${domiciliosWarnings?.count()}\n" +
+                            "Cajones Visita: ${parkingSlots?.count()}\n" +
+                            "Por Revisar: ${porRevisar?.count()}\n" +
+                            "Domicilios: ${domiciliosUbicacion?.count()}\n" +
+                            "Vehiculos: ${vehiculosData?.count()}")
+                    .setPositiveButton("OK") { _, _ ->
+                        Toast.makeText(
+                            this@MainActivity,
+                            "Iniciando...",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                    .show()
+            }
         }
     }
 

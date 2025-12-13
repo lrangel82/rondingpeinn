@@ -24,11 +24,21 @@ class MySettings(context: Context) {
         val jsonString = Json.encodeToString(DataList)
         sharedPreferences.edit() { putString(key, jsonString) }
     }
+    fun saveSingleList(key: String, DataList: List<String>){
+        val jsonString = Json.encodeToString(DataList)
+        sharedPreferences.edit() { putString(key, jsonString) }
+    }
     fun getList(key: String): List<List<String>>{
         val jsonString=sharedPreferences.getString(key, "[]") ?: "[]"
         val objectList = Json.decodeFromString<List<List<String>>>(jsonString)
         return objectList
     }
+    fun getSimpleList(key: String): List<String>{
+        val jsonString=sharedPreferences.getString(key, "[]") ?: "[]"
+        val objectList = Json.decodeFromString<List<String>>(jsonString)
+        return objectList
+    }
+
 
     fun saveLong(key: String, value: Long){
         sharedPreferences.edit() { putLong(key, value) }

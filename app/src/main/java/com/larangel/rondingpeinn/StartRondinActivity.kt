@@ -5,6 +5,7 @@ import MySettings
 import DataRawRondin
 import PorRevisarRecord
 import android.Manifest
+import android.annotation.SuppressLint
 //import coil.load
 import android.app.PendingIntent
 import android.content.Context
@@ -78,6 +79,7 @@ class StartRondinActivity : AppCompatActivity() {
     private var pendingIntent: PendingIntent? = null
     private var intentFiltersArray: Array<IntentFilter>? = null
     private var dataList =  mutableListOf<CheckPoint>()
+    private lateinit var resultText: TextView
 
     private lateinit var sheetsService: Sheets
     private var porRevisarSheetId: Int = 0
@@ -87,10 +89,12 @@ class StartRondinActivity : AppCompatActivity() {
     private val checkRunnable = Runnable { checkPorRevisarLocations() }
 
 
+    @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_start_rondin)
+        resultText = findViewById(R.id.txtRondinResult)
 
         mySettings=MySettings(this)
         dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
@@ -107,8 +111,8 @@ class StartRondinActivity : AppCompatActivity() {
         }
         else if (nfcAdapter != null && nfcAdapter?.isEnabled ==false) {
             val builder = AlertDialog.Builder(this@StartRondinActivity)//, R.style.MyAlertDialogStyle)
-            builder.setTitle("NFC Disabled")
-            builder.setMessage("Plesae Enable NFC")
+            builder.setTitle("NFC Deshabilitado")
+            builder.setMessage("Por favor habilita el NFC")
 
             builder.setPositiveButton("Settings") { _, _ -> startActivity(Intent(Settings.ACTION_NFC_SETTINGS)) }
             builder.setNegativeButton("Cancel", null)
@@ -116,17 +120,16 @@ class StartRondinActivity : AppCompatActivity() {
             myDialog.setCanceledOnTouchOutside(false)
             myDialog.show()
         }
-        else {
 
-            //Start pending intent ESCUCHANDO...
-            // Create a generic PendingIntent that will be deliver to this activity. The NFC stack
-            // will fill in the intent with the details of the discovered tag before delivering to
-            // this activity.
-            pendingIntent = PendingIntent.getActivity(
-                this, 0, Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
-                PendingIntent.FLAG_MUTABLE
-            )
-        }
+        //Start pending intent ESCUCHANDO...
+        // Create a generic PendingIntent that will be deliver to this activity. The NFC stack
+        // will fill in the intent with the details of the discovered tag before delivering to
+        // this activity.
+        pendingIntent = PendingIntent.getActivity(
+            this, 0, Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_MUTABLE
+        )
+
 
 
         val btncancelar: Button = findViewById<Button>(R.id.btn_cancelar)
@@ -319,7 +322,8 @@ class StartRondinActivity : AppCompatActivity() {
         intentFiltersArray = arrayOf(ndef, IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED), IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED))
         // Setup a tech list for all Ndef tags
         val techListsArray = arrayOf(arrayOf<String>(Ndef::class.java.name))
-        nfcAdapter?.enableForegroundDispatch(this, pendingIntent, intentFiltersArray, techListsArray)
+        if (nfcAdapter != null && nfcAdapter!!.isEnabled)
+            nfcAdapter?.enableForegroundDispatch(this, pendingIntent, intentFiltersArray, techListsArray)
 
         loadPorRevisar()
         handler.postDelayed(checkRunnable, 2000)
@@ -511,8 +515,8 @@ class StartRondinActivity : AppCompatActivity() {
             )
         }
         //Pintar Lugares de Visita
-        val plateEvents6Horas = dataRaw?.getAutosEventos_6horas(isNetworkAvailable())
-        val allSlots = dataRaw?.getParkingSlots( isNetworkAvailable())
+        val plateEvents6Horas = dataRaw?.getAutosEventos_6horas()
+        val allSlots = dataRaw?.getParkingSlots( )
         if (allSlots != null) {
             for (slot in allSlots){
                 val escaneadoVisita = plateEvents6Horas?.any { it[4].toString() == slot[2].toString() }
