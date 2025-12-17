@@ -10,8 +10,6 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.location.Location
 import android.os.Bundle
-import android.os.Parcel
-import android.os.Parcelable
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -22,15 +20,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
-import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.gson.GsonFactory
-import com.google.api.services.sheets.v4.Sheets
-import com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest
-import com.google.api.services.sheets.v4.model.DeleteDimensionRequest
-import com.google.api.services.sheets.v4.model.DimensionRange
-import com.google.api.services.sheets.v4.model.Request
-import com.google.api.services.sheets.v4.model.ValueRange
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -39,7 +28,6 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.Duration
 import java.io.File as JavaFile
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import kotlin.math.sqrt
@@ -64,7 +52,6 @@ import kotlinx.coroutines.CoroutineScope
 class PorRevisarListActivity : AppCompatActivity() {
     private var mySettings: MySettings? = null
     private var dataRaw: DataRawRondin? = null
-    private lateinit var sheetsService: Sheets
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var currentLocationText: TextView
     private lateinit var porRevisarRecyclerView: RecyclerView
@@ -72,8 +59,6 @@ class PorRevisarListActivity : AppCompatActivity() {
     private var currentLat: Double = 0.0
     private var currentLon: Double = 0.0
     private val porRevisarRecords = mutableListOf<PorRevisarRecord>()
-    private var porRevisarSheetId: Int = 0
-    private var domicilioWarningsSheetId: Int = 0
     private val REQUEST_LOCATION_PERMISSION = 101
     private val REQUEST_IMAGE_CAPTURE = 102
     private var verificationPhotoUri: Uri? = null
@@ -159,42 +144,11 @@ class PorRevisarListActivity : AppCompatActivity() {
         }
     }
 
-//    private fun initializeGoogleServices() {
-//        val serviceAccountStream = applicationContext.resources.openRawResource(R.raw.json_google_service_account)
-//        val credential = GoogleCredential.fromStream(serviceAccountStream)
-//            .createScoped(listOf("https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"))
-//        sheetsService = Sheets.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance(), credential)
-//            .setApplicationName("My First Project")
-//            .build()
-//
-//        // Get sheet ID for PorRevisar and DomicilioWarnings
-//        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-//        lifecycleScope.launch(Dispatchers.IO) {
-//            try {
-//                val spreadsheet = sheetsService.spreadsheets().get(yourEventsSpreadSheetID).execute()
-//                for (sheet in spreadsheet.sheets) {
-//                    when (sheet.properties.title) {
-//                        "PorRevisar" -> porRevisarSheetId = sheet.properties.sheetId
-//                        "DomicilioWarnings" -> domicilioWarningsSheetId = sheet.properties.sheetId
-//                    }
-//                }
-//            } catch (e: Exception) {
-//                withContext(Dispatchers.Main) {
-//                    Toast.makeText(this@PorRevisarListActivity, "Error initializing sheet ID: ${e.message}", Toast.LENGTH_SHORT).show()
-//                }
-//            }
-//        }
-//    }
-
     private fun loadPorRevisar() {
         waitingOn()
         //val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-//                val response = sheetsService.spreadsheets().values()
-//                    .get(yourEventsSpreadSheetID, "PorRevisar!A:G")
-//                    .execute()
-//                val rows = response.getValues() ?: emptyList()
                 val rows = dataRaw?.getPorRevisar()
                 withContext(Dispatchers.Main) {
                     waitingOff()
@@ -371,13 +325,6 @@ class PorRevisarListActivity : AppCompatActivity() {
                         Toast.makeText(this@PorRevisarListActivity, "Event saved", Toast.LENGTH_SHORT).show()
                     }
 
-//                val bodyEventos = ValueRange().setValues(valuesEventos)
-//                val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-//                sheetsService.spreadsheets().values()
-//                    .append(yourEventsSpreadSheetID, "AutosEventos!A:E", bodyEventos)
-//                    .setValueInputOption("RAW")
-//                    .execute()
-
                 incrementDomicilioWarnings(record, formattedDate, formattedTime, event)
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -388,7 +335,6 @@ class PorRevisarListActivity : AppCompatActivity() {
     }
 
     private fun incrementDomicilioWarnings(record: PorRevisarRecord, formattedDate: String, formattedTime: String, newEvent: EventModal) {
-        //val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val valuesDomWar = listOf(
@@ -398,40 +344,6 @@ class PorRevisarListActivity : AppCompatActivity() {
                         "CocheraVacia"
                     )
                 val countWarnings = dataRaw?.updateDomicilioWarning(valuesDomWar as List<String>)
-
-//                val response = sheetsService.spreadsheets().values()
-//                    .get(yourEventsSpreadSheetID, "DomicilioWarnings!A:C")
-//                    .execute()
-//                val rows = response.getValues() ?: emptyList()
-//                var existingRowIndex: Int? = null
-//                var currentCount = 0
-//                rows.forEachIndexed { index, row ->
-//                    if (row.size >= 2 && row[0].toString() == record.street && row[1].toString() == record.number) {
-//                        existingRowIndex = index + 1
-//                        currentCount = row[2].toString().toIntOrNull() ?: 0
-//                        return@forEachIndexed
-//                    }
-//                }
-//                val newCount = currentCount + 1
-//                val values = listOf(
-//                    listOf(
-//                        record.street,
-//                        record.number,
-//                        newCount.toString()
-//                    )
-//                )
-//                val body = ValueRange().setValues(values)
-//                if (existingRowIndex != null) {
-//                    sheetsService.spreadsheets().values()
-//                        .update(yourEventsSpreadSheetID, "DomicilioWarnings!A$existingRowIndex:C$existingRowIndex", body)
-//                        .setValueInputOption("RAW")
-//                        .execute()
-//                } else {
-//                    sheetsService.spreadsheets().values()
-//                        .append(yourEventsSpreadSheetID, "DomicilioWarnings!A:C", body)
-//                        .setValueInputOption("RAW")
-//                        .execute()
-//                }
                 withContext(Dispatchers.Main) {
                     waitingOff()
                     if (countWarnings!! >= 3) {
@@ -457,11 +369,6 @@ class PorRevisarListActivity : AppCompatActivity() {
         waitingOn()
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                // Fetch the last event with matching parkingSlotKey
-//                val response = sheetsService.spreadsheets().values()
-//                    .get(yourEventsSpreadSheetID, "AutosEventos!A:E")
-//                    .execute()
-//                val rows = response.getValues() ?: emptyList()
                 val rows = dataRaw?.getAutosEventos()
                 val matchingEvents = rows?.filter { row ->
                     row.size >= 5 && row[4].toString() == record.parkingSlotKey
@@ -497,15 +404,7 @@ class PorRevisarListActivity : AppCompatActivity() {
                         Toast.makeText(this@PorRevisarListActivity, "Multas Guardada", Toast.LENGTH_SHORT).show()
                     }
                 }
-//                val body = ValueRange().setValues(values)
-//                sheetsService.spreadsheets().values()
-//                    .append(yourEventsSpreadSheetID, "MultasGeneradas!A:E", body)
-//                    .setValueInputOption("RAW")
-//                    .execute()
-//                withContext(Dispatchers.Main) {
-//                    waitingOff()
-//                    Toast.makeText(this@PorRevisarListActivity, "Fine recorded in MultasGeneradas", Toast.LENGTH_SHORT).show()
-//                }
+
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     waitingOff()
@@ -519,10 +418,6 @@ class PorRevisarListActivity : AppCompatActivity() {
         val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-//                val response = sheetsService.spreadsheets().values()
-//                    .get(yourEventsSpreadSheetID, "AutosEventos!A:E")
-//                    .execute()
-//                val rows = response.getValues() ?: emptyList()
                 val rows = dataRaw?.getAutosEventos()
                 val matchingEvents = rows?.filter { row ->
                     row.size >= 5 && row[4].toString() == record.parkingSlotKey
@@ -597,33 +492,7 @@ class PorRevisarListActivity : AppCompatActivity() {
                         ).show()
                     }
                 //######################################################
-//                val response = sheetsService.spreadsheets().values()
-//                    .get(yourEventsSpreadSheetID, "PorRevisar!A:B") // Only need street and number to find row
-//                    .execute()
-//                val rows = response.getValues() ?: emptyList()
-//                var rowIndex: Int? = null
-//                rows?.forEachIndexed { index, row ->
-//                    if (row.size >= 2 && row[0].toString() == record.street && row[1].toString() == record.number) {
-//                        rowIndex = index + 2
-//                        return@forEachIndexed
-//                    }
-//                }
-//                if (rowIndex != null) {
-//                    val dimensionRange = DimensionRange()
-//                        .setSheetId(porRevisarSheetId)
-//                        .setDimension("ROWS")
-//                        .setStartIndex(rowIndex!! - 1)
-//                        .setEndIndex(rowIndex!!)
-//                    val deleteRequest = DeleteDimensionRequest().setRange(dimensionRange)
-//                    val request = Request().setDeleteDimension(deleteRequest)
-//                    val batchRequest = BatchUpdateSpreadsheetRequest().setRequests(listOf(request))
-//                    sheetsService.spreadsheets().batchUpdate(yourEventsSpreadSheetID, batchRequest).execute()
-//                    withContext(Dispatchers.Main) {
-//                        porRevisarRecords.remove(record)
-//                        updateList()
-//                        Toast.makeText(this@PorRevisarListActivity, "Registro eliminado", Toast.LENGTH_SHORT).show()
-//                    }
-//                }
+
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@PorRevisarListActivity, "Error eliminando registro: ${e.message}", Toast.LENGTH_SHORT).show()

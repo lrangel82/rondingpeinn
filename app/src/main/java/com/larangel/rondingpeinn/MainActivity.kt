@@ -43,7 +43,13 @@ class MainActivity : AppCompatActivity() {
 
         resultText = findViewById(R.id.txtMainResult)
         mySettings = MySettings(this)
-        dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
+        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+        if (yourEventsSpreadSheetID.isEmpty()){
+            val intent: Intent = Intent(this, ProgramarTags::class.java )
+            startActivity(intent)
+        }else {
+            dataRaw = DataRawRondin(this, CoroutineScope(Dispatchers.IO))
+        }
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -61,6 +67,11 @@ class MainActivity : AppCompatActivity() {
         val btn_vehiculos: Button = findViewById(R.id.btn_vehiculos)
         btn_vehiculos.setOnClickListener{
             val intent: Intent = Intent(this, VehicleSearchActivity::class.java )
+            startActivity(intent)
+        }
+        val btn_incidencias: Button = findViewById(R.id.btnIncidenciasMain)
+        btn_incidencias.setOnClickListener {
+            val intent: Intent = Intent(this, IncidenciasMenu::class.java )
             startActivity(intent)
         }
 

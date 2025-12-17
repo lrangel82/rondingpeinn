@@ -16,6 +16,9 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.Typeface
 import android.location.Location
 import android.net.Uri
 import android.nfc.NdefRecord
@@ -568,10 +571,34 @@ class StartRondinActivity : AppCompatActivity() {
         ) as? SupportMapFragment
         mapFragment?.getMapAsync { googleMap ->
             googleMap.snapshot { bitmap ->
+                val msgMapa = "GpeINN Rondin: ${LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm"))}"
+                // 1. Copy of bitmap
+                var bitmaptext = bitmap!!.copy(Bitmap.Config.ARGB_8888, true)
+                // 2. Create a Canvas to draw on the Bitmap
+                val canvas = Canvas(bitmaptext)
+
+                // 3. Define the Paint object for the text
+                val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+                paint.color = Color.WHITE // Set text color
+                paint.textSize = 50f // Set text size in pixels
+                paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                paint.setShadowLayer(2f, 1f, 1f, Color.BLACK) // Add a slight shadow
+
+                // 4. Calculate the text position
+                val textBounds = Rect()
+                paint.getTextBounds(msgMapa, 0, msgMapa.length, textBounds)
+
+                // Position the text at the bottom center of the image
+                val x = (bitmaptext.width - textBounds.width()) / 2f
+                val y = (bitmaptext.height + textBounds.height()) - 100f // 20f for padding from bottom
+
+                // 5. Draw the text onto the canvas
+                canvas.drawText(msgMapa, x, y, paint)
+
                 //########### Save the photo
                 val imageFile = File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "map_snapshot.png")
                 FileOutputStream(imageFile).use { out ->
-                    bitmap?.compress(Bitmap.CompressFormat.PNG, 100, out)
+                    bitmaptext.compress(Bitmap.CompressFormat.PNG, 100, out)
                 }
                 //############ Send de message
                 // Creating intent with action send
@@ -586,17 +613,17 @@ class StartRondinActivity : AppCompatActivity() {
                     null
                 }
 
-                val sendIntent: Intent = Intent().apply {
-                    action = Intent.ACTION_SEND
+                val sendIntent: Intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "image/*"
                     putExtra(Intent.EXTRA_TEXT, message)
                     putExtra(Intent.EXTRA_STREAM, imageUri)
+                    putExtra("android.intent.extra.TEXT", message)
                     //type = "text/plain"
                     //type = "*/*"
-                    type = "image/*"
-                    setPackage("com.whatsapp")
+                    //setPackage("com.whatsapp")
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
-                val shareIntent = Intent.createChooser(sendIntent, null)
+                val shareIntent = Intent.createChooser(sendIntent, "Enviar rondin con...")
                 startActivity(shareIntent)
 
             } // end google map snapshot

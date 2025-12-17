@@ -46,29 +46,27 @@
         android:layout_width="179dp"
         android:layout_height="54dp"
 
+        android:layout_marginEnd="16dp"
         android:text="Permisos"
         android:textSize="24sp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/btnIncidenciasMain"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.933"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/btn_StartRondin"
-        app:layout_constraintVertical_bias="0.875" />
+        app:layout_constraintVertical_bias="0.953" />
 
     <Button
         android:id="@+id/btn_vehiculos"
         android:layout_width="179dp"
         android:layout_height="54dp"
 
+        android:layout_marginStart="16dp"
         android:enabled="true"
         android:text="Vehiculos"
         android:textSize="24sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.07"
+        app:layout_constraintBottom_toTopOf="@+id/btnIncidenciasMain"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/btn_StartRondin"
-        app:layout_constraintVertical_bias="0.875" />
+        app:layout_constraintVertical_bias="0.953" />
 
     <TextView
         android:id="@+id/textCopyright"
@@ -86,6 +84,17 @@
         android:layout_height="wrap_content"
         tools:layout_editor_absoluteX="8dp"
         tools:layout_editor_absoluteY="462dp" />
+
+    <Button
+        android:id="@+id/btnIncidenciasMain"
+        android:layout_width="232dp"
+        android:layout_height="54dp"
+        android:layout_marginBottom="40dp"
+        android:text="Incidencias"
+        android:textSize="24sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

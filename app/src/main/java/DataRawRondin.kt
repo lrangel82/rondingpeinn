@@ -7,6 +7,7 @@ import android.widget.Toast
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
+import com.google.api.client.util.DateTime
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest
 import com.google.api.services.sheets.v4.model.DeleteDimensionRequest
@@ -32,12 +33,14 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
     private var platesCache: List<List<Any>>? = null
     private var parkingSlotsCache: List<List<Any>>? = null
     private var autosEventosCache: MutableList<List<Any>>? = null
+    private var incidenciaEventosCache: MutableList<List<Any>>? = null
     private var directionsCache: List<List<Any>>? = null
     private var porRevisarCache: MutableList<List<Any>>? = null
     private var multasCache: MutableList<List<Any>>? = null
     private var platesCacheTimestamp: Long = 0
     private var parkingSlotsCacheTimestamp: Long = 0
     private var autosEventosCacheTimestamp: Long = 0
+    private var incidenciaEventosCacheTimestamp: Long = 0
     private var directionsCacheTimestamp: Long = 0
     private var porRevisarCacheTimestamp: Long = 0
     private var multasCacheTimestamp: Long = 0
@@ -49,7 +52,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
     //Variables temporales para salvar
     private var forSave_autosEventos: MutableList<List<Any>>? = mutableListOf<List<Any>>()
     private var isRunningSave_autosEventos: Boolean = false
-
+    private var forSave_incidenciaEventos: MutableList<List<Any>>? = mutableListOf<List<Any>>()
+    private var isRunningSave_incidenciaEventos: Boolean = false
     private var forSave_porRevisar: MutableList<List<Any>>? = mutableListOf<List<Any>>()
     private var forDelete_porRevisarIndex: ArrayList<String>? = ArrayList<String>()
     private var isRunningSave_porRevisar: Boolean = false
@@ -151,6 +155,13 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             forUpdate_DomicilioWarnings= cacheList7 as MutableList<List<Any>>?
             forUpdate_DomicilioWarningsIndex = cacheList7_1 as ArrayList<String>
             updateDomicilioWarningToSheetWithReatry(listOf(),-1)
+        }
+
+        //forSave_incidenciaEventos
+        val cacheList8 = mySettings?.getList("CACHE_forSave_incidenciaEventos")!!.toMutableList()
+        if (forSave_incidenciaEventos?.isEmpty() == true && cacheList8.isNotEmpty()){
+            forSave_incidenciaEventos= cacheList8 as MutableList<List<Any>>?
+            saveIncidenciaEventosToSheetWithRetry(listOf())
         }
     }
 
@@ -263,6 +274,35 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 } catch (e: Exception) {
                     mySettings?.saveList("CACHE_forSave_autosEventos", forSave_autosEventos as List<List<String>>)
                     val customMessage = "Error al salvar registros a EVENTOS AUTOS sheet REINTENTAR en 5 Min: ${e.message}"
+                    throw Exception(customMessage, e) // e is the original cause
+                }
+                delay(5.minutes)
+                // Reintenta
+            }
+        }
+        return true
+    }
+    fun saveIncidenciaEventosToSheetWithRetry(dataRow: List<String>): Boolean{
+        if (dataRow.isNotEmpty()) {
+            forSave_incidenciaEventos?.add(dataRow)
+            mySettings?.saveList("CACHE_forSave_incidenciaEventos", forSave_incidenciaEventos as List<List<String>>)
+        }
+        if (isRunningSave_incidenciaEventos) return false //Solo debe correr uno a la ves
+        coroutineScope?.launch {
+            isRunningSave_incidenciaEventos=true
+            while (isActive) {
+                try {
+                    val success = saveToGoogleSheets("IncidenciaEventos!A:G",forSave_incidenciaEventos as List<List<String>>)
+                    if (success){ // Éxito, no necesita reintentar
+                        forSave_incidenciaEventos!!.clear()
+                        mySettings?.saveList("CACHE_forSave_incidenciaEventos", forSave_incidenciaEventos as List<List<String>>)
+                        isRunningSave_incidenciaEventos=false
+                        break
+                    }
+                    mySettings?.saveList("CACHE_forSave_incidenciaEventos", forSave_incidenciaEventos as List<List<String>>)
+                } catch (e: Exception) {
+                    mySettings?.saveList("CACHE_forSave_incidenciaEventos", forSave_incidenciaEventos as List<List<String>>)
+                    val customMessage = "Error al salvar registros a INCIDENCIA EVENTOS sheet REINTENTAR en 5 Min: ${e.message}"
                     throw Exception(customMessage, e) // e is the original cause
                 }
                 delay(5.minutes)
@@ -593,7 +633,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 // Si falla recarga, pero hay cache local reciente, úsala
                 if (directionsCache != null) return directionsCache!!
                 if (cacheList.isNotEmpty()) return cacheList
-                throw e
+                return emptyList()
             }
         }else{
             // Sin red, usar cache vieja si existe
@@ -648,7 +688,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 // Si falla recarga, pero hay cache local reciente, úsala
                 if (porRevisarCache != null) return porRevisarCache!!
                 if (cacheList.isNotEmpty()) return cacheList as MutableList<List<Any>>?
-                throw e
+                return mutableListOf<List<Any>>()
             }
         }else{
             // Sin red, usar cache vieja si existe
@@ -736,7 +776,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 // Si falla recarga, pero hay cache local reciente, úsala
                 if (parkingSlotsCache != null) return parkingSlotsCache!!
                 if (cacheList.isNotEmpty()) return cacheList
-                throw e
+                return emptyList()
             }
         }else{
             // Sin red, usar cache vieja si existe
@@ -821,7 +861,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 // Si falla recarga, pero hay cache local reciente, úsala
                 if (autosEventosCache != null) return autosEventosCache!!
                 if (cacheList.isNotEmpty()) return cacheList
-                throw e
+                return emptyList()
             }
         } else {
             // Sin red, usar cache vieja si existe
@@ -846,6 +886,83 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
         mySettings?.saveLong("EVENTOS_CACHE_TIMESTAMP", System.currentTimeMillis())
         return saveAutosEventosToSheetWithRetry(row)
     }
+
+    //IncidenciasEventos
+    fun getIncidenciasEventos(): List<List<Any>>{
+        val now = System.currentTimeMillis()
+        val thereConection = isNetworkAvailable()
+        // 1. Revisa caché de memoria RAM
+        val isMemoryFresh = incidenciaEventosCache != null && (now - incidenciaEventosCacheTimestamp <= CACHE_DURATION_MS || thereConection==false)
+        if (isMemoryFresh) return incidenciaEventosCache!!
+
+        // 2. Si RAM no, revisa persisted cache (MySettings)
+        val cacheList = mySettings?.getList("INCIDENCIAEVENTOS_CACHE")!!.toMutableList()
+        val cacheTimestamp = mySettings?.getLong("INCIDENCIAEVENTOS_CACHE_TIMESTAMP", 0L) ?: 0L
+        val isDiskFresh = cacheList?.isEmpty() == false && (now - cacheTimestamp <= CACHE_DURATION_MS || thereConection==false)
+
+        if (isDiskFresh) {
+            incidenciaEventosCache = cacheList as MutableList<List<Any>>
+            incidenciaEventosCacheTimestamp = cacheTimestamp
+            return incidenciaEventosCache!!
+        }
+
+        // 3. Si hace falta actualizar y hay Internet
+        if (thereConection) {
+
+            try {
+                //AUTOS EVENTOS
+                val allRows = mutableListOf<List<Any>>()
+                val date15daysAgo = LocalDate.now().minusDays(15)
+                GlobalScope.launch(Dispatchers.IO) {
+
+                    val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+                    val response = sheetsService.spreadsheets().values()
+                        .get(yourEventsSpreadSheetID, "IncidenciaEventos!A:G") // calle, numero, date, time, Tipo, localPhotoPath, descripcion
+                        .execute()
+                    val rows = response.getValues().drop(1) ?: emptyList()
+                    withContext(Dispatchers.Main) {
+                        // Update Data
+                        val solo15dias= rows.filter { it.size >= 5 && it[2].toString().length==10 && LocalDate.parse(it[2].toString()) >= date15daysAgo }.reversed()
+                        allRows.addAll(solo15dias)
+                        // Cachear y timestamp
+                        mySettings?.saveList("INCIDENCIAEVENTOS_CACHE", allRows as List<List<String>>)
+                        mySettings?.saveLong("INCIDENCIAEVENTOS_CACHE_TIMESTAMP", now)
+                        incidenciaEventosCache = allRows
+                        incidenciaEventosCacheTimestamp = now
+
+                    }
+                }
+
+                return incidenciaEventosCache ?: emptyList()
+            } catch (e: Exception) {
+                // Si falla recarga, pero hay cache local reciente, úsala
+                if (incidenciaEventosCache != null) return incidenciaEventosCache!!
+                if (cacheList.isNotEmpty()) return cacheList
+                return emptyList()
+            }
+        } else {
+            // Sin red, usar cache vieja si existe
+            if (incidenciaEventosCache != null) return incidenciaEventosCache!!
+            if (cacheList.isNotEmpty()) return cacheList
+            // Si no hay nada, regresa vacío
+            return emptyList()
+        }
+    }
+    fun getIncidenciasEventosTipo(Tipo: String, fechaDay: LocalDate = LocalDate.now()): List<List<Any>>{
+        val rows = getIncidenciasEventos()
+        //val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        val IncidenciaEvents = rows.filter { LocalDate.parse(it[2].toString()) == fechaDay && it[4].toString().uppercase() == Tipo.uppercase() }
+        return IncidenciaEvents ?: emptyList()
+
+    }
+    fun addIncidenciaEvento(row: List<String>): Boolean {
+        if (incidenciaEventosCache == null) getIncidenciasEventos()
+        incidenciaEventosCache?.add(row)
+        mySettings?.saveList("INCIDENCIAEVENTOS_CACHE", incidenciaEventosCache as List<List<String>>)
+        mySettings?.saveLong("INCIDENCIAEVENTOS_CACHE_TIMESTAMP", System.currentTimeMillis())
+        return saveIncidenciaEventosToSheetWithRetry(row)
+    }
+
 
     //Multas
     fun getMultas():MutableList<List<Any>>?{
@@ -896,7 +1013,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 // Si falla recarga, pero hay cache local reciente, úsala
                 if (multasCache != null) return multasCache!!
                 if (cacheList.isNotEmpty()) return cacheList as MutableList<List<Any>>?
-                throw e
+                return mutableListOf<List<Any>>()
             }
         } else {
             // Sin red, usar cache vieja si existe
@@ -989,7 +1106,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 // Si falla recarga, pero hay cache local reciente, úsala
                 if (domicilioWarningsCache != null) return domicilioWarningsCache!!
                 if (cacheList.isNotEmpty()) return cacheList as MutableList<List<Any>>?
-                throw e
+                return mutableListOf<List<Any>>()
             }
         } else {
             // Sin red, usar cache vieja si existe
