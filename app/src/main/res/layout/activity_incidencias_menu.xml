@@ -22,123 +22,69 @@
         android:id="@+id/textView8"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
+        android:layout_marginTop="4dp"
         android:gravity="center"
         android:text="INCIDENCIAS"
         android:textColor="@color/purple_700"
         android:textSize="24sp"
         android:textStyle="bold"
-        app:layout_constraintBottom_toTopOf="@+id/linearLayout"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.498"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btnBackIncidenciasMenu"
-        app:layout_constraintVertical_bias="0.0" />
+        app:layout_constraintTop_toBottomOf="@+id/btnBackIncidenciasMenu" />
 
-    <LinearLayout
-        android:id="@+id/linearLayout"
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="116dp"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:paddingLeft="16dp"
-        android:paddingRight="16dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        tools:layout_editor_absoluteX="0dp">
-
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/textView8">
 
         <LinearLayout
+            android:id="@+id/layoutBotonesIncidencias"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:paddingBottom="20dp">
+            android:orientation="vertical">
 
-            <RadioGroup
-                android:id="@+id/radioG_FechaIncidencias"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:layout_weight="0.3"
-                android:orientation="horizontal">
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:paddingBottom="20dp">
 
-                <RadioButton
-                    android:id="@+id/radioButtonDayAntier"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                <RadioGroup
+                    android:id="@+id/radioG_FechaIncidencias"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
                     android:layout_weight="0.3"
-                    android:text="Antier" />
+                    android:orientation="horizontal">
 
-                <RadioButton
-                    android:id="@+id/radioButtonDayAyer"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.3"
-                    android:text="Ayer" />
+                    <RadioButton
+                        android:id="@+id/radioButtonDayAntier"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="0.3"
+                        android:text="Antier" />
 
-                <RadioButton
-                    android:id="@+id/radioButtonDayHoy"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.3"
-                    android:text="Hoy" />
-            </RadioGroup>
+                    <RadioButton
+                        android:id="@+id/radioButtonDayAyer"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="0.3"
+                        android:text="Ayer" />
 
+                    <RadioButton
+                        android:id="@+id/radioButtonDayHoy"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="0.3"
+                        android:text="Hoy" />
+                </RadioGroup>
+
+            </LinearLayout>
         </LinearLayout>
-
-        <Button
-            android:id="@+id/btn_AlteraOrden"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Alteracion del Orden o Vandalismo" />
-
-        <Button
-            android:id="@+id/btn_FachadaDescuidada"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Jardin/Fachada descuidada" />
-
-        <Button
-            android:id="@+id/btn_RuidoAlto"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Musica/Ruido alto volumen" />
-
-        <Button
-            android:id="@+id/btn_AgrecionGuardia"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Agrecion fisica/verbal guardias" />
-
-        <Button
-            android:id="@+id/btn_MascotaFalta"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Mascota Defecando o sin Correa" />
-
-        <Button
-            android:id="@+id/btn_BasuraTirada"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Tirar basura" />
-
-        <Button
-            android:id="@+id/btn_TrabajadoresFueraHorario"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Trabajadores fuera de Horario" />
-
-        <Button
-            android:id="@+id/btn_TrabajosSinPermiso"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Trabajos sin Permiso" />
-
-        <Button
-            android:id="@+id/btn_ObraSucia"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Obras sucias/no limpias" />
-
-    </LinearLayout>
+    </ScrollView>
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

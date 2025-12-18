@@ -9,7 +9,8 @@ import com.larangel.rondingpeinn.R
 import java.io.File
 
 class IncidenciaAdapter(
-    private val incidencias: List<List<Any>>
+    private val incidencias: List<List<Any>>,
+    private val onClick: (List<Any>) -> Unit
 ): RecyclerView.Adapter<IncidenciaAdapter.ViewHolder>() {
 
     class ViewHolder(itemView: View): RecyclerView.ViewHolder(itemView) {
@@ -17,6 +18,7 @@ class IncidenciaAdapter(
         val txtCalleNumero: TextView = itemView.findViewById(R.id.txtCalleNumero)
         val txtFechaHora: TextView = itemView.findViewById(R.id.txtFechaHora)
         val txtDescripcion: TextView = itemView.findViewById(R.id.txtDescripcion)
+
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -46,5 +48,7 @@ class IncidenciaAdapter(
         } else {
             holder.imgThumbnail.setImageResource(R.drawable.error_image)
         }
+        //On click
+        holder.itemView.setOnClickListener { onClick(row) }
     }
 }

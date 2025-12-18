@@ -778,7 +778,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
     private fun handleFineConfirmation(events: List<List<Any>>, consecutiveDays: Int) {
         waitingOn()
-        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+        //val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         val plate = events[0][0].toString()
         val now = LocalDateTime.now()
         val dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
@@ -1172,12 +1172,13 @@ class  VehicleSearchActivity : AppCompatActivity() {
         try {
             val inputStream = contentResolver.openInputStream(uri)
             val bitmap = BitmapFactory.decodeStream(inputStream)
-            val aspectRatio = bitmap.height.toFloat() / bitmap.width.toFloat()
-            val targetWidth = 400
-            val targetHeight = (targetWidth * aspectRatio).toInt()
+            //val aspectRatio = bitmap.height.toFloat() / bitmap.width.toFloat()
+            val targetWidth = 600
+            val factorscale = targetWidth.toFloat()/bitmap.width.toFloat()
+            val targetHeight = (bitmap.height.toFloat() * factorscale).toInt()
             val reducedBitmap = bitmap.scale(targetHeight,targetWidth) // Reduced size
             val outputStream = ByteArrayOutputStream()
-            reducedBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+            reducedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
             val byteArray = outputStream.toByteArray()
 
             // Save to local storage
