@@ -8,6 +8,11 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -65,123 +70,149 @@ class IncidenciasMenu : AppCompatActivity() {
 
     private val arrayBotonesIncidencias: ArrayList<Button>? = ArrayList<Button>()
     private var indexBtnClicked: Int = -1
-    private val configuraIncidencias = listOf(
-        listOf(
-            "AlteraOrden",
-            "Alteracion del Orden",
-            0,
-            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 2.-ESCANDALO POR FIESTAS REUNIONES Ó CUALQUIER TIPO"
-        ),
-        listOf(
-            "FachadaDescuidada",
-            "Jardin/Fachada descuidada",
-            1,
-            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 1.- JARDIN DESCUIDADO (PASTO CRECIDO) Y/O FACHADA EN MAL ESTADO"
-        ),
-        listOf(
-            "RuidoAlto",
-            "Musica/Ruido alto volumen",
-            3,
-            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
-                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
-                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
-                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
-                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
-                    "12. PONER MUSICA YA SEA EN SU AUTO O CASA A VOLUMEN\n" +
-                    "ALTO QUE PUEDA MOLESTAR A LOS DEMÁS CONDÓMINOS"
-        ),
-        listOf(
-            "AgrecionGuardia",
-            "Agrecion fisica/verbal guardias",
-            0,
-            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 6.- AGRESION DE CUALQUIER TIPO, FISICA O VERBAL A LOS ELEMENTOS DE SEGURIDA"
-        ),
-        listOf(
-            "MascotaDefeca",
-            "Mascota Defecando",
-            0,
-            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 5.- MASCOTAS DEFECANDO EN AREAS COMUNES"
-        ),
-        listOf(
-            "MascotaSinCorrea",
-            "Mascota sin correa/ladridos/ruidos",
-            3,
-            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
-                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
-                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
-                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
-                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
-                    "19. TRANSITAR CON ANIMALES DOMÉSTICOS, SIN CORREA, POR\n" +
-                    "LAS ÁREAS DE USO COMÚN Y AJENAS, DARLES DE COMER\n" +
-                    "FUERA DE LA UNIDAD PRIVATIVA DEL CONDÓMINO\n" +
-                    "PROPIETARIO DE LA MASCOTA; PERMITIR QUE REALICE SUS\n" +
-                    "NECESIDADES EN LAS ÁREAS COMUNES DEL CONDOMINIO O\n" +
-                    "QUE EL ANIMAL HAGA RUIDOS SIN MOTIVO APARENTE\n" +
-                    "(LADRIDOS O RUIDOS OCASIONADOS CON OBJETOS)."
-        ),
-        listOf(
-            "BasuraTirada",
-            "Tirar basura",
-            3,
-            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
-                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
-                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
-                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
-                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
-                    "3. TIRAR BASURA O ESCOMBRO EN LOTES BALDIOS U OTRAS\n" +
-                    "PROPIEDADES, INCLUSO EN ÁREAS COMUNES"
-        ),
-        listOf(
-            "TrabajadoresFueraHorario",
-            "Tirar basura",
-            3,
-            "VIII.- DE LAS FINCAS EN CONSTRUCCION ARTÍCULO 20.- EN LO REFERENTE A CONTRUCCIONES, SE\n" +
-                    "BASARÁN EN LAS SIGUIENTES DISPOSICIONES:,\n" +
-                    "VII. EL HORARIO DE TRABAJO DEBERÁ SER\n" +
-                    "RIGUROSAMENTE RESPETADO, SIENDO ÉSTE DE LUNES A\n" +
-                    "VIERNES DE 8:00 A 18:00 HORAS Y SABADOS DE 8:00 A\n" +
-                    "14:00 HORAS. DOMINGOS Y DIAS FESTIVOS NO SE\n" +
-                    "LABORARA NI SE PERMITIRA EL INGRESO DE\n" +
-                    "MATERIALES. "
-
-        ),
-        listOf(
-            "TrabajosSinPermiso",
-            "Trabajos sin Permiso",
-            3,
-            "Pendiente de agregar en reglamento"
-        ),
-        listOf(
-            "ObraSucia",
-            "Obras sucias/no limpias",
-            0,
-            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 5.- MASCOTAS DEFECANDO EN AREAS COMUNES"
-        ),
-        listOf(
-            "BocinaClaxon",
-            "Bocina o Claxon ",
-            3,
-            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
-                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
-                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
-                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
-                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
-                    "9. UTILIZAR LA BOCINA DEL VEHÍCULO DENTRO DEL CONDOMINIO."
-
-        ),
-        listOf(
-            "Velocidad20km",
-            "Mas de 20km/h vehiculos",
-            3,
-            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
-                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
-                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
-                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
-                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
-                    "11. TRANSITAR SU VEHÍCULO A MÁS DE 20 KM/HR. DENTRO DEL\n" +
-                    "CONDOMINIO Y/O EN SENTIDO CONTRARIO."
-        )
-    )
+    private var configuraIncidencias: List<List<String>>? = listOf()//listOf(
+//        listOf(
+//            "AlteraOrden",
+//            "Alteracion del Orden",
+//            0,
+//            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 2.-ESCANDALO POR FIESTAS REUNIONES Ó CUALQUIER TIPO"
+//        ),
+//        listOf(
+//            "FachadaDescuidada",
+//            "Jardin/Fachada descuidada",
+//            1,
+//            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 1.- JARDIN DESCUIDADO (PASTO CRECIDO) Y/O FACHADA EN MAL ESTADO"
+//        ),
+//        listOf(
+//            "CocheraAlmacenamiento",
+//            "Cochera usada como almacenamiento",
+//            3,
+//            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
+//                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
+//                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
+//                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
+//                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
+//                    "13. ... UTILIZAR SOLO SU COCHERA PARA\n" +
+//                    "ESTACIONAR SU(S) VEHÍCULO(S). Y NO PARA EL\n" +
+//                    "ALMACENAMIENTO DE ALGUN TIPO DE MUEBLES,\n" +
+//                    "INSTRUMENTOS DE TALLER Y DEMAS UTILES USUALMENTE\n" +
+//                    "DEPOSITADOS EN COCHERAS. (Asamblea Gral. 05 Agosto 2003)"
+//        ),
+//        listOf(
+//            "RuidoAlto",
+//            "Musica/Ruido alto volumen",
+//            3,
+//            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
+//                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
+//                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
+//                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
+//                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
+//                    "12. PONER MUSICA YA SEA EN SU AUTO O CASA A VOLUMEN\n" +
+//                    "ALTO QUE PUEDA MOLESTAR A LOS DEMÁS CONDÓMINOS"
+//        ),
+//        listOf(
+//            "AgresionGuardia",
+//            "Agresion fisica/verbal guardias",
+//            0,
+//            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 6.- AGRESION DE CUALQUIER TIPO, FISICA O VERBAL A LOS ELEMENTOS DE SEGURIDA"
+//        ),
+//        listOf(
+//            "MascotaDefeca",
+//            "Mascota Defecando",
+//            0,
+//            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 5.- MASCOTAS DEFECANDO EN AREAS COMUNES"
+//        ),
+//        listOf(
+//            "MascotaSinCorrea",
+//            "Mascota sin correa/ladridos/ruidos",
+//            3,
+//            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
+//                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
+//                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
+//                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
+//                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
+//                    "19. TRANSITAR CON ANIMALES DOMÉSTICOS, SIN CORREA, POR\n" +
+//                    "LAS ÁREAS DE USO COMÚN Y AJENAS, DARLES DE COMER\n" +
+//                    "FUERA DE LA UNIDAD PRIVATIVA DEL CONDÓMINO\n" +
+//                    "PROPIETARIO DE LA MASCOTA; PERMITIR QUE REALICE SUS\n" +
+//                    "NECESIDADES EN LAS ÁREAS COMUNES DEL CONDOMINIO O\n" +
+//                    "QUE EL ANIMAL HAGA RUIDOS SIN MOTIVO APARENTE\n" +
+//                    "(LADRIDOS O RUIDOS OCASIONADOS CON OBJETOS)."
+//        ),
+//        listOf(
+//            "BasuraTirada",
+//            "Tirar basura",
+//            3,
+//            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
+//                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
+//                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
+//                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
+//                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
+//                    "3. TIRAR BASURA O ESCOMBRO EN LOTES BALDIOS U OTRAS\n" +
+//                    "PROPIEDADES, INCLUSO EN ÁREAS COMUNES"
+//        ),
+//        listOf(
+//            "TrabajadoresFueraHorario",
+//            "Tirar basura",
+//            3,
+//            "VIII.- DE LAS FINCAS EN CONSTRUCCION ARTÍCULO 20.- EN LO REFERENTE A CONTRUCCIONES, SE\n" +
+//                    "BASARÁN EN LAS SIGUIENTES DISPOSICIONES:,\n" +
+//                    "VII. EL HORARIO DE TRABAJO DEBERÁ SER\n" +
+//                    "RIGUROSAMENTE RESPETADO, SIENDO ÉSTE DE LUNES A\n" +
+//                    "VIERNES DE 8:00 A 18:00 HORAS Y SABADOS DE 8:00 A\n" +
+//                    "14:00 HORAS. DOMINGOS Y DIAS FESTIVOS NO SE\n" +
+//                    "LABORARA NI SE PERMITIRA EL INGRESO DE\n" +
+//                    "MATERIALES. "
+//
+//        ),
+//        listOf(
+//            "TrabajosSinPermiso",
+//            "Trabajos sin Permiso",
+//            3,
+//            "Pendiente de agregar en reglamento"
+//        ),
+//        listOf(
+//            "ObraSucia",
+//            "Obras sucias/no limpias",
+//            0,
+//            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 5.- MASCOTAS DEFECANDO EN AREAS COMUNES"
+//        ),
+//        listOf(
+//            "BocinaClaxon",
+//            "Bocina o Claxon ",
+//            3,
+//            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
+//                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
+//                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
+//                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
+//                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
+//                    "9. UTILIZAR LA BOCINA DEL VEHÍCULO DENTRO DEL CONDOMINIO."
+//
+//        ),
+//        listOf(
+//            "Velocidad20km",
+//            "Mas de 20km/h vehiculos",
+//            3,
+//            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
+//                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
+//                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
+//                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
+//                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
+//                    "11. TRANSITAR SU VEHÍCULO A MÁS DE 20 KM/HR. DENTRO DEL\n" +
+//                    "CONDOMINIO Y/O EN SENTIDO CONTRARIO."
+//        ),
+//        listOf(
+//            "RopaToallaBalcon",
+//            "Ropa o Toallas en Balcon",
+//            3,
+//            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
+//                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
+//                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
+//                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
+//                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
+//                    "21. COLGAR ROPA Ó TOALLAS EN BALCONES O VENTANAS"
+//        )
+//    )
 
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -197,6 +228,9 @@ class IncidenciasMenu : AppCompatActivity() {
 
         mySettings = MySettings(this)
         dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
+
+        //Configuracion incidencia
+        configuraIncidencias = dataRaw?.getIncidenciasConfig() as List<List<String>>?
 
         // Initialize UI components
         radioAntier                 = findViewById(R.id.radioButtonDayAntier)
@@ -220,7 +254,7 @@ class IncidenciasMenu : AppCompatActivity() {
 
         //Agregar Botones
         val contenedor = findViewById<LinearLayout>(R.id.layoutBotonesIncidencias)
-        configuraIncidencias.forEachIndexed { index, rowIncidencia ->
+        configuraIncidencias?.forEachIndexed { index, rowIncidencia ->
             val nuevoBoton = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle)
             nuevoBoton.text = rowIncidencia[2].toString()
             nuevoBoton.id = index
@@ -249,7 +283,7 @@ class IncidenciasMenu : AppCompatActivity() {
         //val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                configuraIncidencias.forEachIndexed { index, rowIncidencia ->
+                configuraIncidencias?.forEachIndexed { index, rowIncidencia ->
                     val tipo = rowIncidencia[0].toString()
                     val textoBoton = rowIncidencia[1].toString()
                     val eventos = dataRaw?.getIncidenciasEventosTipo(tipo,FechaIncidencias)
@@ -269,32 +303,36 @@ class IncidenciasMenu : AppCompatActivity() {
     }
 
     fun showOpcionesDialog(tipo: String) {
+        val titulo = configuraIncidencias?.get(indexBtnClicked)[1].toString()
+        val descripcionIncidencia = configuraIncidencias?.get(indexBtnClicked)[3].toString()
         val builder = AlertDialog.Builder(this)
-        builder.setTitle("Acción requerida")
-        builder.setMessage("¿Desea crear un nuevo incidente de $tipo, o mostrar el listado de los existentes?")
+        builder.setTitle("$titulo")
+        builder.setMessage("Reglamento: $descripcionIncidencia")
         builder.setPositiveButton("Nuevo") { _, _ -> solicitarDescripcion(tipo) }
         builder.setNeutralButton("Listado") { _, _ -> mostrarListadoIncidencias(tipo) }
         builder.setNegativeButton("Cancelar", null)
         builder.show()
     }
     fun solicitarDescripcion(tipo: String) {
+        currentTipo = tipo
         val input = EditText(this)
         input.hint = "Descripción corta"
         AlertDialog.Builder(this)
             .setTitle("Nueva Incidencia")
             .setMessage("Escriba una descripción corta")
             .setView(input)
-            .setPositiveButton("Siguiente: Tomar foto") { _, _ ->
-                val descripcion = input.text.toString()
-                tomarFoto(tipo, descripcion)
+            .setPositiveButton("Tomar foto") { _, _ ->
+                currentDescripcion = input.text.toString() ?: "n/a"
+                tomarFoto()
+            }
+            .setNeutralButton("Galeria"){_,_ ->
+                currentDescripcion = input.text.toString() ?: "n/a"
+                pickFromGallery()
             }
             .setNegativeButton("Cancelar", null)
             .show()
     }
-    fun tomarFoto(tipo: String, descripcion: String) {
-        currentTipo = tipo
-        currentDescripcion = descripcion
-
+    fun tomarFoto() {
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         val photoFile: File? = createImageFile()
         if (photoFile != null) {
@@ -386,23 +424,57 @@ class IncidenciasMenu : AppCompatActivity() {
         if (uri == null) return null
 
         try {
+            val msgMapa="GuadalupeInn Incidencias\n$currentTipo: (${SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())})\nnotas:$currentDescripcion"
             val inputStream = contentResolver.openInputStream(uri)
-            val bitmap = BitmapFactory.decodeStream(inputStream)
-            val targetWidth = 600
-            val factorscale = targetWidth.toFloat()/bitmap.width.toFloat()
-            val targetHeight = (bitmap.height.toFloat() * factorscale).toInt()
-            val reducedBitmap = bitmap.scale(targetHeight,targetWidth) // Reduced size
-            val outputStream = ByteArrayOutputStream()
-            reducedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
-            val byteArray = outputStream.toByteArray()
+            // 1. Copy of bitmap
+            var bitmap = BitmapFactory.decodeStream(inputStream)!!.copy(Bitmap.Config.ARGB_8888, true)
+            // Requiere escalar?
+            if (bitmap.width > 1024){
+                val targetWidth = 1024
+                val factorscale =targetWidth.toFloat()/bitmap.width.toFloat()
+                val targetHeight = (bitmap.height.toFloat() * factorscale).toInt()
+                bitmap = bitmap.scale(targetWidth,targetHeight) // Reduced size
+            }
+
+            // 2. Create a Canvas to draw on the Bitmap
+            val canvas = Canvas(bitmap)
+            // 3. Define the Paint object for the text
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+            paint.color = Color.WHITE // Set text color
+            paint.textSize = bitmap.height.toFloat()/30 // Set text size in pixels 10 rows
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            paint.setShadowLayer(2f, 1f, 1f, Color.BLACK) // Add a slight shadow
+
+            // Position the text at the top corner left of the image
+            val x = 20f //(textBounds.width()) / 2f + 20f
+            var y = 20f //(textBounds.height()) /2f + 20f // 20f for padding
+
+            val textBounds = Rect()
+            for (line in msgMapa.split("\n")) {
+                // 4. Calculate the text position
+                paint.getTextBounds(line, 0, line.length, textBounds)
+                y += textBounds.height() + 10f
+                // 5. Draw the text onto the canvas
+                canvas.drawText(line, x, y, paint)
+
+            }
+
+//            val targetWidth = 1024
+//            val factorscale =bitmap.width.toFloat()/targetWidth.toFloat()
+//            val targetHeight = (bitmap.height.toFloat() * factorscale).toInt()
+//            val reducedBitmap = bitmap.scale(targetHeight,targetWidth) // Reduced size
+//            val outputStream = ByteArrayOutputStream()
+//            reducedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
+//            val byteArray = outputStream.toByteArray()
 
             // Save to local storage
             val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss").format(Date())
             val storageDir = getExternalFilesDir("photos")
             val localFile = File(storageDir, "incidente_${tipo}_${timeStamp}.jpg")
             FileOutputStream(localFile).use { fos ->
-                fos.write(byteArray)
-                fos.flush()
+                //fos.write(byteArray)
+                //fos.flush()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 90, fos)
             }
             return localFile.absolutePath
         } catch (e: Exception) {
@@ -451,8 +523,8 @@ class IncidenciasMenu : AppCompatActivity() {
             val calle = incidenciaRow[0]
             val number = incidenciaRow[1]
             val tipo = incidenciaRow[4]
-            val maxWarnings = configuraIncidencias.get(indexBtnClicked)[2] as Int
-            val descripcionIncidencia = configuraIncidencias.get(indexBtnClicked)[3].toString()
+            val maxWarnings = configuraIncidencias?.get(indexBtnClicked)[2]!!.toInt()
+            val descripcionIncidencia = configuraIncidencias?.get(indexBtnClicked)[3].toString()
             val values = listOf(
                 calle,
                 number,
@@ -534,7 +606,7 @@ class IncidenciasMenu : AppCompatActivity() {
             }
             if (index >= numWarnings) return@forEachIndexed
         }
-        val descripcionIncidencia = configuraIncidencias.get(indexBtnClicked)[3].toString()
+        val descripcionIncidencia = configuraIncidencias?.get(indexBtnClicked)[3].toString()
         val shareText = "Nueva multa $calle:$numero por $tipo legal: $formattedTime $descripcionIncidencia"
 
         val intent = Intent().apply {
@@ -586,7 +658,7 @@ class IncidenciasMenu : AppCompatActivity() {
         when (requestCode) {
             REQUEST_CAMERA_PERMISSION -> {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    tomarFoto(currentTipo.toString(), currentDescripcion.toString())
+                    tomarFoto()
                 } else {
                     Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show()
                 }

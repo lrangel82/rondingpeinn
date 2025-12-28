@@ -307,10 +307,29 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 .setTitle("Lugar Vacío")
                 .setMessage("¿Está seguro que el lugar $key está vacío?")
                 .setPositiveButton("Sí") { _, _ -> procesarEventLugar(key, "VACIO", false) }
-                .setNegativeButton("No", { _, _ ->
-                    //Limpiar url y placas
-                    cleanFrom()
-                })
+                .setNegativeButton("No") { _, _ ->
+                    //Preguntar por las placas
+                    val input = EditText(this)
+                    input.hint = "Ingrese Placa"
+                    input.layoutParams = LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT
+                    )
+                    AlertDialog.Builder(this)
+                        .setTitle("Escriba las placas")
+                        .setView(input)
+                        .setPositiveButton("Ok") { _, _ ->
+                            var plate = input.text.toString()
+                            var re = Regex("[^A-Za-z0-9 ]")
+                            plate = re.replace(plate, "") //Eliminar carcteres no deseados
+                            procesarEventLugar(key, plate, false)
+                        }
+                        .setNegativeButton("Cancelar") { _, _ ->
+                            //Limpiar url y placas
+                            cleanFrom()
+                        }
+                        .show()
+                }
                 .show()
         } else {
             AlertDialog.Builder(this)
@@ -460,7 +479,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
             } else {
                 AlertDialog.Builder(this)
                     .setTitle("No Camera Available")
-                    .setMessage("Do you want to select a photo from the gallery?")
+                    .setMessage("Quieres seleccionar una foto de la galeria?")
                     .setPositiveButton("Yes") { _, _ ->
                         pickFromGallery()
                     }
@@ -1176,7 +1195,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
             val targetWidth = 600
             val factorscale = targetWidth.toFloat()/bitmap.width.toFloat()
             val targetHeight = (bitmap.height.toFloat() * factorscale).toInt()
-            val reducedBitmap = bitmap.scale(targetHeight,targetWidth) // Reduced size
+            val reducedBitmap = bitmap.scale(targetWidth,targetHeight) // Reduced size
             val outputStream = ByteArrayOutputStream()
             reducedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, outputStream)
             val byteArray = outputStream.toByteArray()

@@ -37,10 +37,12 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
     private var directionsCache: List<List<Any>>? = null
     private var porRevisarCache: MutableList<List<Any>>? = null
     private var multasCache: MutableList<List<Any>>? = null
+    private var incidenciaConfigCache: List<List<Any>>? = null
     private var platesCacheTimestamp: Long = 0
     private var parkingSlotsCacheTimestamp: Long = 0
     private var autosEventosCacheTimestamp: Long = 0
     private var incidenciaEventosCacheTimestamp: Long = 0
+    private var incidenciaConfigCacheTimestamp: Long = 0
     private var directionsCacheTimestamp: Long = 0
     private var porRevisarCacheTimestamp: Long = 0
     private var multasCacheTimestamp: Long = 0
@@ -82,7 +84,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
 
         initializeGoogleServices()
         //Pendientes por guardar?
-        checarPendientePorSalvarEnCACHE()
+        //checarPendientePorSalvarEnCACHE()
     }
 
     private fun initializeGoogleServices() {
@@ -103,7 +105,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
     }
 
     //Pendientes por guardar en cache? ejecuta el ciclo
-    private fun checarPendientePorSalvarEnCACHE(){
+    fun checarPendientePorSalvarEnCACHE(){
         //forSave_autosEventos
         val cacheList1 = mySettings?.getList("CACHE_forSave_autosEventos")!!.toMutableList()
         if (forSave_autosEventos?.isEmpty() == true && cacheList1.isNotEmpty()){
@@ -545,7 +547,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
         }
 
         // 3. Si hace falta actualizar y hay Internet
-        if (thereConection) {
+        if (thereConection == true) {
             try {
                 //Vehiculos VISITANTES
                 val yourSpreadSheetID = mySettings?.getString("REGISTRO_CARROS_SPREADSHEET_ID", "")
@@ -609,7 +611,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             return directionsCache!!
         }
         // 3. Si hace falta actualizar y hay Internet
-        if (thereConection) {
+        if (thereConection == true ) {
             try {
                 //PARKING SLOTS
                 GlobalScope.launch(Dispatchers.IO) {
@@ -662,7 +664,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             return porRevisarCache!!
         }
         // 3. Si hace falta actualizar y hay Internet
-        if (thereConection) {
+        if (thereConection==true) {
             try {
                 //PARKING SLOTS
                 val allRows = mutableListOf<List<Any>>()
@@ -752,7 +754,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             return parkingSlotsCache!!
         }
         // 3. Si hace falta actualizar y hay Internet
-        if (thereConection) {
+        if (thereConection==true) {
             try {
                 //PARKING SLOTS
                 GlobalScope.launch(Dispatchers.IO) {
@@ -830,7 +832,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
         }
 
         // 3. Si hace falta actualizar y hay Internet
-        if (thereConection) {
+        if (thereConection == true) {
 
             try {
                 //AUTOS EVENTOS
@@ -888,6 +890,57 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
     }
 
     //IncidenciasEventos
+    fun getIncidenciasConfig(): List<List<Any>>{
+        val now = System.currentTimeMillis()
+        val thereConection = isNetworkAvailable()
+        // 1. Revisa caché de memoria RAM 24Hrs para refresh
+        val isMemoryFresh = incidenciaConfigCache != null && (now - incidenciaConfigCacheTimestamp <= (CACHE_DURATION_MS * 24) || thereConection==false)
+        if (isMemoryFresh) return incidenciaConfigCache!!
+
+        // 2. Si RAM no, revisa persisted cache (MySettings)
+        val cacheList = mySettings?.getList("INCIDENCIACONFIG_CACHE")!!.toMutableList()
+        val cacheTimestamp = mySettings?.getLong("INCIDENCIACONFIG_CACHE_TIMESTAMP", 0L) ?: 0L
+        val isDiskFresh = cacheList?.isEmpty() == false && (now - cacheTimestamp <= (CACHE_DURATION_MS * 24) || thereConection==false)
+        if (isDiskFresh) {
+            incidenciaConfigCache = cacheList //as MutableList<List<Any>>
+            incidenciaConfigCacheTimestamp = cacheTimestamp
+            return incidenciaConfigCache!!
+        }
+        // 3. Si hace falta actualizar y hay Internet
+        if (thereConection == true) {
+            try {
+                //PARKING SLOTS
+                GlobalScope.launch(Dispatchers.IO) {
+                    val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+                    val response = sheetsService.spreadsheets().values()
+                        .get(yourEventsSpreadSheetID, "IncidenciaConfig!A:D") // key, textoButton, maxWarning, descLegal
+                        .execute()
+                    val allRows = response.getValues().drop(1) ?: emptyList()
+                    withContext(Dispatchers.Main) {
+                        // Cachear y timestamp
+                        mySettings?.saveList("INCIDENCIACONFIG_CACHE", allRows as List<List<String>>)
+                        mySettings?.saveLong("INCIDENCIACONFIG_CACHE_TIMESTAMP", now)
+                        incidenciaConfigCache = allRows
+                        incidenciaConfigCacheTimestamp = now
+
+                    }
+                }
+
+                return incidenciaConfigCache ?: emptyList()
+            } catch (e: Exception) {
+                // Si falla recarga, pero hay cache local reciente, úsala
+                if (incidenciaConfigCache != null) return incidenciaConfigCache!!
+                if (cacheList.isNotEmpty()) return cacheList
+                return emptyList()
+            }
+        }else{
+            // Sin red, usar cache vieja si existe
+            if (incidenciaConfigCache != null) return incidenciaConfigCache!!
+            if (cacheList.isNotEmpty()) return cacheList
+            // Si no hay nada, regresa vacío
+            return emptyList()
+        }
+    }
     fun getIncidenciasEventos(): List<List<Any>>{
         val now = System.currentTimeMillis()
         val thereConection = isNetworkAvailable()
@@ -907,7 +960,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
         }
 
         // 3. Si hace falta actualizar y hay Internet
-        if (thereConection) {
+        if (thereConection == true) {
 
             try {
                 //AUTOS EVENTOS
@@ -984,7 +1037,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
         }
 
         // 3. Si hace falta actualizar y hay Internet
-        if (thereConection) {
+        if (thereConection == true ) {
 
             try {
                 //AUTOS EVENTOS
@@ -1077,7 +1130,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
         }
 
         // 3. Si hace falta actualizar y hay Internet
-        if (thereConection) {
+        if (thereConection == true) {
 
             try {
                 //AUTOS EVENTOS

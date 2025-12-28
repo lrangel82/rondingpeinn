@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }else {
             dataRaw = DataRawRondin(this, CoroutineScope(Dispatchers.IO))
+            dataRaw?.checarPendientePorSalvarEnCACHE()
         }
 
         binding = ActivityMainBinding.inflate(layoutInflater)
