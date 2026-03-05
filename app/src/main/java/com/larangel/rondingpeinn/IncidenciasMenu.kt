@@ -35,6 +35,8 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.button.MaterialButton
 import com.google.mlkit.vision.common.InputImage
+import com.google.mlkit.vision.text.TextRecognition
+import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.larangel.rondingpeinn.VehicleSearchActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,7 +61,7 @@ class IncidenciasMenu : AppCompatActivity() {
     private lateinit var radioAyer: RadioButton
     private lateinit var radioHoy: RadioButton
 
-    private var currentPhotoPath: Uri? = null
+    private lateinit var currentPhotoPath: Uri
     private var currentTipo: String? = null
     private var currentDescripcion: String? = null
     private val REQUEST_CAMERA_PERMISSION = 100
@@ -71,148 +73,6 @@ class IncidenciasMenu : AppCompatActivity() {
     private val arrayBotonesIncidencias: ArrayList<Button>? = ArrayList<Button>()
     private var indexBtnClicked: Int = -1
     private var configuraIncidencias: List<List<String>>? = listOf()//listOf(
-//        listOf(
-//            "AlteraOrden",
-//            "Alteracion del Orden",
-//            0,
-//            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 2.-ESCANDALO POR FIESTAS REUNIONES Ó CUALQUIER TIPO"
-//        ),
-//        listOf(
-//            "FachadaDescuidada",
-//            "Jardin/Fachada descuidada",
-//            1,
-//            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 1.- JARDIN DESCUIDADO (PASTO CRECIDO) Y/O FACHADA EN MAL ESTADO"
-//        ),
-//        listOf(
-//            "CocheraAlmacenamiento",
-//            "Cochera usada como almacenamiento",
-//            3,
-//            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
-//                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
-//                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
-//                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
-//                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
-//                    "13. ... UTILIZAR SOLO SU COCHERA PARA\n" +
-//                    "ESTACIONAR SU(S) VEHÍCULO(S). Y NO PARA EL\n" +
-//                    "ALMACENAMIENTO DE ALGUN TIPO DE MUEBLES,\n" +
-//                    "INSTRUMENTOS DE TALLER Y DEMAS UTILES USUALMENTE\n" +
-//                    "DEPOSITADOS EN COCHERAS. (Asamblea Gral. 05 Agosto 2003)"
-//        ),
-//        listOf(
-//            "RuidoAlto",
-//            "Musica/Ruido alto volumen",
-//            3,
-//            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
-//                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
-//                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
-//                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
-//                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
-//                    "12. PONER MUSICA YA SEA EN SU AUTO O CASA A VOLUMEN\n" +
-//                    "ALTO QUE PUEDA MOLESTAR A LOS DEMÁS CONDÓMINOS"
-//        ),
-//        listOf(
-//            "AgresionGuardia",
-//            "Agresion fisica/verbal guardias",
-//            0,
-//            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 6.- AGRESION DE CUALQUIER TIPO, FISICA O VERBAL A LOS ELEMENTOS DE SEGURIDA"
-//        ),
-//        listOf(
-//            "MascotaDefeca",
-//            "Mascota Defecando",
-//            0,
-//            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 5.- MASCOTAS DEFECANDO EN AREAS COMUNES"
-//        ),
-//        listOf(
-//            "MascotaSinCorrea",
-//            "Mascota sin correa/ladridos/ruidos",
-//            3,
-//            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
-//                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
-//                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
-//                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
-//                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
-//                    "19. TRANSITAR CON ANIMALES DOMÉSTICOS, SIN CORREA, POR\n" +
-//                    "LAS ÁREAS DE USO COMÚN Y AJENAS, DARLES DE COMER\n" +
-//                    "FUERA DE LA UNIDAD PRIVATIVA DEL CONDÓMINO\n" +
-//                    "PROPIETARIO DE LA MASCOTA; PERMITIR QUE REALICE SUS\n" +
-//                    "NECESIDADES EN LAS ÁREAS COMUNES DEL CONDOMINIO O\n" +
-//                    "QUE EL ANIMAL HAGA RUIDOS SIN MOTIVO APARENTE\n" +
-//                    "(LADRIDOS O RUIDOS OCASIONADOS CON OBJETOS)."
-//        ),
-//        listOf(
-//            "BasuraTirada",
-//            "Tirar basura",
-//            3,
-//            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
-//                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
-//                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
-//                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
-//                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
-//                    "3. TIRAR BASURA O ESCOMBRO EN LOTES BALDIOS U OTRAS\n" +
-//                    "PROPIEDADES, INCLUSO EN ÁREAS COMUNES"
-//        ),
-//        listOf(
-//            "TrabajadoresFueraHorario",
-//            "Tirar basura",
-//            3,
-//            "VIII.- DE LAS FINCAS EN CONSTRUCCION ARTÍCULO 20.- EN LO REFERENTE A CONTRUCCIONES, SE\n" +
-//                    "BASARÁN EN LAS SIGUIENTES DISPOSICIONES:,\n" +
-//                    "VII. EL HORARIO DE TRABAJO DEBERÁ SER\n" +
-//                    "RIGUROSAMENTE RESPETADO, SIENDO ÉSTE DE LUNES A\n" +
-//                    "VIERNES DE 8:00 A 18:00 HORAS Y SABADOS DE 8:00 A\n" +
-//                    "14:00 HORAS. DOMINGOS Y DIAS FESTIVOS NO SE\n" +
-//                    "LABORARA NI SE PERMITIRA EL INGRESO DE\n" +
-//                    "MATERIALES. "
-//
-//        ),
-//        listOf(
-//            "TrabajosSinPermiso",
-//            "Trabajos sin Permiso",
-//            3,
-//            "Pendiente de agregar en reglamento"
-//        ),
-//        listOf(
-//            "ObraSucia",
-//            "Obras sucias/no limpias",
-//            0,
-//            "V.- Sanciones ARTICULO 12.- B., SE GENERA MULTA DIRECTA EN EL CASO DE: 5.- MASCOTAS DEFECANDO EN AREAS COMUNES"
-//        ),
-//        listOf(
-//            "BocinaClaxon",
-//            "Bocina o Claxon ",
-//            3,
-//            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
-//                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
-//                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
-//                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
-//                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
-//                    "9. UTILIZAR LA BOCINA DEL VEHÍCULO DENTRO DEL CONDOMINIO."
-//
-//        ),
-//        listOf(
-//            "Velocidad20km",
-//            "Mas de 20km/h vehiculos",
-//            3,
-//            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
-//                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
-//                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
-//                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
-//                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
-//                    "11. TRANSITAR SU VEHÍCULO A MÁS DE 20 KM/HR. DENTRO DEL\n" +
-//                    "CONDOMINIO Y/O EN SENTIDO CONTRARIO."
-//        ),
-//        listOf(
-//            "RopaToallaBalcon",
-//            "Ropa o Toallas en Balcon",
-//            3,
-//            "V.- RESTRICCIONES ARTICULO 11.- A LOS CONDÓMINOS, FAMILIARES,\n" +
-//                    "INVITADOS Y EMPLEADOS DOMESTICOS, ADEMÁS DE LAS\n" +
-//                    "PROHIBICIONES QUE ESTABLECE EL REGLAMENTO DEL\n" +
-//                    "CONDOMINIO Y ADMINISTRACION, MENCIONADO EN EL\n" +
-//                    "ARTÍCULO 1 DE ESTE INSTRUMENTO, LES ESTA PROHIBIDO:\n" +
-//                    "21. COLGAR ROPA Ó TOALLAS EN BALCONES O VENTANAS"
-//        )
-//    )
 
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -281,7 +141,7 @@ class IncidenciasMenu : AppCompatActivity() {
 
     private fun loadIncidencias() {
         //val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-        lifecycleScope.launch(Dispatchers.IO) {
+        //lifecycleScope.launch(Dispatchers.IO) {
             try {
                 configuraIncidencias?.forEachIndexed { index, rowIncidencia ->
                     val tipo = rowIncidencia[0].toString()
@@ -291,15 +151,15 @@ class IncidenciasMenu : AppCompatActivity() {
                 }
 
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
+                //withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@IncidenciasMenu,
                         "Error loading Incidencias: ${e.message}",
                         Toast.LENGTH_SHORT
                     ).show()
-                }
+                //}
             }
-        }
+        //}
     }
 
     fun showOpcionesDialog(tipo: String) {
@@ -396,11 +256,26 @@ class IncidenciasMenu : AppCompatActivity() {
             }
         }
     }
+
     fun solicitarCalleYNumero() {
-        val domicilios = dataRaw?.getDomiciliosUbicacion() ?: return
-        val calles = domicilios.map { it[0].toString() }.distinct()
         var numeroSeleccionado: String? = null
         var calleSeleccionada: String? = null
+
+        //Verificar si la imagen contiene una PLACA valida y si podemos extraer la calle y numero de ahi
+        val image = InputImage.fromFilePath(this, currentPhotoPath)
+        var placas = obtenerPlacasImagen(image)
+        if (placas.length >= 3){
+            //##### Buscar Domicilio de las PLACAS #####
+            val (calle,numero) = getDireccionFromPlacas(placas)
+            if (calle.isNotEmpty() and numero.isNotEmpty()) {
+                guardarIncidencia(calle, numero)
+                return
+            }
+        }
+
+        //##### PREGUNTAR por la calle y numero
+        val domicilios = dataRaw?.getDomiciliosUbicacion() ?: return
+        val calles = domicilios.map { it[0].toString() }.distinct()
 
         // Seleccionar calle
         AlertDialog.Builder(this)
@@ -408,18 +283,83 @@ class IncidenciasMenu : AppCompatActivity() {
             .setItems(calles.toTypedArray()) { _, which ->
                 calleSeleccionada = calles[which]
                 // Filtrar números de la calle seleccionada
-                val numeros = domicilios.filter { it[0] == calleSeleccionada }.map { it[1].toString() }
+                val numeros =
+                    domicilios.filter { it[0] == calleSeleccionada }.map { it[1].toString() }
                 // Seleccionar número
                 AlertDialog.Builder(this)
                     .setTitle("Seleccione el Número")
                     .setItems(numeros.toTypedArray()) { _, numWhich ->
                         numeroSeleccionado = numeros[numWhich]
-                        guardarIncidencia(calleSeleccionada!!, numeroSeleccionado!!)
+                        guardarIncidencia(calleSeleccionada, numeroSeleccionado)
                     }
                     .show()
             }
             .show()
+
     }
+
+    private fun obtenerPlacasImagen(image: InputImage): String{
+        var plate=""
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        recognizer.process(image)
+            .addOnSuccessListener { visionText ->
+                plate = visionText.textBlocks.joinToString(" ") { it.text }.trim()
+                var re = Regex("[^A-Za-z0-9 ]")
+                plate = re.replace(plate, "") //Eliminar carcteres no deseados
+                re = Regex("([A-Z]{3}[0-9]{3,4}[A-Z]?|[0-9]{2}[A-Z][0-9]{3}|[0-9]{3}[A-Z]{3}|[A-Z]{2}[0-9]{4,5}[A-Z]?|[A-Z][0-9]{4}|[A-Z][0-9]{2}[A-Z]{2,3}|[A-Z]{3}[0-9][A-Z]|[A-Z]{5}[0-9]{2})")
+                val matchRegult = re.find(plate) //Match Placa
+                plate = if (matchRegult != null) {
+                    matchRegult.value
+                } else {
+                    ""
+                }
+            }
+            .addOnFailureListener { e ->
+                Toast.makeText(this, "OCR failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        return plate
+    }
+    private fun getDireccionFromPlacas(plate: String): Pair<String, String>{
+        try {
+            //val vehicles = getCachedVehiclesData()
+            var match: List<Any>? = null
+
+            if (plate.toIntOrNull() != null){
+                //###### PUEDE SER TAG #########
+                val tags = dataRaw?.getTagsCache()
+                tags?.forEach { tag->
+                    if (tag.size >= 3 && tag[0].toString().equals(plate, ignoreCase = true)) {
+                        match = tag
+                        return@forEach
+                    }
+                }
+            }
+            else {
+                //########## ES PLACA ############
+                // 1. Buscar coincidencia exacta
+                val vehicles = dataRaw?.getCachedVehiclesData()
+                if (vehicles != null) {
+                    for (row in vehicles) {
+                        if (row.size >= 3 && row[0].toString().equals(plate, ignoreCase = true)) {
+                            match = row
+                            break
+                        }
+                    }
+                }
+            }
+
+
+            if (match != null) {
+                return Pair(match[1].toString(), match[2].toString())
+            } else {
+                return Pair("","")
+            }
+
+        } catch (e: Exception) {
+            return Pair("","")
+        }
+    }
+
     private fun savePhotoLocally(uri: Uri?, tipo: String): String? {
         if (uri == null) return null
 
@@ -641,7 +581,7 @@ class IncidenciasMenu : AppCompatActivity() {
                     solicitarCalleYNumero()
                 }
                 REQUEST_IMAGE_PICK -> {
-                    currentPhotoPath = data?.data
+                    currentPhotoPath = data?.data!!
                     solicitarCalleYNumero()
                 }
             }

@@ -32,8 +32,8 @@
 
     <Button
         android:id="@+id/btn_StartRondin"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        android:layout_width="350dp"
+        android:layout_height="55dp"
         android:text="Iniciar RONDIN"
         android:textSize="24sp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -43,30 +43,31 @@
 
     <Button
         android:id="@+id/btn_permisos"
-        android:layout_width="179dp"
-        android:layout_height="54dp"
+        android:layout_width="350dp"
+        android:layout_height="55dp"
 
-        android:layout_marginEnd="16dp"
         android:text="Permisos"
         android:textSize="24sp"
         app:layout_constraintBottom_toTopOf="@+id/btnIncidenciasMain"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btn_StartRondin"
-        app:layout_constraintVertical_bias="0.953" />
+        app:layout_constraintHorizontal_bias="0.483"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btn_vehiculos"
+        app:layout_constraintVertical_bias="0.416" />
 
     <Button
         android:id="@+id/btn_vehiculos"
-        android:layout_width="179dp"
-        android:layout_height="54dp"
+        android:layout_width="350dp"
+        android:layout_height="55dp"
 
-        android:layout_marginStart="16dp"
+        android:layout_marginTop="336dp"
         android:enabled="true"
         android:text="Vehiculos"
         android:textSize="24sp"
-        app:layout_constraintBottom_toTopOf="@+id/btnIncidenciasMain"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.491"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btn_StartRondin"
-        app:layout_constraintVertical_bias="0.953" />
+        app:layout_constraintTop_toBottomOf="@+id/btn_StartRondin" />
 
     <TextView
         android:id="@+id/textCopyright"
@@ -78,23 +79,32 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
-    <TextView
-        android:id="@+id/txtMainResult"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        tools:layout_editor_absoluteX="8dp"
-        tools:layout_editor_absoluteY="462dp" />
-
     <Button
         android:id="@+id/btnIncidenciasMain"
-        android:layout_width="232dp"
-        android:layout_height="54dp"
-        android:layout_marginBottom="40dp"
+        android:layout_width="350dp"
+        android:layout_height="55dp"
+        android:layout_marginBottom="84dp"
         android:text="Incidencias"
         android:textSize="24sp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.497"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <TextView
+        android:id="@+id/txtCotoName"
+        android:layout_width="370dp"
+        android:layout_height="35dp"
+        android:text="NombreCoto"
+        android:textAlignment="center"
+        android:textAllCaps="true"
+        android:textColor="@color/teal_700"
+        android:textSize="30sp"
+        android:textStyle="bold|italic"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/btn_StartRondin"
+        tools:ignore="MissingConstraints" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -149,7 +149,7 @@ class PorRevisarListActivity : AppCompatActivity() {
         //val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val rows = dataRaw?.getPorRevisar()
+                val rows = dataRaw?.getPorRevisar_20horas()
                 withContext(Dispatchers.Main) {
                     waitingOff()
                     porRevisarRecords.clear()
@@ -196,10 +196,10 @@ class PorRevisarListActivity : AppCompatActivity() {
     private fun updateList() {
         waitingOn()
         val now = LocalDateTime.now()
-        val filtered = porRevisarRecords.filter { Duration.between(it.time, now).toHours() <= 20 }
-        val sorted = filtered.sortedBy { calculateDistance(currentLat, currentLon, it.latitude, it.longitude) }
-        porRevisarRecords.clear()
-        porRevisarRecords.addAll(filtered)
+        //val filtered = porRevisarRecords.filter { Duration.between(it.time, now).toHours() <= 20 }
+        val sorted = porRevisarRecords.sortedBy { calculateDistance(currentLat, currentLon, it.latitude, it.longitude) }
+        //porRevisarRecords.clear()
+        //porRevisarRecords.addAll(sorted)
         porRevisarRecyclerView.layoutManager = LinearLayoutManager(this)
         porRevisarRecyclerView.adapter = PorRevisarAdapter(sorted) { record ->
             waitingOff()
@@ -272,7 +272,12 @@ class PorRevisarListActivity : AppCompatActivity() {
         try {
             val inputStream = contentResolver.openInputStream(uri)
             val bitmap = BitmapFactory.decodeStream(inputStream)
-            val reducedBitmap = bitmap.scale(300, 200)
+
+            val targetWidth = 600
+            val factorscale = targetWidth.toFloat()/bitmap.width.toFloat()
+            val targetHeight = (bitmap.height.toFloat() * factorscale).toInt()
+            val reducedBitmap = bitmap.scale(targetWidth,targetHeight) // Reduced size
+
             val outputStream = ByteArrayOutputStream()
             reducedBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
             val byteArray = outputStream.toByteArray()
@@ -354,6 +359,8 @@ class PorRevisarListActivity : AppCompatActivity() {
                         Toast.makeText(this@PorRevisarListActivity, "Warning recorded, count: $countWarnings", Toast.LENGTH_LONG).show()
                     }
                     deletePorRevisarRecord(record)
+                    loadPorRevisar()
+                    updateList()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -479,7 +486,6 @@ class PorRevisarListActivity : AppCompatActivity() {
     }
 
     private fun deletePorRevisarRecord(record: PorRevisarRecord) {
-        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 //########## ELIMINAR POR REVISAR CACHE ###############

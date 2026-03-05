@@ -16,10 +16,12 @@ import com.google.api.services.sheets.v4.model.Request
 import com.google.api.services.sheets.v4.model.ValueRange
 import com.larangel.rondingpeinn.R
 import kotlinx.coroutines.*
+import androidx.lifecycle.lifecycleScope
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.time.Duration.Companion.minutes
+import android.util.Log
 
 class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
     private var mySettings: MySettings? = null
@@ -28,24 +30,36 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
     private lateinit var resultText: TextView
 
     private lateinit var sheetsService: Sheets
+    private val TAG ="package:com.larangel.rondingpeinn"
 
     // Variables de cache y tiempo
-    private var platesCache: List<List<Any>>? = null
-    private var parkingSlotsCache: List<List<Any>>? = null
-    private var autosEventosCache: MutableList<List<Any>>? = null
-    private var incidenciaEventosCache: MutableList<List<Any>>? = null
-    private var directionsCache: List<List<Any>>? = null
-    private var porRevisarCache: MutableList<List<Any>>? = null
-    private var multasCache: MutableList<List<Any>>? = null
-    private var incidenciaConfigCache: List<List<Any>>? = null
-    private var platesCacheTimestamp: Long = 0
-    private var parkingSlotsCacheTimestamp: Long = 0
-    private var autosEventosCacheTimestamp: Long = 0
-    private var incidenciaEventosCacheTimestamp: Long = 0
-    private var incidenciaConfigCacheTimestamp: Long = 0
-    private var directionsCacheTimestamp: Long = 0
-    private var porRevisarCacheTimestamp: Long = 0
-    private var multasCacheTimestamp: Long = 0
+    companion object {
+        private var platesCache: List<List<Any>>? = null
+        private var tagsCache: List<List<Any>>? = null
+        private var parkingSlotsCache: List<List<Any>>? = null
+        private var autosEventosCache: MutableList<List<Any>>? = null
+        private var incidenciaEventosCache: MutableList<List<Any>>? = null
+        private var directionsCache: List<List<Any>>? = null
+        private var porRevisarCache: MutableList<List<Any>>? = null
+        private var multasCache: MutableList<List<Any>>? = null
+        private var incidenciaConfigCache: List<List<Any>>? = null
+        private var domicilioWarningsCache: MutableList<List<Any>>? = null
+        private var permisosCache: List<List<Any>>? = null
+
+        private var platesCacheTimestamp: Long = 0
+        private var tagsCacheTimestamp: Long = 0
+        private var parkingSlotsCacheTimestamp: Long = 0
+        private var autosEventosCacheTimestamp: Long = 0
+        private var incidenciaEventosCacheTimestamp: Long = 0
+        private var incidenciaConfigCacheTimestamp: Long = 0
+        private var directionsCacheTimestamp: Long = 0
+        private var porRevisarCacheTimestamp: Long = 0
+        private var multasCacheTimestamp: Long = 0
+        private var domicilioWarningsCacheTimestamp: Long = 0
+        private var permisosCacheTimestamp: Long = 0
+    }
+
+
     private val CACHE_DURATION_MS = 60 * 60 * 1000 // 1 hora
 
     //Sheets name index
@@ -69,8 +83,6 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
     private var isRunningUpdate_MultaGenerada: Boolean = false
 
     //Domicilio Warnings
-    private var domicilioWarningsCache: MutableList<List<Any>>? = null
-    private var domicilioWarningsCacheTimestamp: Long = 0
     private var forSave_DomicilioWarnings: MutableList<List<Any>>? = mutableListOf<List<Any>>()
     private var forUpdate_DomicilioWarnings: MutableList<List<Any>>? = mutableListOf<List<Any>>()
     private var forUpdate_DomicilioWarningsIndex: ArrayList<String>? = ArrayList<String>()
@@ -265,7 +277,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             isRunningSave_autosEventos=true
             while (isActive) {
                 try {
-                    val success = saveToGoogleSheets("AutosEventos!A:E",forSave_autosEventos as List<List<String>>)
+                    val nameWS                  = mySettings?.getString("WS_AUTOS_EVENTOS", "AutosEventos")!!
+                    val success = saveToGoogleSheets("$nameWS!A:E",forSave_autosEventos as List<List<String>>)
                     if (success){ // Éxito, no necesita reintentar
                         forSave_autosEventos!!.clear()
                         mySettings?.saveList("CACHE_forSave_autosEventos", forSave_autosEventos as List<List<String>>)
@@ -276,7 +289,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 } catch (e: Exception) {
                     mySettings?.saveList("CACHE_forSave_autosEventos", forSave_autosEventos as List<List<String>>)
                     val customMessage = "Error al salvar registros a EVENTOS AUTOS sheet REINTENTAR en 5 Min: ${e.message}"
-                    throw Exception(customMessage, e) // e is the original cause
+                    //throw Exception(customMessage, e) // e is the original cause
+                    Log.d(TAG,customMessage)
                 }
                 delay(5.minutes)
                 // Reintenta
@@ -294,7 +308,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             isRunningSave_incidenciaEventos=true
             while (isActive) {
                 try {
-                    val success = saveToGoogleSheets("IncidenciaEventos!A:G",forSave_incidenciaEventos as List<List<String>>)
+                    val nameWS  = mySettings?.getString("WS_INCIDENCIAS_EVENTOS", "IncidenciaEventos")!!
+                    val success = saveToGoogleSheets("$nameWS!A:G",forSave_incidenciaEventos as List<List<String>>)
                     if (success){ // Éxito, no necesita reintentar
                         forSave_incidenciaEventos!!.clear()
                         mySettings?.saveList("CACHE_forSave_incidenciaEventos", forSave_incidenciaEventos as List<List<String>>)
@@ -305,7 +320,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 } catch (e: Exception) {
                     mySettings?.saveList("CACHE_forSave_incidenciaEventos", forSave_incidenciaEventos as List<List<String>>)
                     val customMessage = "Error al salvar registros a INCIDENCIA EVENTOS sheet REINTENTAR en 5 Min: ${e.message}"
-                    throw Exception(customMessage, e) // e is the original cause
+                    //throw Exception(customMessage, e) // e is the original cause
+                    Log.d(TAG,customMessage)
                 }
                 delay(5.minutes)
                 // Reintenta
@@ -324,7 +340,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             while (isActive) {
                 try {
                     // street, number, time, parkingSlotKey, validation, lat, lon
-                    val success = saveToGoogleSheets("PorRevisar!A:G",forSave_porRevisar as List<List<String>>)
+                    val nameWS      = mySettings?.getString("WS_POR_REVISAR", "PorRevisar")!!
+                    val success = saveToGoogleSheets("$nameWS!A:G",forSave_porRevisar as List<List<String>>)
                     if (success){ // Éxito, no necesita reintentar
                         forSave_porRevisar!!.clear()
                         mySettings?.saveList("CACHE_forSave_porRevisar", forSave_porRevisar as List<List<String>>)
@@ -335,7 +352,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 } catch (e: Exception) {
                     mySettings?.saveList("CACHE_forSave_porRevisar", forSave_porRevisar as List<List<String>>)
                     val customMessage = "Error al salvar registros a EVENTOS AUTOS sheet REINTENTAR en 5 Min: ${e.message}"
-                    throw Exception(customMessage, e) // e is the original cause
+                    //throw Exception(customMessage, e) // e is the original cause
+                    Log.d(TAG,customMessage)
                 }
                 delay(5.minutes)
                 // Reintenta
@@ -354,8 +372,9 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             while (isActive) {
                 try {
                     // Fecha, calle, numero, placa, parkingSlot - (Fecha)
+                    val nameWS      = mySettings?.getString("WS_POR_REVISAR", "PorRevisar")!!
                     forDelete_porRevisarIndex?.forEachIndexed { i, whatIndex ->
-                        if ( deleteToGoogleSheets("PorRevisar",whatIndex.toInt())){
+                        if ( deleteToGoogleSheets(nameWS,whatIndex.toInt())){
                             //Salvado remover del listado
                             forDelete_porRevisarIndex?.removeAt(i)
                         }else{
@@ -390,7 +409,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             while (isActive) {
                 try {
                     // Fecha, calle, numero, placa, parkingSlot - (Fecha)
-                    val success = saveToGoogleSheets("MultasGeneradas!A:E",forSave_MultaGenerada as List<List<String>>)
+                    val nameWS  = mySettings?.getString("WS_MULTAS_GENERADAS", "MultasGeneradas")!!
+                    val success = saveToGoogleSheets("$nameWS!A:E",forSave_MultaGenerada as List<List<String>>)
                     if (success){ // Éxito, no necesita reintentar
                         forSave_MultaGenerada!!.clear()
                         mySettings?.saveList("CACHE_forSave_MultaGenerada", forSave_MultaGenerada as List<List<String>>)
@@ -400,7 +420,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 } catch (e: Exception) {
                     mySettings?.saveList("CACHE_forSave_MultaGenerada", forSave_MultaGenerada as List<List<String>>)
                     val customMessage = "Error al salvar registros a EVENTOS AUTOS sheet REINTENTAR en 5 Min: ${e.message}"
-                    throw Exception(customMessage, e) // e is the original cause
+                    //throw Exception(customMessage, e) // e is the original cause
+                    Log.d(TAG,customMessage)
                 }
                 delay(5.minutes)
                 // Reintenta
@@ -421,10 +442,11 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             while (isActive) {
                 try {
                     // Fecha, calle, numero, placa, parkingSlot - (Fecha)
+                    val nameWS  = mySettings?.getString("WS_MULTAS_GENERADAS", "MultasGeneradas")!!
                     forUpdate_MultaGenerada?.forEachIndexed { i, multa ->
                         val lMulta = listOf(multa)
                         val whatIndex = forUpdate_DomicilioWarningsIndex?.get(i)
-                        if ( updateToGoogleSheets("MultasGeneradas!A$whatIndex:E$whatIndex",
+                        if ( updateToGoogleSheets("$nameWS!A$whatIndex:E$whatIndex",
                                 lMulta as List<List<String>>
                             )){
                             //Salvado remover del listado
@@ -444,7 +466,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                     mySettings?.saveList("CACHE_forUpdate_MultaGenerada", forUpdate_MultaGenerada as List<List<String>>)
                     mySettings?.saveSingleList("CACHE_forUpdate_MultaGeneradaIndex", forUpdate_MultaGeneradaIndex as List<String>)
                     val customMessage = "Error al salvar registros a EVENTOS AUTOS sheet REINTENTAR en 5 Min: ${e.message}"
-                    throw Exception(customMessage, e) // e is the original cause
+                    //throw Exception(customMessage, e) // e is the original cause
+                    Log.d(TAG,customMessage)
                 }
                 delay(5.minutes)
                 // Reintenta
@@ -463,7 +486,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             while (isActive) {
                 try {
                     // Fecha, calle, numero, placa, parkingSlot - (Fecha)
-                    val success = saveToGoogleSheets("DomicilioWarnings!A:C",forSave_DomicilioWarnings as List<List<String>>)
+                    val nameWS  = mySettings?.getString("WS_DOMICILIO_WARNINGS", "DomicilioWarnings")!!
+                    val success = saveToGoogleSheets("$nameWS!A:C",forSave_DomicilioWarnings as List<List<String>>)
                     if (success){ // Éxito, no necesita reintentar
                         forSave_DomicilioWarnings!!.clear()
                         mySettings?.saveList("CACHE_forSave_DomicilioWarnings", listOf(listOf()) )
@@ -474,7 +498,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 } catch (e: Exception) {
                     mySettings?.saveList("CACHE_forSave_DomicilioWarnings", forSave_DomicilioWarnings as List<List<String>>)
                     val customMessage = "Error al salvar registros a DOMICILIO WARNINGS sheet REINTENTAR en 5 Min: ${e.message}"
-                    throw Exception(customMessage, e) // e is the original cause
+                    //throw Exception(customMessage, e) // e is the original cause
+                    Log.d(TAG, customMessage)
                 }
                 delay(5.minutes)
                 // Reintenta
@@ -498,7 +523,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                     forUpdate_DomicilioWarnings?.forEachIndexed { i, multa ->
                         val lMulta = listOf(multa)
                         val whatIndex = forUpdate_DomicilioWarningsIndex?.get(i)
-                        if ( updateToGoogleSheets("DomicilioWarnings!A$whatIndex:D$whatIndex",
+                        val nameWS  = mySettings?.getString("WS_DOMICILIO_WARNINGS", "DomicilioWarnings")!!
+                        if ( updateToGoogleSheets("$nameWS!A$whatIndex:D$whatIndex",
                                 lMulta as List<List<String>>
                             )){
                             //Salvado remover del listado
@@ -518,7 +544,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                     mySettings?.saveList("CACHE_forSave_DomicilioWarnings", forUpdate_DomicilioWarnings as List<List<String>>)
                     mySettings?.saveSingleList("CACHE_forUpdate_DomicilioWarningsIndex", forUpdate_DomicilioWarningsIndex as List<String>)
                     val customMessage = "Error al hacer UPDATE a DomicilioWarnings sheet REINTENTAR en 5 Min: ${e.message}"
-                    throw Exception(customMessage, e) // e is the original cause
+                    //throw Exception(customMessage, e) // e is the original cause
+                    Log.d(TAG,customMessage)
                 }
                 delay(5.minutes)
                 // Reintenta
@@ -549,38 +576,61 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
         // 3. Si hace falta actualizar y hay Internet
         if (thereConection == true) {
             try {
-                //Vehiculos VISITANTES
-                val yourSpreadSheetID = mySettings?.getString("REGISTRO_CARROS_SPREADSHEET_ID", "")
-                val sheets = listOf("ingreso", "salida")
-                val allRows = mutableListOf<List<Any>>()
-                for (sheet in sheets) {
-                    val response = sheetsService.spreadsheets().values()
-                        .get(yourSpreadSheetID, "$sheet!C:E") //placa calle numero tipo conductor
-                        .execute()
-                    val rows = response.getValues().drop(1) ?: emptyList()
-                    allRows.addAll(rows)
+                GlobalScope.launch(Dispatchers.IO) {
+                    val allRows = mutableListOf<List<Any>>()
+                    //Vehiculos RESIDENTES
+                    val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+                    val nameWS                  = mySettings?.getString("WS_AUTOS_REGISTRADOS", "AutosRegistrados")!!
+                    try {
+                        val response = sheetsService.spreadsheets().values()
+                            .get(
+                                yourEventsSpreadSheetID,
+                                "$nameWS!A:C"
+                            ) // placa, calle, numero, marca, modelo, color
+                            .execute()
+                        val rows = response.getValues() ?: emptyList()
+                        allRows.addAll(rows)
+                    } catch (e: Exception) {
+                        Log.d(TAG,"Error al leer el sheet $nameWS e:${e}")
+                    }
+
+                    //Vehiculos VISITANTES
+                    val yourSpreadSheetID =
+                        mySettings?.getString("REGISTRO_CARROS_SPREADSHEET_ID", "")
+                    val sheets = listOf("ingreso", "salida")
+                    for (sheet in sheets) {
+                        try{
+                            val response = sheetsService.spreadsheets().values()
+                                .get(
+                                    yourSpreadSheetID,
+                                    "$sheet!C:E"
+                                ) //placa calle numero tipo conductor
+                                .execute()
+                            val rows = response.getValues().drop(1) ?: emptyList()
+                            allRows.addAll(rows)
+                        } catch (e: Exception) {
+                            Log.d(TAG,"Error al leer el sheet $sheet e:${e}")
+                        }
+                    }
+
+                    withContext(Dispatchers.Main) {
+                        // Cachear y timestamp
+                        mySettings?.saveList("VEHICLE_CACHE", allRows as List<List<String>>)
+                        mySettings?.saveLong("VEHICLE_CACHE_TIMESTAMP", now)
+                        platesCache = allRows
+                        platesCacheTimestamp = now
+                    }
                 }
-
-                //Vehiculos RESIDENTES
-                val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                val response = sheetsService.spreadsheets().values()
-                    .get(yourEventsSpreadSheetID, "AutosRegistrados!A:C") // placa, calle, numero, marca, modelo, color
-                    .execute()
-                val rows = response.getValues() ?: emptyList()
-                allRows.addAll(rows)
-
-
-                // Cachear y timestamp
-                mySettings?.saveList("VEHICLE_CACHE", allRows as List<List<String>>)
-                mySettings?.saveLong("VEHICLE_CACHE_TIMESTAMP", now)
-                platesCache = allRows
-                platesCacheTimestamp = now
-                return allRows
-            } catch (e: Exception) {
-                // Si falla recarga, pero hay cache local reciente, úsala
                 if (platesCache != null) return platesCache!!
                 if (cacheList.isNotEmpty()) return cacheList
-                //throw e
+                return emptyList()
+            } catch (e: Exception) {
+                // Si falla recarga, pero hay cache local reciente, úsala
+                Log.d(TAG,"Error al leer el sheet e:${e}")
+                e.printStackTrace()
+                if (platesCache != null) return platesCache!!
+                if (cacheList.isNotEmpty()) return cacheList
+                return emptyList()
             }
         } else {
             // Sin red, usar cache vieja si existe
@@ -589,6 +639,180 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             // Si no hay nada, regresa vacío
             return emptyList()
         }
+        return emptyList()
+    }
+    fun getTagsCache(): List<List<Any>>{
+        val now = System.currentTimeMillis()
+        val thereConection = isNetworkAvailable()
+        // 1. Revisa caché de memoria RAM
+        val isMemoryFresh = tagsCache != null && (now - tagsCacheTimestamp <= CACHE_DURATION_MS || thereConection==false)
+        if (isMemoryFresh) return tagsCache!!
+
+        // 2. Si RAM no, revisa persisted cache (MySettings)
+        val cacheList = mySettings?.getList("TAGS_CACHE")!!.toMutableList()
+        val cacheTimestamp = mySettings?.getLong("TAGS_CACHE_TIMESTAMP", 0L) ?: 0L
+        val isDiskFresh = cacheList?.isEmpty() == false && (now - cacheTimestamp <= CACHE_DURATION_MS || thereConection==false)
+
+        if (isDiskFresh) {
+            tagsCache = cacheList
+            tagsCacheTimestamp = cacheTimestamp
+            return tagsCache!!
+        }
+
+        // 3. Si hace falta actualizar y hay Internet
+        if (thereConection == true ) {
+            try {
+                //PARKING SLOTS
+                GlobalScope.launch(Dispatchers.IO) {
+
+                    val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+                    val nameWS                  = mySettings?.getString("WS_AUTOS_REGISTRADOS", "AutosRegistrados")!!
+                    try{
+                        val response = sheetsService.spreadsheets().values()
+                            .get(yourEventsSpreadSheetID, "$nameWS!A:H") // Placas	Calle	Numero	Marca	Modelo	Color	Tag	Tag2	Tag3
+                            .execute()
+                        val rows = response.getValues().drop(1) ?: emptyList()
+                        var allRows: MutableList<List<Any>>? = mutableListOf<List<Any>>()
+                        rows.forEach { r ->
+                            try{
+                                if (r.size>=7 && r[6].toString().isNotEmpty()) {
+                                    val tmp: List<Any> = listOf(
+                                        r[6].toString(),
+                                        r[1].toString(),
+                                        r[2].toString()
+                                    )
+                                    allRows?.add(tmp)
+                                }
+                                if (r.size>=8 && r[7].toString().isNotEmpty()) {
+                                    val tmp: List<Any> = listOf(
+                                        r[7].toString(),
+                                        r[1].toString(),
+                                        r[2].toString()
+                                    )
+                                    allRows?.add(tmp)
+                                }
+                            } catch (e: Exception) {
+                                // Error al interpretar row en tags
+                                println("Error al interpretar el row ${r} error:${e}")
+                            }
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            // Cachear y timestamp
+                            mySettings?.saveList("TAGS_CACHE", allRows as List<List<String>>)
+                            mySettings?.saveLong("TAGS_CACHE_TIMESTAMP", now)
+                            tagsCache = allRows
+                            tagsCacheTimestamp = now
+                        }
+                    }catch (e: Exception) {
+                        Log.d(TAG,"Error al leer el sheet $nameWS e:${e}")
+                    }
+                }
+
+                if (tagsCache != null) return tagsCache!!
+                if (cacheList.isNotEmpty()) return cacheList
+                return emptyList()
+            } catch (e: Exception) {
+                // Si falla recarga, pero hay cache local reciente, úsala
+                Log.d(TAG,"Error al leer el sheet e:${e}")
+                e.printStackTrace()
+                if (tagsCache != null) return tagsCache!!
+                if (cacheList.isNotEmpty()) return cacheList
+                return emptyList()
+            }
+        }else{
+            // Sin red, usar cache vieja si existe
+            if (tagsCache != null) return tagsCache!!
+            if (cacheList.isNotEmpty()) return cacheList
+            // Si no hay nada, regresa vacío
+            return emptyList()
+        }
+        return emptyList()
+    }
+
+    // Permisos
+    fun getPermisosCache(): List<List<Any>>{
+        val now = System.currentTimeMillis()
+        val thereConection = isNetworkAvailable()
+        // 1. Revisa caché de memoria RAM
+        val isMemoryFresh = permisosCache != null && (now - permisosCacheTimestamp <= CACHE_DURATION_MS || thereConection==false)
+        if (isMemoryFresh) return permisosCache!!
+
+        // 2. Si RAM no, revisa persisted cache (MySettings)
+        val cacheList = mySettings?.getList("PERMISOS_CACHE")!!.toMutableList()
+        val cacheTimestamp = mySettings?.getLong("PERMISOS_CACHE_TIMESTAMP", 0L) ?: 0L
+        val isDiskFresh = cacheList?.isEmpty() == false && (now - cacheTimestamp <= CACHE_DURATION_MS || thereConection==false)
+
+        if (isDiskFresh) {
+            permisosCache = cacheList
+            permisosCacheTimestamp = cacheTimestamp
+            return permisosCache!!
+        }
+
+        // 3. Si hace falta actualizar y hay Internet
+        if (thereConection == true ) {
+            try {
+                //PARKING SLOTS
+                GlobalScope.launch(Dispatchers.IO) {
+                    try{
+                        val yourEventsSpreadSheetID = mySettings?.getSimpleList("PERMISOS_SPREADSHEET_ID")!!
+                        val allRows = mutableListOf<List<Any>>()
+                        for (sheetIDpermission in yourEventsSpreadSheetID) {
+                            try {
+                                val response = sheetsService.spreadsheets().values()
+                                    .get(
+                                        sheetIDpermission.toString(),
+                                        "A:N"
+                                    ) // Marca temporal,	Calle,	Numero de casa,	Nombre de quien solicita el permiso,	Correo electrónico, 	Permiso para:,	Tipo Permiso (nota: si es renta o venta del inmueble indique en la descripcion el telefono a comunicarse),	Fecha Inicio del permiso,	Fecha Fin del permiso,	Descripción y/o trabajos a realizar,	Nombre de la(s) persona(s) a Ingresar,	Aprobado,	Motivo Denegado,	Procesado por ROBOT
+                                    .execute()
+                                val rows = response.getValues().drop(1) ?: emptyList()
+                                allRows.addAll(rows)
+                            }catch (e: Exception) {
+                                Log.d(TAG,"Error al leer el sheet $sheetIDpermission Respuestas de formulario 1 e:${e}")
+                            }
+                        }
+
+                        withContext(Dispatchers.Main) {
+                            // Cachear y timestamp
+                            mySettings?.saveList("PERMISOS_CACHE", allRows as List<List<String>>)
+                            mySettings?.saveLong("PERMISOS_CACHE_TIMESTAMP", now)
+                            permisosCache = allRows
+                            permisosCacheTimestamp = now
+                        }
+                    }catch (e: Exception) {
+                        Log.d(TAG,"Error al leer el sheet Respuestas de formulario 1 e:${e}")
+                    }
+                }
+
+                if (permisosCache != null) return permisosCache!!
+                if (cacheList.isNotEmpty()) return cacheList
+                return emptyList()
+            } catch (e: Exception) {
+                // Si falla recarga, pero hay cache local reciente, úsala
+                Log.d(TAG,"Error al leer el sheet e:${e}")
+                if (permisosCache != null) return permisosCache!!
+                if (cacheList.isNotEmpty()) return cacheList
+                return emptyList()
+            }
+        }else{
+            // Sin red, usar cache vieja si existe
+            if (permisosCache != null) return permisosCache!!
+            if (cacheList.isNotEmpty()) return cacheList
+            // Si no hay nada, regresa vacío
+            return emptyList()
+        }
+        return emptyList()
+    }
+    fun getPermisosCache_DeHoy(): List<List<Any>>? {
+        val rows = getPermisosCache()
+        val timeFormatter = DateTimeFormatter.ofPattern("d/MM/yyyy")
+        val permisosHoy =
+            rows.filter {
+                LocalDate.now() >= LocalDate.parse(it[7].toString(),timeFormatter)
+                        &&  LocalDate.now() <= LocalDate.parse(it[8].toString(),timeFormatter)}
+                .reversed()
+        if (permisosHoy.isNotEmpty())
+            return permisosHoy as List<List<Any>>?
         return emptyList()
     }
 
@@ -616,23 +840,31 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 //PARKING SLOTS
                 GlobalScope.launch(Dispatchers.IO) {
                     val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                    val response = sheetsService.spreadsheets().values()
-                        .get(yourEventsSpreadSheetID, "DomicilioUbicacion!A:D") // calle, numero, latitud, longitud
-                        .execute()
-                    val allRows = response.getValues().drop(1) ?: emptyList()
-                    withContext(Dispatchers.Main) {
-                        // Cachear y timestamp
-                        mySettings?.saveList("DIRECTIONS_CACHE", allRows as List<List<String>>)
-                        mySettings?.saveLong("DIRECTIONS_CACHE_TIMESTAMP", now)
-                        directionsCache = allRows
-                        directionsCacheTimestamp = now
+                    val nameWS                  = mySettings?.getString("WS_DOMICILIOS_UBICACION", "DomicilioUbicacion")!!
+                    try{
+                        val response = sheetsService.spreadsheets().values()
+                            .get(yourEventsSpreadSheetID, "$nameWS!A:D") // calle, numero, latitud, longitud
+                            .execute()
+                        val allRows = response.getValues().drop(1) ?: emptyList()
+                        withContext(Dispatchers.Main) {
+                            // Cachear y timestamp
+                            mySettings?.saveList("DIRECTIONS_CACHE", allRows as List<List<String>>)
+                            mySettings?.saveLong("DIRECTIONS_CACHE_TIMESTAMP", now)
+                            directionsCache = allRows
+                            directionsCacheTimestamp = now
 
+                        }
+                    }catch (e: Exception) {
+                        Log.d(TAG,"Error al leer el sheet $nameWS e:${e}")
                     }
                 }
 
-                return directionsCache ?: emptyList()
+                if (directionsCache != null) return directionsCache!!
+                if (cacheList.isNotEmpty()) return cacheList
+                return emptyList()
             } catch (e: Exception) {
                 // Si falla recarga, pero hay cache local reciente, úsala
+                Log.d(TAG,"Error al leer el sheet e:${e}")
                 if (directionsCache != null) return directionsCache!!
                 if (cacheList.isNotEmpty()) return cacheList
                 return emptyList()
@@ -668,26 +900,36 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             try {
                 //PARKING SLOTS
                 val allRows = mutableListOf<List<Any>>()
+
                 GlobalScope.launch(Dispatchers.IO) {
                     val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                    val response = sheetsService.spreadsheets().values()
-                        .get(yourEventsSpreadSheetID, "PorRevisar!A:G") // street, number, time, parkingSlotKey, validation, lat, lon
-                        .execute()
-                    val rows = response.getValues().drop(1) ?: emptyList()
-                    withContext(Dispatchers.Main) {
-                        allRows.addAll(rows)
-                        // Cachear y timestamp
-                        mySettings?.saveList("PORREVISAR_CACHE", allRows as List<List<String>>)
-                        mySettings?.saveLong("PORREVISAR_CACHE_TIMESTAMP", now)
-                        porRevisarCache = allRows
-                        porRevisarCacheTimestamp = now
+                    val nameWS                  = mySettings?.getString("WS_POR_REVISAR", "PorRevisar")!!
+                    try{
+                        val response = sheetsService.spreadsheets().values()
+                            .get(yourEventsSpreadSheetID, "$nameWS!A:G") // street, number, time, parkingSlotKey, validation, lat, lon
+                            .execute()
+                        val rows = response.getValues().drop(1) ?: emptyList()
 
+                        withContext(Dispatchers.Main) {
+                            allRows.addAll(rows)
+                            // Cachear y timestamp
+                            mySettings?.saveList("PORREVISAR_CACHE", allRows as List<List<String>>)
+                            mySettings?.saveLong("PORREVISAR_CACHE_TIMESTAMP", now)
+                            porRevisarCache = allRows
+                            porRevisarCacheTimestamp = now
+
+                        }
+                    }catch (e: Exception) {
+                        Log.d(TAG,"Error al leer el sheet $nameWS e:${e}")
                     }
                 }
 
-                return porRevisarCache ?: mutableListOf<List<Any>>()
+                if (porRevisarCache != null) return porRevisarCache!!
+                if (cacheList.isNotEmpty()) return cacheList as MutableList<List<Any>>?
+                return mutableListOf<List<Any>>()
             } catch (e: Exception) {
                 // Si falla recarga, pero hay cache local reciente, úsala
+                Log.d(TAG,"Error al leer el sheet e:${e}")
                 if (porRevisarCache != null) return porRevisarCache!!
                 if (cacheList.isNotEmpty()) return cacheList as MutableList<List<Any>>?
                 return mutableListOf<List<Any>>()
@@ -759,23 +1001,31 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 //PARKING SLOTS
                 GlobalScope.launch(Dispatchers.IO) {
                     val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                    val response = sheetsService.spreadsheets().values()
-                        .get(yourEventsSpreadSheetID, "ParkingSlots!A:C") // Latitude, Longitude, Key
-                        .execute()
-                    val allRows = response.getValues() ?: emptyList()
-                    withContext(Dispatchers.Main) {
-                        // Cachear y timestamp
-                        mySettings?.saveList("PARKINGSLOTS_CACHE", allRows as List<List<String>>)
-                        mySettings?.saveLong("PARKINGSLOTS_CACHE_TIMESTAMP", now)
-                        parkingSlotsCache = allRows
-                        parkingSlotsCacheTimestamp = now
+                    val nameWS                  = mySettings?.getString("WS_PARKING_SLOTS", "ParkingSlots")!!
+                    try{
+                        val response = sheetsService.spreadsheets().values()
+                            .get(yourEventsSpreadSheetID, "$nameWS!A:C") // Latitude, Longitude, Key
+                            .execute()
+                        val allRows = response.getValues() ?: emptyList()
+                        withContext(Dispatchers.Main) {
+                            // Cachear y timestamp
+                            mySettings?.saveList("PARKINGSLOTS_CACHE", allRows as List<List<String>>)
+                            mySettings?.saveLong("PARKINGSLOTS_CACHE_TIMESTAMP", now)
+                            parkingSlotsCache = allRows
+                            parkingSlotsCacheTimestamp = now
 
+                        }
+                    }catch (e: Exception) {
+                        Log.d(TAG,"Error al leer el sheet $nameWS e:${e}")
                     }
                 }
 
-                return parkingSlotsCache ?: emptyList()
+                if (parkingSlotsCache != null) return parkingSlotsCache!!
+                if (cacheList.isNotEmpty()) return cacheList
+                return emptyList()
             } catch (e: Exception) {
                 // Si falla recarga, pero hay cache local reciente, úsala
+                Log.d(TAG,"Error al leer sheet e:${e}")
                 if (parkingSlotsCache != null) return parkingSlotsCache!!
                 if (cacheList.isNotEmpty()) return cacheList
                 return emptyList()
@@ -787,29 +1037,6 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             // Si no hay nada, regresa vacío
             return emptyList()
         }
-
-//        if (parkingSlotsCache == null) { //Si no hay cache buscar en los settings
-//            // 1. Si RAM no, revisa persisted cache (MySettings)
-//            val cacheList = mySettings?.getList("PARKINGSLOTS_CACHE")!!.toMutableList()
-//            val cacheTimestamp = mySettings?.getLong("PARKINGSLOTS_CACHE_TIMESTAMP", 0L) ?: 0L
-//            if (cacheList?.isEmpty() == false)
-//                parkingSlotsCache = cacheList
-//
-//            // 2. Sin mySettings no, descargar de red
-//            if (parkingSlotsCache == null) {
-//                val yourEventsSpreadSheetID =  mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-//                val response = sheetsService.spreadsheets().values()
-//                    .get(
-//                        yourEventsSpreadSheetID,
-//                        "ParkingSlots!A:C"
-//                    ) // Latitude, Longitude, Key
-//                    .execute()
-//                val allRows = response.getValues() ?: emptyList()
-//                mySettings?.saveList("PARKINGSLOTS_CACHE", allRows as List<List<String>>)
-//                parkingSlotsCache = allRows
-//            }
-//        }
-//        return parkingSlotsCache ?: emptyList()
     }
 
     //AutoEventos
@@ -838,29 +1065,42 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 //AUTOS EVENTOS
                 val allRows = mutableListOf<List<Any>>()
                 val date15daysAgo = LocalDate.now().minusDays(15)
+                val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+                val nameWS = mySettings?.getString("WS_AUTOS_EVENTOS", "AutosEventos")!!
                 GlobalScope.launch(Dispatchers.IO) {
+                    try {
+                        val response = sheetsService.spreadsheets().values()
+                            .get(
+                                yourEventsSpreadSheetID,
+                                "$nameWS!A:E"
+                            ) // placa, date, time, localPhotoPath, ParkingSlotKey
+                            .execute()
+                        val rows = response.getValues().drop(1) ?: emptyList()
 
-                    val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                    val response = sheetsService.spreadsheets().values()
-                        .get(yourEventsSpreadSheetID, "AutosEventos!A:E") // placa, date, time, localPhotoPath, ParkingSlotKey
-                        .execute()
-                    val rows = response.getValues().drop(1) ?: emptyList()
-                    withContext(Dispatchers.Main) {
-                        // Update Data
-                        val solo15dias= rows.filter { it.size >= 5 && it[1].toString().length==10 && LocalDate.parse(it[1].toString()) >= date15daysAgo }.reversed()
-                        allRows.addAll(solo15dias)
-                        // Cachear y timestamp
-                        mySettings?.saveList("EVENTOS_CACHE", allRows as List<List<String>>)
-                        mySettings?.saveLong("EVENTOS_CACHE_TIMESTAMP", now)
-                        autosEventosCache = allRows
-                        autosEventosCacheTimestamp = now
-
+                        withContext(Dispatchers.Main) {
+                            // Update Data
+                            val solo15dias = rows.filter {
+                                it.size >= 5 && it[1].toString().length == 10 && LocalDate.parse(it[1].toString()) >= date15daysAgo
+                            }.reversed()
+                            allRows.addAll(solo15dias)
+                            // Cachear y timestamp
+                            mySettings?.saveList("EVENTOS_CACHE", allRows as List<List<String>>)
+                            mySettings?.saveLong("EVENTOS_CACHE_TIMESTAMP", now)
+                            autosEventosCache = allRows
+                            autosEventosCacheTimestamp = now
+                        }
+                    }catch (e: Exception) {
+                        Log.d(TAG,"Error al leer el sheet $nameWS e:${e}")
                     }
                 }
 
-                return autosEventosCache ?: emptyList()
+                if (autosEventosCache != null) return autosEventosCache!!
+                if (cacheList.isNotEmpty()) return cacheList
+                return emptyList()
             } catch (e: Exception) {
                 // Si falla recarga, pero hay cache local reciente, úsala
+                Log.d(TAG,"Error al leer el sheet e:${e}")
+                e.printStackTrace()
                 if (autosEventosCache != null) return autosEventosCache!!
                 if (cacheList.isNotEmpty()) return cacheList
                 return emptyList()
@@ -909,26 +1149,39 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
         // 3. Si hace falta actualizar y hay Internet
         if (thereConection == true) {
             try {
-                //PARKING SLOTS
                 GlobalScope.launch(Dispatchers.IO) {
+                    //PARKING SLOTS
                     val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                    val response = sheetsService.spreadsheets().values()
-                        .get(yourEventsSpreadSheetID, "IncidenciaConfig!A:D") // key, textoButton, maxWarning, descLegal
-                        .execute()
-                    val allRows = response.getValues().drop(1) ?: emptyList()
-                    withContext(Dispatchers.Main) {
-                        // Cachear y timestamp
-                        mySettings?.saveList("INCIDENCIACONFIG_CACHE", allRows as List<List<String>>)
-                        mySettings?.saveLong("INCIDENCIACONFIG_CACHE_TIMESTAMP", now)
-                        incidenciaConfigCache = allRows
-                        incidenciaConfigCacheTimestamp = now
+                    val nameWS                  = mySettings?.getString("WS_INCIDENCIAS_CONFIG", "IncidenciaConfig")!!
+                    try {
+                        val response = sheetsService.spreadsheets().values()
+                            .get(
+                                yourEventsSpreadSheetID,
+                                "$nameWS!A:D"
+                            ) // key, textoButton, maxWarning, descLegal
+                            .execute()
+                        val allRows = response.getValues().drop(1) ?: emptyList()
 
+                        withContext(Dispatchers.Main) {
+                            mySettings?.saveList(
+                                "INCIDENCIACONFIG_CACHE",
+                                allRows as List<List<String>>
+                            )
+                            mySettings?.saveLong("INCIDENCIACONFIG_CACHE_TIMESTAMP", now)
+                            incidenciaConfigCache = allRows
+                            incidenciaConfigCacheTimestamp = now
+                        }
+                    }catch (e: Exception) {
+                        Log.d(TAG,"Error al leer el sheet $nameWS e:${e}")
                     }
                 }
 
-                return incidenciaConfigCache ?: emptyList()
+                if (incidenciaConfigCache != null) return incidenciaConfigCache!!
+                if (cacheList.isNotEmpty()) return cacheList
+                return emptyList()
             } catch (e: Exception) {
                 // Si falla recarga, pero hay cache local reciente, úsala
+                Log.d(TAG,"Error al leer el sheet e:${e}")
                 if (incidenciaConfigCache != null) return incidenciaConfigCache!!
                 if (cacheList.isNotEmpty()) return cacheList
                 return emptyList()
@@ -969,26 +1222,34 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 GlobalScope.launch(Dispatchers.IO) {
 
                     val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                    val response = sheetsService.spreadsheets().values()
-                        .get(yourEventsSpreadSheetID, "IncidenciaEventos!A:G") // calle, numero, date, time, Tipo, localPhotoPath, descripcion
-                        .execute()
-                    val rows = response.getValues().drop(1) ?: emptyList()
-                    withContext(Dispatchers.Main) {
-                        // Update Data
-                        val solo15dias= rows.filter { it.size >= 5 && it[2].toString().length==10 && LocalDate.parse(it[2].toString()) >= date15daysAgo }.reversed()
-                        allRows.addAll(solo15dias)
-                        // Cachear y timestamp
-                        mySettings?.saveList("INCIDENCIAEVENTOS_CACHE", allRows as List<List<String>>)
-                        mySettings?.saveLong("INCIDENCIAEVENTOS_CACHE_TIMESTAMP", now)
-                        incidenciaEventosCache = allRows
-                        incidenciaEventosCacheTimestamp = now
+                    val nameWS                  = mySettings?.getString("WS_INCIDENCIAS_EVENTOS", "IncidenciaEventos")!!
+                    try{
+                        val response = sheetsService.spreadsheets().values()
+                            .get(yourEventsSpreadSheetID, "$nameWS!A:G") // calle, numero, date, time, Tipo, localPhotoPath, descripcion
+                            .execute()
+                        val rows = response.getValues().drop(1) ?: emptyList()
+                        withContext(Dispatchers.Main) {
+                            // Update Data
+                            val solo15dias= rows.filter { it.size >= 5 && it[2].toString().length==10 && LocalDate.parse(it[2].toString()) >= date15daysAgo }.reversed()
+                            allRows.addAll(solo15dias)
+                            // Cachear y timestamp
+                            mySettings?.saveList("INCIDENCIAEVENTOS_CACHE", allRows as List<List<String>>)
+                            mySettings?.saveLong("INCIDENCIAEVENTOS_CACHE_TIMESTAMP", now)
+                            incidenciaEventosCache = allRows
+                            incidenciaEventosCacheTimestamp = now
 
+                        }
+                    }catch (e: Exception) {
+                        Log.d(TAG,"Error al leer el sheet $nameWS e:${e}")
                     }
                 }
 
-                return incidenciaEventosCache ?: emptyList()
+                if (incidenciaEventosCache != null) return incidenciaEventosCache!!
+                if (cacheList.isNotEmpty()) return cacheList
+                return emptyList()
             } catch (e: Exception) {
                 // Si falla recarga, pero hay cache local reciente, úsala
+                Log.d(TAG,"Error al leer el sheet e:${e}")
                 if (incidenciaEventosCache != null) return incidenciaEventosCache!!
                 if (cacheList.isNotEmpty()) return cacheList
                 return emptyList()
@@ -1046,24 +1307,32 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 GlobalScope.launch(Dispatchers.IO) {
 
                     val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                    val response = sheetsService.spreadsheets().values()
-                        .get(yourEventsSpreadSheetID, "MultasGeneradas!A:E") // Fecha,	Calle,	Numero,	Placa,	PerkingSlot - (Fecha)
-                        .execute()
-                    val rows = response.getValues().drop(1) ?: emptyList()
-                    withContext(Dispatchers.Main) {
-                        allRows.addAll(rows)
-                        // Cachear y timestamp
-                        mySettings?.saveList("MULTAS_CACHE", allRows as List<List<String>>)
-                        mySettings?.saveLong("MULTAS_CACHE_TIMESTAMP", now)
-                        multasCache = allRows
-                        multasCacheTimestamp = now
+                    val nameWS                  = mySettings?.getString("WS_MULTAS_GENERADAS", "MultasGeneradas")!!
+                    try{
+                        val response = sheetsService.spreadsheets().values()
+                            .get(yourEventsSpreadSheetID, "$nameWS!A:E") // Fecha,	Calle,	Numero,	Placa,	PerkingSlot - (Fecha)
+                            .execute()
+                        val rows = response.getValues().drop(1) ?: emptyList()
+                        withContext(Dispatchers.Main) {
+                            allRows.addAll(rows)
+                            // Cachear y timestamp
+                            mySettings?.saveList("MULTAS_CACHE", allRows as List<List<String>>)
+                            mySettings?.saveLong("MULTAS_CACHE_TIMESTAMP", now)
+                            multasCache = allRows
+                            multasCacheTimestamp = now
 
+                        }
+                    }catch (e: Exception) {
+                        Log.d(TAG,"Error al leer el sheet $nameWS e:${e}")
                     }
                 }
 
-                return multasCache ?: mutableListOf<List<Any>>()
+                if (multasCache != null) return multasCache!!
+                if (cacheList.isNotEmpty()) return cacheList as MutableList<List<Any>>?
+                return mutableListOf<List<Any>>()
             } catch (e: Exception) {
                 // Si falla recarga, pero hay cache local reciente, úsala
+                Log.d(TAG,"Error al leer el sheet e:${e}")
                 if (multasCache != null) return multasCache!!
                 if (cacheList.isNotEmpty()) return cacheList as MutableList<List<Any>>?
                 return mutableListOf<List<Any>>()
@@ -1139,24 +1408,33 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
                 GlobalScope.launch(Dispatchers.IO) {
 
                     val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-                    val response = sheetsService.spreadsheets().values()
-                        .get(yourEventsSpreadSheetID, "DomicilioWarnings!A:D") // Calle, Numero, ContadorWarning, Tipo
-                        .execute()
-                    val rows = response.getValues().drop(1) ?: emptyList()
-                    withContext(Dispatchers.Main) {
-                        allRows.addAll(rows)
-                        // Cachear y timestamp
-                        mySettings?.saveList("DOMICILIOWARNINGS_CACHE", allRows as List<List<String>>)
-                        mySettings?.saveLong("DOMICILIOWARNINGS_CACHE_TIMESTAMP", now)
-                        domicilioWarningsCache = allRows
-                        domicilioWarningsCacheTimestamp = now
+                    val nameWS                  = mySettings?.getString("WS_DOMICILIO_WARNINGS", "DomicilioWarnings")!!
+                    try{
+                        val response = sheetsService.spreadsheets().values()
+                            .get(yourEventsSpreadSheetID, "$nameWS!A:D") // Calle, Numero, ContadorWarning, Tipo
+                            .execute()
+                        val rows = response.getValues().drop(1) ?: emptyList()
 
+                        withContext(Dispatchers.Main) {
+                            allRows.addAll(rows)
+                            // Cachear y timestamp
+                            mySettings?.saveList("DOMICILIOWARNINGS_CACHE", allRows as List<List<String>>)
+                            mySettings?.saveLong("DOMICILIOWARNINGS_CACHE_TIMESTAMP", now)
+                            domicilioWarningsCache = allRows
+                            domicilioWarningsCacheTimestamp = now
+
+                        }
+                    }catch (e: Exception) {
+                        Log.d(TAG,"Error al leer el sheet $nameWS e:${e}")
                     }
                 }
 
-                return domicilioWarningsCache ?: mutableListOf<List<Any>>()
+                if (domicilioWarningsCache != null) return domicilioWarningsCache!!
+                if (cacheList.isNotEmpty()) return cacheList as MutableList<List<Any>>?
+                return mutableListOf<List<Any>>()
             } catch (e: Exception) {
                 // Si falla recarga, pero hay cache local reciente, úsala
+                Log.d(TAG,"Error al leer el sheet e:${e}")
                 if (domicilioWarningsCache != null) return domicilioWarningsCache!!
                 if (cacheList.isNotEmpty()) return cacheList as MutableList<List<Any>>?
                 return mutableListOf<List<Any>>()

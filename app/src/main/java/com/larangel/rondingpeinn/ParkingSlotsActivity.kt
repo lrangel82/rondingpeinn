@@ -78,8 +78,9 @@ class ParkingSlotsActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val spreadsheet = sheetsService.spreadsheets().get(yourEventsSpreadSheetID).execute()
+                val nameWS      = mySettings?.getString("WS_PARKING_SLOTS", "ParkingSlots")!!
                 for (sheet in spreadsheet.sheets) {
-                    if (sheet.properties.title == "ParkingSlots") {
+                    if (sheet.properties.title == nameWS) {
                         parkingSlotsSheetId = sheet.properties.sheetId
                         break
                     }
@@ -96,8 +97,9 @@ class ParkingSlotsActivity : AppCompatActivity() {
         val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                val nameWS                  = mySettings?.getString("WS_PARKING_SLOTS", "ParkingSlots")!!
                 val response = sheetsService.spreadsheets().values()
-                    .get(yourEventsSpreadSheetID, "ParkingSlots!A:C")
+                    .get(yourEventsSpreadSheetID, "$nameWS!A:C")
                     .execute()
                 val rows = response.getValues() ?: emptyList()
                 parkingSlots.clear()
@@ -158,8 +160,9 @@ class ParkingSlotsActivity : AppCompatActivity() {
         val body = ValueRange().setValues(values)
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                val nameWS                  = mySettings?.getString("WS_PARKING_SLOTS", "ParkingSlots")!!
                 sheetsService.spreadsheets().values()
-                    .append(yourEventsSpreadSheetID, "ParkingSlots!A:C", body)
+                    .append(yourEventsSpreadSheetID, "$nameWS!A:C", body)
                     .setValueInputOption("RAW")
                     .execute()
                 withContext(Dispatchers.Main) {
@@ -212,8 +215,9 @@ class ParkingSlotsActivity : AppCompatActivity() {
         val body = ValueRange().setValues(values)
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                val nameWS                  = mySettings?.getString("WS_PARKING_SLOTS", "ParkingSlots")!!
                 sheetsService.spreadsheets().values()
-                    .update(yourEventsSpreadSheetID, "ParkingSlots!A$row:C$row", body)
+                    .update(yourEventsSpreadSheetID, "$nameWS!A$row:C$row", body)
                     .setValueInputOption("RAW")
                     .execute()
                 withContext(Dispatchers.Main) {

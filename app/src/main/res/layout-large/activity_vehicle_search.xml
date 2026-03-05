@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:map="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_marginTop="?attr/actionBarSize"
+    android:layout_marginBottom="?attr/actionBarSize"
+    android:fitsSystemWindows="true">
+
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <ImageButton
+                    android:id="@+id/cleanButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:contentDescription="Limpiar placas"
+                    map:srcCompat="@android:drawable/ic_menu_delete" />
+
+                <EditText
+                    android:id="@+id/plateInput"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:height="48dp"
+                    android:layout_marginLeft="5dp"
+                    android:layout_marginRight="5dp"
+                    android:hint="Ingresa PLACA o toma foto" />
+
+                <ImageButton
+                    android:id="@+id/cameraButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:contentDescription="tomar Foto placa"
+                    android:src="@android:drawable/ic_menu_camera" />
+
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/searchButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="BUSCAR PLACA" />
+
+            <ImageView
+                android:id="@+id/photoThumbnail"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="8dp"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/saveEventButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Salvar Placa en CAJON VISITA" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+                <TextView
+                    android:id="@+id/resultText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/eventsRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp" />
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TableLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <TableRow
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+                    <TextView
+                        android:id="@+id/vehicletextView1"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cajones Faltantes"
+                        android:textAlignment="center" />
+
+                    <TextView
+                        android:id="@+id/vehicletextView2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Cajones Completados"
+                        android:textAlignment="center" />
+                </TableRow>
+
+                <TableRow
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+                    <TextView
+                        android:id="@+id/vehicleText_PSFaltantes"
+                        android:layout_width="203dp"
+                        android:layout_height="wrap_content"
+                        android:ems="10"
+                        android:fontFamily="sans-serif-black"
+                        android:text="34"
+                        android:textAlignment="center"
+                        android:textColor="#E91E63"
+                        android:textSize="48sp" />
+
+                    <TextView
+                        android:id="@+id/vehicleText_PSCompletos"
+                        android:layout_width="203dp"
+                        android:layout_height="wrap_content"
+                        android:ems="10"
+                        android:fontFamily="sans-serif-black"
+                        android:text="34"
+                        android:textAlignment="center"
+                        android:textColor="#4CAF50"
+                        android:textColorHint="#009688"
+                        android:textSize="48sp" />
+                </TableRow>
+
+            </TableLayout>
+
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <fragment
+                    android:id="@+id/map_fragment_vehicle"
+                    map:mapId="839c8b86b29f05fd"
+                    map:uiZoomControls="true"
+                    class="com.google.android.gms.maps.SupportMapFragment"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                     />
+
+            </FrameLayout>
+
+
+        </LinearLayout>
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

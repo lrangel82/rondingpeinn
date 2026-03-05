@@ -84,5 +84,10 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.serialization.json)
-
+//    //aws y parseo config.ini
+//    implementation(libs.aws.sdk.s3) //aws.sdk.kotlin:s3:1.0.0
+//    //implementation(libs.aws.smithy.credentials)
+//    implementation("aws.sdk.kotlin:aws-credentials:1.6.5")
+//    implementation("org.ini4j:ini4j:0.5.4")
+    implementation(libs.okhttp)
 }

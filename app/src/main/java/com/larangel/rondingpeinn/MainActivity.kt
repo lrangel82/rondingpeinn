@@ -26,6 +26,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.w3c.dom.Text
 
 class MainActivity : AppCompatActivity() {
 
@@ -36,21 +37,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var sheetsService: Sheets
     private var loadingOverlay: View? = null
     private var progressBar: ProgressBar? = null
-    private lateinit var resultText: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        resultText = findViewById(R.id.txtMainResult)
-        mySettings = MySettings(this)
-        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-        if (yourEventsSpreadSheetID.isEmpty()){
-            val intent: Intent = Intent(this, ProgramarTags::class.java )
-            startActivity(intent)
-        }else {
-            dataRaw = DataRawRondin(this, CoroutineScope(Dispatchers.IO))
-            dataRaw?.checarPendientePorSalvarEnCACHE()
-        }
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -91,39 +80,54 @@ class MainActivity : AppCompatActivity() {
 
         }
 
-        LoadingSheetDATA()
+        mySettings = MySettings(this)
+        val codigoActiviacion = mySettings?.getString("CODIGO_ACTIVACION", "")!!
+        if (codigoActiviacion.isEmpty()){
+            val intent: Intent = Intent(this, ProgramarTags::class.java )
+            startActivity(intent)
+        }else {
+            dataRaw = DataRawRondin(this, CoroutineScope(Dispatchers.IO))
+            dataRaw?.checarPendientePorSalvarEnCACHE()
+            LoadingSheetDATA()
+        }
 
 
-//        val navView: BottomNavigationView = binding.navView
-//
-//        val navController = findNavController(R.id.nav_host_fragment_activity_main)
-//        // Passing each menu ID as a set of Ids because each
-//        // menu should be considered as top level destinations.
-//        val appBarConfiguration = AppBarConfiguration(
-//            setOf(
-//                R.id.navigation_home, R.id.navigation_dashboard, R.id.navigation_notifications
-//            )
-//        )
-//        setupActionBarWithNavController(navController, appBarConfiguration)
-//        navView.setupWithNavController(navController)
+
     }
 
     private fun LoadingSheetDATA(){
         waitingOn()
+        val copyRAdmin: TextView = findViewById<TextView>(R.id.textCopyright)
+        val nombreCoto: TextView = findViewById<TextView>(R.id.txtCotoName)
+
         val autosEventos = dataRaw?.getAutosEventos()
         val vehiculosData = dataRaw?.getCachedVehiclesData()
+        val tagsData = dataRaw?.getTagsCache()
         val domiciliosUbicacion = dataRaw?.getDomiciliosUbicacion()
         val porRevisar = dataRaw?.getPorRevisar()
         val parkingSlots = dataRaw?.getParkingSlots()
         val multas = dataRaw?.getMultas()
         val domiciliosWarnings = dataRaw?.getDomicilioWarnings()
+        val permisosData = dataRaw?.getPermisosCache_DeHoy()
+        val configIncidencias = dataRaw?.getIncidenciasConfig()
         //Loading all the sheets
         if (isNetworkAvailable()) {
             // Initialize Google services (requires Google Sign-In setup)
             initializeGoogleServices()
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
+                    val bucketName = mySettings?.getString("BUCKET_NAME", "").toString()
+                    val regionStr  = mySettings?.getString("REGION_STR", "").toString()
+                    val codigoActiv= mySettings?.getString("CODIGO_ACTIVACION", "").toString()
+                    mySettings?.fetchAndProcessS3Config(bucketName,regionStr,codigoActiv)
+                    val appActivada = mySettings?.getInt("APP_ACTIVADA",0)
                     withContext(Dispatchers.Main) {
+                        if (appActivada == 1) {
+                            copyRAdmin.text = "v1.0 develop by Luis Rangel"
+                        } else {
+                            copyRAdmin.text = "#### APP DESACTIVADA #### contactar luisrangel@gmail.com"
+                            abrirAlertDesactivada()
+                        }
                         println("LARANGEL total autos: ${autosEventos?.size}")
                         waitingOff()
                     }
@@ -141,7 +145,31 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             waitingOff()
+
         }else{
+            val appActivada = mySettings?.getInt("APP_ACTIVADA",0)
+            if (appActivada == 1) {
+                copyRAdmin.text = "(SIN INTERNET)       v1.0 develop by Luis Rangel"
+                //Mostrar cache
+                AlertDialog.Builder(this@MainActivity)
+                    .setTitle("Datos en cache!!")
+                    .setMessage(
+                        "Multas: ${multas?.count()}\n" +
+                        "Advertencias: ${domiciliosWarnings?.count()}\n" +
+                        "Cajones Visita: ${parkingSlots?.count()}\n" +
+                        "Por Revisar: ${porRevisar?.count()}\n" +
+                        "Domicilios: ${domiciliosUbicacion?.count()}\n" +
+                        "Permisos: ${permisosData?.count()}\n" +
+                        "Vehiculos: ${vehiculosData?.count()}\n" +
+                        "Tags: ${tagsData?.count()}\n" +
+                        "IncidenciasConfig: ${configIncidencias?.count()}"
+                    )
+                    .setPositiveButton("OK", null)
+                    .show()
+            }else {
+                copyRAdmin.text = "#### APP DESACTIVADA #### contactar luisrangel@gmail.com"
+                abrirAlertDesactivada()
+            }
             lifecycleScope.launch(Dispatchers.IO) {
                 withContext(Dispatchers.Main) {
                     waitingOff()
@@ -153,27 +181,44 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
+
         lifecycleScope.launch(Dispatchers.IO) {
+            val vehiculosData = dataRaw?.getCachedVehiclesData()
+            val permisosData = dataRaw?.getPermisosCache_DeHoy()
+
             withContext(Dispatchers.Main) {
                 waitingOff()
-                AlertDialog.Builder(this@MainActivity)
-                    .setTitle("Datos cargados")
-                    .setMessage("Multas: ${multas?.count()}\n" +
-                            "Advertencias: ${domiciliosWarnings?.count()}\n" +
-                            "Cajones Visita: ${parkingSlots?.count()}\n" +
-                            "Por Revisar: ${porRevisar?.count()}\n" +
-                            "Domicilios: ${domiciliosUbicacion?.count()}\n" +
-                            "Vehiculos: ${vehiculosData?.count()}")
-                    .setPositiveButton("OK") { _, _ ->
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Iniciando...",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                    .show()
+
+                //Init textos
+                nombreCoto.text = mySettings?.getString("COTO","Version Gratuita")
+                val btn_vehiculos: Button = findViewById(R.id.btn_vehiculos)
+                btn_vehiculos.text = "Vehiculos ${vehiculosData?.count()}"
+                val btn_permisos: Button = findViewById(R.id.btn_permisos)
+                btn_permisos.text = "Permisos ${permisosData?.count()}"
+
+                Toast.makeText(
+                    this@MainActivity,
+                    "Iniciando...",
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
+    }
+
+    private fun abrirAlertDesactivada(){
+        AlertDialog.Builder(this@MainActivity)
+            .setTitle("Utilizando Cache, sin conexion a DB")
+            .setMessage(
+                "##### LA APLICACION NO ESTA ACTIVA #####\n" +
+                        "##                                    \n"+
+                        "##    Funcionalidad Limitada          \n" +
+                        "##                                    \n\n"+
+                        "     contactar a luisrangel@gmail.com"
+            )
+            .setIcon(android.R.drawable.ic_dialog_alert)
+            .setPositiveButton("OK", null)
+            .show()
     }
 
     // Utilidad simple para detectar red

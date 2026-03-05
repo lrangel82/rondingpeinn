@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:map="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:layout_marginTop="?attr/actionBarSize"
@@ -13,23 +13,27 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <EditText
-            android:id="@+id/plateInput"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="Ingresa PLACA o toma foto" />
-
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button
-                android:id="@+id/searchButton"
+            <ImageButton
+                android:id="@+id/cleanButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:contentDescription="Limpiar placas"
+                map:srcCompat="@android:drawable/ic_menu_delete" />
+
+            <EditText
+                android:id="@+id/plateInput"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginLeft="5dp"
+                android:layout_marginRight="5dp"
                 android:layout_weight="1"
-                android:text="BUSCAR PLACA" />
+                android:height="48dp"
+                android:hint="Ingresa PLACA o toma foto" />
 
             <ImageButton
                 android:id="@+id/cameraButton"
@@ -38,20 +42,37 @@
                 android:src="@android:drawable/ic_menu_camera" />
         </LinearLayout>
 
-        <ImageView
-            android:id="@+id/photoThumbnail"
-            android:layout_width="100dp"
-            android:layout_height="100dp"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginTop="8dp"
-            android:scaleType="centerCrop"
-            android:visibility="gone" />
-
-        <TextView
-            android:id="@+id/resultText"
+        <Button
+            android:id="@+id/searchButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp" />
+            android:text="BUSCAR PLACA" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+            <ImageView
+                android:id="@+id/photoThumbnail"
+                android:layout_width="100dp"
+                android:layout_height="100dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="8dp"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/resultText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/saveEventButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Salvar Placa en CAJON VISITA" />
 
         <FrameLayout
             android:layout_width="match_parent"
@@ -62,15 +83,12 @@
                 class="com.google.android.gms.maps.SupportMapFragment"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                app:mapId="839c8b86b29f05fd" />
+                map:mapId="839c8b86b29f05fd"
+                map:uiZoomControls="true"/>
 
         </FrameLayout>
 
-        <Button
-            android:id="@+id/saveEventButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Salvar Placa en CAJON VISITA" />
+
 
         <TableLayout
             android:layout_width="match_parent"

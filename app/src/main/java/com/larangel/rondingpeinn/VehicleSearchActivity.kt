@@ -7,6 +7,7 @@ import EventModal
 import PorRevisarRecord
 import kotlinx.coroutines.*
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
@@ -66,9 +67,11 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ProgressBar
 import android.widget.FrameLayout
+import androidx.core.widget.doOnTextChanged
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CircleOptions
 import com.google.android.gms.maps.model.LatLng
@@ -81,6 +84,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private var dataRaw: DataRawRondin? = null
     private lateinit var plateInput: EditText
     private lateinit var searchButton: Button
+    private lateinit var cleanButton: ImageButton
     private lateinit var cameraButton: ImageButton
     private lateinit var resultText: TextView
     private lateinit var eventsRecyclerView: RecyclerView
@@ -99,6 +103,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private var vehicleStreet: String? = null
     private var vehicleNumber: String? = null
     private var vehicleSource: String? = null
+    private var keySlotSeleccionado: String? = null
     private val porRevisarRecords = mutableListOf<PorRevisarRecord>()
     private var porRevisarSheetId: Int = 0
     private var domicilioWarningsSheetId: Int = 0
@@ -108,6 +113,8 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private var progressBar: ProgressBar? = null
     private var googleMap: GoogleMap? = null
 
+    private var stopSearchVehicle: Boolean = false
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -116,6 +123,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
         // Initialize UI components
         plateInput = findViewById(R.id.plateInput)
         searchButton = findViewById(R.id.searchButton)
+        cleanButton = findViewById(R.id.cleanButton)
         cameraButton = findViewById(R.id.cameraButton)
         resultText = findViewById(R.id.resultText)
         eventsRecyclerView = findViewById(R.id.eventsRecyclerView)
@@ -142,7 +150,18 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 Toast.makeText(this, "Enter a license plate", Toast.LENGTH_SHORT).show()
             }
         }
+        plateInput.doOnTextChanged { text, start, before, count ->
+            if (text.toString().length >= 3) {
+                searchVehicle(text.toString())
+            }else{
+                resultText.text = "" //Clean
+            }
+        }
 
+        // Clean button
+        cleanButton.setOnClickListener {
+            cleanFrom()
+        }
         // Camera button click listener
         cameraButton.setOnClickListener {
             if (ActivityCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) {
@@ -186,13 +205,17 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
     private fun waitingOn() {
         if (loadingOverlay == null) {
-            val rootView = findViewById<ViewGroup>(android.R.id.content)
+            //val rootView = findViewById<ViewGroup>(android.R.id.content)
+
+            val rootView = resultText.parent as? LinearLayout
             loadingOverlay = View(this).apply {
                 setBackgroundColor(Color.parseColor("#80000000")) // Semi-transparent black
                 layoutParams = FrameLayout.LayoutParams(
                     FrameLayout.LayoutParams.MATCH_PARENT,
                     FrameLayout.LayoutParams.MATCH_PARENT
-                )
+                ).apply {
+                    gravity = android.view.Gravity.CENTER
+                }
                 isClickable = true
                 isFocusable = true
             }
@@ -206,15 +229,16 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 }
             }
 
-            rootView.addView(loadingOverlay)
-            rootView.addView(progressBar)
+            rootView?.addView(loadingOverlay)
+            rootView?.addView(progressBar)
         }
     }
     private fun waitingOff() {
         loadingOverlay?.let { overlay ->
-            val rootView = findViewById<ViewGroup>(android.R.id.content)
-            rootView.removeView(overlay)
-            rootView.removeView(progressBar)
+            //val rootView = findViewById<ViewGroup>(android.R.id.content)
+            val rootView = resultText.parent as? LinearLayout
+            rootView?.removeView(overlay)
+            rootView?.removeView(progressBar)
             loadingOverlay = null
             progressBar = null
         }
@@ -278,68 +302,117 @@ class  VehicleSearchActivity : AppCompatActivity() {
             gMap.setOnMarkerClickListener { marker ->
                 if (marker.snippet.isNullOrEmpty() ) {
                     val tagLugar = marker.title ?: ""
+                    keySlotSeleccionado = tagLugar
                     preguntarYProcesarLugar(tagLugar)
                     true
                 }
                 false
             }
+            //PERMISOS
+            val permisos = dataRaw?.getPermisosCache_DeHoy()
+            val direciones = dataRaw?.getDomiciliosUbicacion()
+            permisos?.forEach { permiso ->
+                if (permiso.size < 12) return@forEach
+                //Verificar si tengo latLon
+                val calle = permiso[1].toString()
+                val numero = permiso[2].toString()
+                val direcLatLon = direciones?.filter { it[0].toString().uppercase() == calle.uppercase() && it[1].toString().uppercase() == numero.uppercase() }
+                //Dibujar marker
+                direcLatLon?.forEach { ubicacion ->
+                    val lat = ubicacion[2].toString().toDoubleOrNull() ?: return@forEach
+                    val lon = ubicacion[3].toString().toDoubleOrNull() ?: return@forEach
+                    val stringTrue = arrayOf("1", "Si", "si", "SI", "x", "X")
+                    val tipo =permiso[6].toString()
+                    val titleText = if( stringTrue.contains(permiso[11]) ) "Permiso ${calle}:${numero}" else "Permiso DENEGADO"
+                    val snipetText = if( stringTrue.contains(permiso[11]) ) "${tipo} - ${calle}:${numero} valido hasta: ${permiso[8]}  ${permiso[9]}  personas:${permiso[10]}" else "DENEGADO!!! debe pedir que se retire cualquier trabajador!!"
+                    var rscImg: BitmapDescriptor
+                    when (tipo.uppercase()){
+                        "Trabajador(es)".uppercase() -> rscImg = getResizedBitmapDescriptor(this,R.drawable.permiso_trabajadores,100,100)
+                        "Mudanza".uppercase() -> rscImg = getResizedBitmapDescriptor(this,R.drawable.permiso_mudanza,100,100)
+                        "Muebles".uppercase() -> rscImg = getResizedBitmapDescriptor(this,R.drawable.permiso_muebles,100,100)
+                        "Construccion".uppercase() -> rscImg = getResizedBitmapDescriptor(this,R.drawable.permiso_construccion,100,100)
+                        "Servicios".uppercase() ->  rscImg = getResizedBitmapDescriptor(this,R.drawable.permiso_servicios,100,100)
+                        else -> rscImg = getResizedBitmapDescriptor(this,R.drawable.permiso_otro,100,100)
+                    }
+                    gMap.addMarker(
+                        MarkerOptions()
+                            .position(LatLng(lat, lon))
+                            .title(titleText)
+                            .icon(rscImg)
+                            .snippet(snipetText)
+
+                    )
+                }
+            }
         }
+    }
+    private fun getResizedBitmapDescriptor(context: Context, resId: Int, width: Int, height: Int): BitmapDescriptor {
+        // 1. Decodificar el recurso a un objeto Bitmap
+        val imageBitmap = BitmapFactory.decodeResource(context.resources, resId)
+
+        // 2. Redimensionar el bitmap (ancho y alto en píxeles)
+        val resizedBitmap = Bitmap.createScaledBitmap(imageBitmap, width, height, false)
+
+        // 3. Crear el BitmapDescriptor desde el bitmap redimensionado
+        return BitmapDescriptorFactory.fromBitmap(resizedBitmap)
     }
 
     private fun preguntarYProcesarLugar(key: String) {
         if (photoUri == null) {
             Toast.makeText(this, "Debe tomar una FOTO", Toast.LENGTH_SHORT).show()
             captureImage()
-        }
-
-        val plate = plateInput.text.toString().trim()
-        val eventosRecientes = dataRaw?.getAutosEventos_6horas()
-        val eventoPrevio = eventosRecientes?.find { it[4].toString() == key }
-        if (eventoPrevio != null) {
-            AlertDialog.Builder(this)
-                .setTitle("Ya existe un registro")
-                .setMessage("¿Desea eliminar el evento anterior y registrar uno nuevo en el lugar $key?")
-                .setPositiveButton("Sí") { _, _ -> procesarEventLugar(key, plate, true) }
-                .setNegativeButton("No", null)
-                .show()
-        } else if (plate.isEmpty()) {
-            AlertDialog.Builder(this)
-                .setTitle("Lugar Vacío")
-                .setMessage("¿Está seguro que el lugar $key está vacío?")
-                .setPositiveButton("Sí") { _, _ -> procesarEventLugar(key, "VACIO", false) }
-                .setNegativeButton("No") { _, _ ->
-                    //Preguntar por las placas
-                    val input = EditText(this)
-                    input.hint = "Ingrese Placa"
-                    input.layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    )
-                    AlertDialog.Builder(this)
-                        .setTitle("Escriba las placas")
-                        .setView(input)
-                        .setPositiveButton("Ok") { _, _ ->
-                            var plate = input.text.toString()
-                            var re = Regex("[^A-Za-z0-9 ]")
-                            plate = re.replace(plate, "") //Eliminar carcteres no deseados
-                            procesarEventLugar(key, plate, false)
-                        }
-                        .setNegativeButton("Cancelar") { _, _ ->
-                            //Limpiar url y placas
-                            cleanFrom()
-                        }
-                        .show()
-                }
-                .show()
-        } else {
-            AlertDialog.Builder(this)
-                .setTitle("Registrar evento")
-                .setMessage("¿Deseas agregar el evento a $key con placa $plate?")
-                .setPositiveButton("Sí") { _, _ -> procesarEventLugar(key, plate, false) }
-                .setNegativeButton("No", null)
-                .show()
+        }else{
+            //SI HAY FOTO, continuar con el proceso de pregunta
+            val plate = plateInput.text.toString().uppercase().trim()
+            val eventosRecientes = dataRaw?.getAutosEventos_6horas()
+            val eventoPrevio = eventosRecientes?.find { it[4].toString() == key }
+            if (eventoPrevio != null) {
+                AlertDialog.Builder(this)
+                    .setTitle("Ya existe un registro")
+                    .setMessage("¿Desea eliminar el evento anterior y registrar uno nuevo en el lugar $key?")
+                    .setPositiveButton("Sí") { _, _ -> procesarEventLugar(key, plate, true) }
+                    .setNegativeButton("No", null)
+                    .show()
+            } else if (plate.isEmpty()) {
+                AlertDialog.Builder(this)
+                    .setTitle("Lugar Vacío")
+                    .setMessage("¿Está seguro que el lugar $key está vacío?")
+                    .setPositiveButton("Sí") { _, _ -> procesarEventLugar(key, "VACIO", false) }
+                    .setNegativeButton("No") { _, _ ->
+                        //Preguntar por las placas
+                        val input = EditText(this)
+                        input.hint = "Ingrese Placa"
+                        input.layoutParams = LinearLayout.LayoutParams(
+                            LinearLayout.LayoutParams.MATCH_PARENT,
+                            LinearLayout.LayoutParams.WRAP_CONTENT
+                        )
+                        AlertDialog.Builder(this)
+                            .setTitle("Escriba las placas")
+                            .setView(input)
+                            .setPositiveButton("Ok") { _, _ ->
+                                var plate = input.text.toString()
+                                var re = Regex("[^A-Za-z0-9 ]")
+                                plate = re.replace(plate, "") //Eliminar carcteres no deseados
+                                procesarEventLugar(key, plate, false)
+                            }
+                            .setNegativeButton("Cancelar") { _, _ ->
+                                //Limpiar url y placas
+                                cleanFrom()
+                            }
+                            .show()
+                    }
+                    .show()
+            } else {
+                AlertDialog.Builder(this)
+                    .setTitle("Registrar evento")
+                    .setMessage("¿Deseas agregar el evento a $key con placa $plate?")
+                    .setPositiveButton("Sí") { _, _ -> procesarEventLugar(key, plate, false) }
+                    .setNegativeButton("No", null)
+                    .show()
+            }
         }
     }
+
     private fun procesarEventLugar(key: String, plate: String, eliminarAnterior: Boolean) {
         // Si eliminarAnterior, elimina el evento previo...
         // ... aquí tu código para borrar evento anterior en Google Sheets ...
@@ -361,33 +434,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
         porRevisarButton.tooltipText = porRevisarRecords.size.toString()
     }
 
-//    private fun initializeGoogleServices() {
-//        val serviceAccountStream = applicationContext.resources.openRawResource(R.raw.json_google_service_account)
-//        val credential = GoogleCredential.fromStream(serviceAccountStream)
-//            .createScoped(listOf("https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"))
-//        sheetsService = Sheets.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance(), credential)
-//            .setApplicationName("My First Project")
-//            .build()
-//        println("LARANGEL sheetsService:${sheetsService}")
-//
-//        // Get sheet ID for PorRevisar
-//        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-//        lifecycleScope.launch(Dispatchers.IO) {
-//            try {
-//                val spreadsheet = sheetsService.spreadsheets().get(yourEventsSpreadSheetID).execute()
-//                for (sheet in spreadsheet.sheets) {
-//                    when (sheet.properties.title) {
-//                        "PorRevisar" -> porRevisarSheetId = sheet.properties.sheetId
-//                        "DomicilioWarnings" -> domicilioWarningsSheetId = sheet.properties.sheetId
-//                    }
-//                }
-//            } catch (e: Exception) {
-//                withContext(Dispatchers.Main) {
-//                    Toast.makeText(this@VehicleSearchActivity, "Error initializing sheet ID: ${e.message}", Toast.LENGTH_SHORT).show()
-//                }
-//            }
-//        }
-//    }
+
 
     private fun cleanOldThumbnails() {
         lifecycleScope.launch(Dispatchers.IO) {
@@ -578,32 +625,37 @@ class  VehicleSearchActivity : AppCompatActivity() {
     }
 
     private fun processImage(image: InputImage) {
-        val plate = plateInput.text.toString().trim()
-        if (plate.isEmpty()) {
+        //val plate = plateInput.text.toString().trim()
+        //if (plate.isEmpty()) {
             val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
             recognizer.process(image)
                 .addOnSuccessListener { visionText ->
                     var plate = visionText.textBlocks.joinToString(" ") { it.text }.trim()
                     var re = Regex("[^A-Za-z0-9 ]")
                     plate = re.replace(plate, "") //Eliminar carcteres no deseados
-                    re = Regex("[A-Z]{3}[0-9]{3,4}[A-Z]?")
+                    re = Regex("([A-Z]{3}[0-9]{3,4}[A-Z]?|[0-9]{2}[A-Z][0-9]{3}|[0-9]{3}[A-Z]{3}|[A-Z]{2}[0-9]{4,5}[A-Z]?|[A-Z][0-9]{4}|[A-Z][0-9]{2}[A-Z]{2,3}|[A-Z]{3}[0-9][A-Z]|[A-Z]{5}[0-9]{2})")
                     val matchRegult = re.find(plate) //Match Placa
                     plate = if (matchRegult != null) {
                         matchRegult.value
                     } else {
                         ""
                     }
-                    plateInput.setText(plate)
+
                     if (plate.length > 3) {
-                        searchVehicle(plate)
+                        plateInput.setText(plate)
+                        //searchVehicle(plate)
                     }else{
                         Toast.makeText(this, "No PLACA en la imagen", Toast.LENGTH_SHORT).show()
+                    }
+                    if (! keySlotSeleccionado.isNullOrEmpty()){
+                        //Se esta procesando un key seleccionado, volver a preguntar para procesar
+                        preguntarYProcesarLugar(keySlotSeleccionado.toString())
                     }
                 }
                 .addOnFailureListener { e ->
                     Toast.makeText(this, "OCR failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
-        }
+        //}
     }
 
     fun oneCharDifference(a: String, b: String): Boolean {
@@ -622,6 +674,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
         photoUri = null // Reset photoUri
         resultText.text = ""
         plateInput.setText("")
+        keySlotSeleccionado = null
     }
 
     private fun searchVehicle(plate: String) {
@@ -631,29 +684,60 @@ class  VehicleSearchActivity : AppCompatActivity() {
         vehicleSource = null
         resultText.text = "" //Clean the text
 
+        stopSearchVehicle = true
+
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 //val vehicles = getCachedVehiclesData()
-                val vehicles = dataRaw?.getCachedVehiclesData()
                 var match: List<Any>? = null
-
-                // 1. Buscar coincidencia exacta
-                if (vehicles != null) {
-                    for (row in vehicles) {
-                        if (row.size >= 3 && row[0].toString().equals(plate, ignoreCase = true)) {
-                            match = row
-                            break
-                        }
-                    }
-                }
-
-                // 2. Si no hay coincidencia exacta, buscar similar
                 var similarMatches: MutableList<List<Any>> = mutableListOf()
-                if (match == null && vehicles != null) {
-                    // Búsqueda tolerante
-                    for (row in vehicles) {
-                        if (row.size >= 3 && oneCharDifference(row[0].toString().toUpperCase(), plate.toUpperCase())) {
-                            similarMatches.add(row)
+
+                if (plate.toIntOrNull() != null){
+                    //###### PUEDE SER TAG #########
+                    val tags = dataRaw?.getTagsCache()
+                    stopSearchVehicle = false
+                    tags?.forEach { tag->
+                        if (stopSearchVehicle) return@launch
+                        if (tag.size >= 3 && tag[0].toString().equals(plate, ignoreCase = true)) {
+                            match = tag
+                            return@forEach
+                        }
+                        if (tag.size >= 3 && tag[0].toString().startsWith(plate, ignoreCase = true)) {
+                            similarMatches.add(tag)
+                        }
+                        if (tag.size >= 8 && plate.startsWith(tag[0].toString())){
+                            similarMatches.add(tag)
+                        }
+                        if (similarMatches.size >= 20)
+                            return@forEach
+                    }
+                }else {
+                    //########## ES PLACA ############
+                    // 1. Buscar coincidencia exacta
+                    val vehicles = dataRaw?.getCachedVehiclesData()
+                    if (vehicles != null) {
+                        stopSearchVehicle = false
+                        for (row in vehicles) {
+                            if (stopSearchVehicle) return@launch
+                            if (row.size >= 3 && row[0].toString().equals(plate, ignoreCase = true)
+                            ) {
+                                match = row
+                                break
+                            }
+                            if (row.size >= 3 && oneCharDifference(
+                                    row[0].toString().toUpperCase(),
+                                    plate.toUpperCase()
+                                )
+                            ) {
+                                similarMatches.add(row)
+                            }
+                            if (row.size >= 3 && row[0].toString()
+                                    .startsWith(plate, ignoreCase = true)
+                            ) {
+                                similarMatches.add(row)
+                            }
+                            if (similarMatches.size >= 20)
+                                break
                         }
                     }
                 }
@@ -661,13 +745,13 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     waitingOff()
                     if (match != null) {
-                        vehicleStreet = match[1].toString()
-                        vehicleNumber = match[2].toString()
-                        resultText.append("\nPlaca: $plate\nCalle: $vehicleStreet\nNumero: $vehicleNumber")
+                        vehicleStreet = match!![1].toString()
+                        vehicleNumber = match!![2].toString()
+                        resultText.append("\nPlaca: $plate\nCalle: $vehicleStreet : $vehicleNumber")
                     } else if (similarMatches.isNotEmpty()) {
                         resultText.append("\nPlaca no encontrada, pero similar a:\n")
                         similarMatches.forEach { sm ->
-                            resultText.append("Placa: ${sm[0]} Calle: ${sm[1]}, Número: ${sm[2]}\n")
+                            resultText.append("Placa: ${sm[0]} Calle: ${sm[1]} : ${sm[2]}\n")
                         }
                     } else {
                         resultText.append("\nNo se encontro la placa en ningun registro: $plate")
@@ -889,7 +973,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
     }
 
     private fun saveNewEvent() {
-        var plate = plateInput.text.toString().trim()
+        var plate = plateInput.text.toString().uppercase().trim()
         if (plate.isEmpty()) {
             showEmptyPlateDialog { finalPlate ->
                 if (finalPlate.isNullOrEmpty()) {
@@ -963,6 +1047,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
                                 .setTitle("Selecciona LUGAR de Estacionamiento")
                                 .setItems(slotDescriptions) { _, which ->
                                     val selectedKey = closestSlots[which].key
+                                    keySlotSeleccionado = selectedKey
                                     //Salvar Evento en cajon de estacionamiento
                                     if (!saveEventPlateSlot(plate, selectedKey))
                                         return@setItems
@@ -1390,31 +1475,40 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 val currentLon = location.longitude
                 val now = LocalDateTime.now()
                 val toDelete = mutableListOf<PorRevisarRecord>()
-                var nearbyRecord: PorRevisarRecord? = null
-                porRevisarRecords.forEach { record ->
-                    //val ageHours = Duration.between(record.time, now).toHours()
-                    //if (ageHours > 20) {
-                    //    toDelete.add(record)
-                    //} else {
-                        val distance = calculateDistance(currentLat, currentLon, record.latitude, record.longitude)
+                var nearbyRecord: List<Any>? = null
+                val pRevisarCache = dataRaw?.getPorRevisar_20horas()
+
+                pRevisarCache?.forEach { record ->
+                    if (record.size >= 7) {
+                        val lat = record[5].toString().toDoubleOrNull() ?: return@forEach
+                        val lon = record[6].toString().toDoubleOrNull() ?: return@forEach
+                        //val ageHours = Duration.between(record.time, now).toHours()
+                        //if (ageHours > 20) {
+                        //    toDelete.add(record)
+                        //} else {
+                        val distance = calculateDistance(currentLat, currentLon, lat, lon)
                         if (distance < 10.0) {
                             nearbyRecord = record
                         }
-                   // }
+                        // }
+                    }
+
                 }
                 //toDelete.forEach { deletePorRevisarRecord(it) }
                 nearbyRecord?.let { record ->
+                    val street = record[0].toString()
+                    val number = record[1].toString()
                     // Show verification alert for nearby record
                     //showVerificationAlert(record)
                     // Start PorRevisarListActivity with notification
                     val intent = Intent(this, PorRevisarListActivity::class.java).apply {
-                        putExtra("street", record.street)
-                        putExtra("number", record.number)
-                        putExtra("notification", "Domicilio por verificar en ${record.street} ${record.number}")
+                        putExtra("street", street)
+                        putExtra("number", number)
+                        putExtra("notification", "Domicilio por verificar en ${street} ${number}")
                     }
                     startActivity(intent)
                 }
-                handler.postDelayed(checkRunnable, 2000)
+                handler.postDelayed(checkRunnable, 10000)
             }
 
         }.addOnFailureListener {

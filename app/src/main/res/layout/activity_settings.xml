@@ -57,46 +57,65 @@
                     android:text="Name" />
             </TableRow>
 
-            <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
+<!--            <TableRow-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="match_parent">-->
 
-                <TextView
-                    android:id="@+id/textView4"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Maps Token"
-                    android:textSize="20sp"
-                    android:textStyle="italic" />
+<!--                <TextView-->
+<!--                    android:id="@+id/textView4"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:text="Maps Token"-->
+<!--                    android:textSize="20sp"-->
+<!--                    android:textStyle="italic" />-->
 
-                <EditText
-                    android:id="@+id/txtMapToken"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:ems="10"
-                    android:inputType="text"
-                    android:text="Name" />
-            </TableRow>
+<!--                <EditText-->
+<!--                    android:id="@+id/txtMapToken"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:ems="10"-->
+<!--                    android:inputType="text"-->
+<!--                    android:text="Name" />-->
+<!--            </TableRow>-->
 
-            <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="match_parent" >
+<!--            <TableRow-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="match_parent" >-->
 
-                <TextView
-                    android:id="@+id/textView5"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="PermisosSheet"
-                    android:textSize="20sp" />
+<!--                <TextView-->
+<!--                    android:id="@+id/textView5"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:text="PermisosSheet"-->
+<!--                    android:textSize="20sp" />-->
 
-                <EditText
-                    android:id="@+id/txtPermisosSheet"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:ems="10"
-                    android:inputType="text"
-                    android:text="Name" />
-            </TableRow>
+<!--                <EditText-->
+<!--                    android:id="@+id/txtPermisosSheet"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:ems="10"-->
+<!--                    android:inputType="text"-->
+<!--                    android:text="Name" />-->
+<!--            </TableRow>-->
+<!--            <TableRow-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="match_parent" >-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/textView6"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:text="Reg. CarrosSheetID"-->
+<!--                    android:textSize="20sp" />-->
+
+<!--                <EditText-->
+<!--                    android:id="@+id/txtRegistroCarrosID"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:ems="10"-->
+<!--                    android:inputType="text"-->
+<!--                    android:text="Name" />-->
+<!--            </TableRow>-->
             <TableRow
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" >
@@ -105,17 +124,36 @@
                     android:id="@+id/textView6"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Reg. CarrosSheetID"
+                    android:text="Bucket Name"
                     android:textSize="20sp" />
 
                 <EditText
-                    android:id="@+id/txtRegistroCarrosID"
+                    android:id="@+id/txtBucketName"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:ems="10"
                     android:inputType="text"
                     android:text="Name" />
             </TableRow>
+<!--            <TableRow-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="match_parent" >-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/textView7"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:text="Parking SheetID"-->
+<!--                    android:textSize="20sp" />-->
+
+<!--                <EditText-->
+<!--                    android:id="@+id/txtParkingSheetID"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:ems="10"-->
+<!--                    android:inputType="text"-->
+<!--                    android:text="Name" />-->
+<!--            </TableRow>-->
             <TableRow
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" >
@@ -124,11 +162,49 @@
                     android:id="@+id/textView7"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Parking SheetID"
+                    android:text="Region"
                     android:textSize="20sp" />
 
                 <EditText
-                    android:id="@+id/txtParkingSheetID"
+                    android:id="@+id/txtRegionStr"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ems="10"
+                    android:inputType="text"
+                    android:text="Name" />
+            </TableRow>
+<!--            <TableRow-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="match_parent" >-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/textView8"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:text="Permisos SheetID"-->
+<!--                    android:textSize="20sp" />-->
+
+<!--                <EditText-->
+<!--                    android:id="@+id/txtPermisosSheetID"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:ems="10"-->
+<!--                    android:inputType="text"-->
+<!--                    android:text="Name" />-->
+<!--            </TableRow>-->
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" >
+
+                <TextView
+                    android:id="@+id/textView8"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Codigo Activacion"
+                    android:textSize="20sp" />
+
+                <EditText
+                    android:id="@+id/txtCodigoActivacion"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:ems="10"

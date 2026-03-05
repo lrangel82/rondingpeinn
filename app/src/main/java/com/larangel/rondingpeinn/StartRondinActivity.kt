@@ -212,9 +212,10 @@ class StartRondinActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val spreadsheet = sheetsService.spreadsheets().get(yourEventsSpreadSheetID).execute()
+                val nameWS      = mySettings?.getString("WS_POR_REVISAR", "PorRevisar")!!
                 for (sheet in spreadsheet.sheets) {
                     when (sheet.properties.title) {
-                        "PorRevisar" -> porRevisarSheetId = sheet.properties.sheetId
+                        nameWS -> porRevisarSheetId = sheet.properties.sheetId
                     }
                 }
             } catch (e: Exception) {
@@ -228,8 +229,9 @@ class StartRondinActivity : AppCompatActivity() {
         val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                val nameWS   = mySettings?.getString("WS_POR_REVISAR", "PorRevisar")!!
                 val response = sheetsService.spreadsheets().values()
-                    .get(yourEventsSpreadSheetID, "PorRevisar!A:G")
+                    .get(yourEventsSpreadSheetID, "$nameWS!A:G")
                     .execute()
                 val rows = response.getValues() ?: emptyList()
                 withContext(Dispatchers.Main) {

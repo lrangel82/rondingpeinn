@@ -1,5 +1,6 @@
 package com.larangel.rondingpeinn
 
+import DataRawRondin
 import MySettings
 import PermisosModal
 import PermisosRVAdapter
@@ -30,7 +31,7 @@ import java.time.format.DateTimeFormatter
 
 class PermisosActivity : AppCompatActivity() {
     private var mySettings: MySettings? = null
-    private lateinit var fetchButton: Button
+    private var dataRaw: DataRawRondin? = null
     private lateinit var btnCerrar: Button
     private lateinit var sheetRecyclerView: RecyclerView
     private lateinit var progressBar: ProgressBar
@@ -47,7 +48,6 @@ class PermisosActivity : AppCompatActivity() {
         setContentView(R.layout.activity_permisos)
 
         btnCerrar =findViewById(R.id.btnCerrarPermisos)
-        fetchButton = findViewById(R.id.fetchButton)
         sheetRecyclerView = findViewById(R.id.sheetRecyclerView)
         progressBar = findViewById(R.id.progressBar)
 
@@ -60,9 +60,7 @@ class PermisosActivity : AppCompatActivity() {
 
         mySettings=MySettings(this)
 
-        fetchButton.setOnClickListener {
-            fetchSheetData()
-        }
+        dataRaw = DataRawRondin(this, CoroutineScope(Dispatchers.IO))
 
         btnCerrar.setOnClickListener{
 //            val intent: Intent = Intent(this, MainActivity::class.java )
@@ -128,75 +126,109 @@ class PermisosActivity : AppCompatActivity() {
     }
 
     private fun fetchSheetData() {
-        //Coto1: https://docs.google.com/spreadsheets/d/e/2PACX-1vTk443om2jiXzF62FFliGAhjqHZikVR-1ziu3lg8-wk3TmWrd31fawCu_z7S0Kp41zTxaJnSZXLexRz/pub?output=csv
-        //Coto2: https://docs.google.com/spreadsheets/d/e/2PACX-1vTXQSO3BMLsPdRW3nF-b6wWJlbBPvf_0cF9v6dPkyuVN0ihKOMbhVGDPx5PqHq4Ai6u_aalCIMbK_Zt/pub?output=csv
-        val url = mySettings?.getString("url_googlesheet_permisos","")!!
-        if (url.isNotEmpty()) {
-            progressBar.visibility = View.VISIBLE
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
+        progressBar.visibility = View.VISIBLE
+        val permisosData = dataRaw?.getPermisosCache()
 
-                    // Convert Google Sheets URL to CSV export URL
-                    val csvUrl = url.replace("/edit#gid=", "/export?format=csv&gid=")
-                    val response = URL(csvUrl).readText()
-                    val rows = parseCSV(response)
-
-                    // Clear the existing data
-                    permisosModalArrayList.clear()
-
-                    var flag = 0
-
-                    // Convert CSV rows to UserModal objects
-                    for (row in rows) {
-                        if (flag == 0) {
-                            flag = 1;
-                            continue;
-                        }
-                        if (row.cells.size >= 4) {
-
-                            val stringTrue = arrayOf("1", "Si", "si", "SI", "x", "X")
-                            // Ensure the row has enough columns
-                            try{
-                                val userModal = PermisosModal(
-                                    fechaCreado = parseLenientDateTime(row.cells[0]),
-                                    calle = row.cells[1],
-                                    numero = row.cells[2],
-                                    solicitante = row.cells[3],
-                                    correo = row.cells[4],
-                                    tipoAcceso = row.cells[5],
-                                    tipo = row.cells[6],
-                                    fechaInicio = parseLenientDate(row.cells[7]),
-                                    fechaFin = parseLenientDate(row.cells[8]),
-                                    descripcion = row.cells[9],
-                                    nombrePersonas = row.cells[10],
-                                    aprobado = stringTrue.contains(row.cells[11]),
-                                    motivo_denegado = row.cells[12],
-                                    procesado = stringTrue.contains(row.cells[13])
-                                )
-                                if (filterPermisos(userModal)) {
-                                    permisosModalArrayList.add(userModal)
-                                }
-                            }catch (e: Exception) {
-                                println("Error: ${e.message}")
-                            }
-                        }
-                    }
-
-                    // Update the adapter on the main thread
-                    withContext(Dispatchers.Main) {
-                        permisosRVAdapter.notifyDataSetChanged()
-                    }
-                } catch (e: Exception) {
-
-                    withContext(Dispatchers.Main) {
-                        //Toast.makeText(currentCoroutineContext(), e.message, Toast.LENGTH_LONG).show()
-                        // Handle errors (e.g., show a toast or log the error)
-                        println("Error: ${e.message}")
-                    }
+        val stringTrue = arrayOf("1", "Si", "si", "SI", "x", "X")
+        permisosData?.forEach { permiso ->
+            try{
+                val userModal = PermisosModal(
+                    fechaCreado = parseLenientDateTime(permiso[0].toString()),
+                    calle = permiso[1].toString(),
+                    numero = permiso[2].toString(),
+                    solicitante = permiso[3].toString(),
+                    correo = permiso[4].toString(),
+                    tipoAcceso = permiso[5].toString(),
+                    tipo = permiso[6].toString(),
+                    fechaInicio = parseLenientDate(permiso[7].toString()),
+                    fechaFin = parseLenientDate(permiso[8].toString()),
+                    descripcion = permiso[9].toString(),
+                    nombrePersonas = permiso[10].toString(),
+                    aprobado = stringTrue.contains(permiso[11]),
+                    motivo_denegado = permiso[12].toString(),
+                    procesado = stringTrue.contains(permiso[13])
+                )
+                if (filterPermisos(userModal)) {
+                    permisosModalArrayList.add(userModal)
                 }
-                progressBar.visibility = View.GONE
-            } //End Coroutine
+            }catch (e: Exception) {
+                println("Error: ${e.message}")
+            }
         }
+        permisosRVAdapter.notifyDataSetChanged()
+        progressBar.visibility = View.GONE
+
+
+
+//        //Coto1: https://docs.google.com/spreadsheets/d/e/2PACX-1vTk443om2jiXzF62FFliGAhjqHZikVR-1ziu3lg8-wk3TmWrd31fawCu_z7S0Kp41zTxaJnSZXLexRz/pub?output=csv
+//        //Coto2: https://docs.google.com/spreadsheets/d/e/2PACX-1vTXQSO3BMLsPdRW3nF-b6wWJlbBPvf_0cF9v6dPkyuVN0ihKOMbhVGDPx5PqHq4Ai6u_aalCIMbK_Zt/pub?output=csv
+//        val url = mySettings?.getString("url_googlesheet_permisos","")!!
+//        if (url.isNotEmpty()) {
+//            progressBar.visibility = View.VISIBLE
+//            CoroutineScope(Dispatchers.IO).launch {
+//                try {
+//
+//                    // Convert Google Sheets URL to CSV export URL
+//                    val csvUrl = url.replace("/edit#gid=", "/export?format=csv&gid=")
+//                    val response = URL(csvUrl).readText()
+//                    val rows = parseCSV(response)
+//
+//                    // Clear the existing data
+//                    permisosModalArrayList.clear()
+//
+//                    var flag = 0
+//
+//                    // Convert CSV rows to UserModal objects
+//                    for (row in rows) {
+//                        if (flag == 0) {
+//                            flag = 1;
+//                            continue;
+//                        }
+//                        if (row.cells.size >= 4) {
+//
+//                            val stringTrue = arrayOf("1", "Si", "si", "SI", "x", "X")
+//                            // Ensure the row has enough columns
+//                            try{
+//                                val userModal = PermisosModal(
+//                                    fechaCreado = parseLenientDateTime(row.cells[0]),
+//                                    calle = row.cells[1],
+//                                    numero = row.cells[2],
+//                                    solicitante = row.cells[3],
+//                                    correo = row.cells[4],
+//                                    tipoAcceso = row.cells[5],
+//                                    tipo = row.cells[6],
+//                                    fechaInicio = parseLenientDate(row.cells[7]),
+//                                    fechaFin = parseLenientDate(row.cells[8]),
+//                                    descripcion = row.cells[9],
+//                                    nombrePersonas = row.cells[10],
+//                                    aprobado = stringTrue.contains(row.cells[11]),
+//                                    motivo_denegado = row.cells[12],
+//                                    procesado = stringTrue.contains(row.cells[13])
+//                                )
+//                                if (filterPermisos(userModal)) {
+//                                    permisosModalArrayList.add(userModal)
+//                                }
+//                            }catch (e: Exception) {
+//                                println("Error: ${e.message}")
+//                            }
+//                        }
+//                    }
+//
+//                    // Update the adapter on the main thread
+//                    withContext(Dispatchers.Main) {
+//                        permisosRVAdapter.notifyDataSetChanged()
+//                    }
+//                } catch (e: Exception) {
+//
+//                    withContext(Dispatchers.Main) {
+//                        //Toast.makeText(currentCoroutineContext(), e.message, Toast.LENGTH_LONG).show()
+//                        // Handle errors (e.g., show a toast or log the error)
+//                        println("Error: ${e.message}")
+//                    }
+//                }
+//                progressBar.visibility = View.GONE
+//            } //End Coroutine
+//        }
     }
 
     private fun parseCSV(csvData: String): List<SheetRow> {
