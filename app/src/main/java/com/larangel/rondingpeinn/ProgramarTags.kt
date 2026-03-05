@@ -65,7 +65,7 @@ class ProgramarTags : AppCompatActivity() {
             builder.setMessage("Este dispositivo no tiene NFC.")
             //Return to MAIN
             builder.setPositiveButton("Enterado") { _, _ ->
-                startActivity(Intent(this, MainActivity::class.java))
+                //startActivity(Intent(this, MainActivity::class.java))
             }
             val myDialog = builder.create()
             myDialog.setCanceledOnTouchOutside(false)
@@ -250,10 +250,27 @@ class ProgramarTags : AppCompatActivity() {
                 }
             }
             // Request updates for GPS provider
-            locationManager.requestLocationUpdates(
-                LocationManager.GPS_PROVIDER, 5000, 1f,
-                locationListener as LocationListener
-            )
+            if (locationManager.allProviders.contains(LocationManager.GPS_PROVIDER)) {
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000L, 1f, locationListener as LocationListener)
+            } else {
+                // El dispositivo no tiene GPS físico, intenta con el de red o avisa al usuario
+                if (locationManager.allProviders.contains(LocationManager.NETWORK_PROVIDER)) {
+                    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000L, 1f, locationListener as LocationListener)
+                } else {
+                    val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
+                    btnProgramarTag.text =  "No hay proveedores de ubicación disponibles (SIN GPS)"
+                    btnProgramarTag.setEnabled(false)
+
+                    val builder = AlertDialog.Builder(this@ProgramarTags)
+                    builder.setMessage("Este dispositivo no tiene GPS.")
+                    builder.setPositiveButton("Enterado") { _, _ ->
+                    }
+                    val myDialog = builder.create()
+                    myDialog.setCanceledOnTouchOutside(false)
+                    myDialog.show()
+                }
+            }
+
         }
 
     }

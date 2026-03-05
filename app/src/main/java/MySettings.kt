@@ -103,6 +103,19 @@ class MySettings(context: Context) {
             putString("WS_INCIDENCIAS_EVENTOS", WS_INCIDENCIAS_EVENTOS)
             putString("WS_MULTAS_GENERADAS", WS_MULTAS_GENERADAS)
             putString("WS_DOMICILIO_WARNINGS", WS_DOMICILIO_WARNINGS)
+
+            //CLEAN TIME CACHE
+            putLong("PERMISOS_CACHE_TIMESTAMP",0)
+            putLong("VEHICLE_CACHE_TIMESTAMP",0)
+            putLong("TAGS_CACHE_TIMESTAMP",0)
+            putLong("DIRECTIONS_CACHE_TIMESTAMP",0)
+            putLong("PORREVISAR_CACHE_TIMESTAMP",0)
+            putLong("PARKINGSLOTS_CACHE_TIMESTAMP",0)
+            putLong("EVENTOS_CACHE_TIMESTAMP",0)
+            putLong("INCIDENCIACONFIG_CACHE_TIMESTAMP",0)
+            putLong("INCIDENCIAEVENTOS_CACHE_TIMESTAMP",0)
+            putLong("MULTAS_CACHE_TIMESTAMP",0)
+            putLong("DOMICILIOWARNINGS_CACHE_TIMESTAMP",0)
             apply()
         }
     }

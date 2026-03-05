@@ -65,6 +65,7 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.sheets.v4.Sheets
+import com.larangel.rondingpeinn.ProgramarTags
 import com.larangel.rondingpeinn.VehicleSearchActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -107,10 +108,16 @@ class StartRondinActivity : AppCompatActivity() {
         nfcAdapter =  NfcAdapter.getDefaultAdapter(this)
         // Check the NFC adapter
         if (nfcAdapter == null && !isRunningOnEmulator()) {
-            sendAlertOK("Este dispositivo no tiene NFC.")
-            //val intent = Intent(this, MainActivity::class.java)
-            //startActivity(intent)
-            finish()
+            val builder = AlertDialog.Builder(this@StartRondinActivity)
+            builder.setMessage("Este dispositivo no tiene NFC. Imposible hacer uso del Rondin")
+            //Return to MAIN
+            builder.setPositiveButton("Enterado") { _, _ ->
+                finish()
+                sendAlertOK("Este dispositivo no tiene NFC.")
+            }
+            val myDialog = builder.create()
+            myDialog.setCanceledOnTouchOutside(false)
+            myDialog.show()
         }
         else if (nfcAdapter != null && nfcAdapter?.isEnabled ==false) {
             val builder = AlertDialog.Builder(this@StartRondinActivity)//, R.style.MyAlertDialogStyle)
