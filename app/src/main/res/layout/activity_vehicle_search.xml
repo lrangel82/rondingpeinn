@@ -13,6 +13,114 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <TableLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingVertical="2pt">
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingVertical="2pt">
+
+                <TextView
+                    android:id="@+id/txtPBar_ParkingSlots"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="5pt"
+                    android:text="VisitasCajones" />
+
+                <ProgressBar
+                    android:id="@+id/progressBar_ParkingSlots"
+                    style="@android:style/Widget.ProgressBar.Horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:indeterminate="false"
+                    android:max="75"
+                    android:progress="10"
+                    android:progressBackgroundTint="#E91E63"
+                    android:progressTint="#4CAF50"/>
+            </TableRow>
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <Switch
+                    android:id="@+id/swRonding"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:height="48dp"
+                    android:text="Rondin" />
+
+                <TextView
+                    android:id="@+id/txtPBar_CheckPoints"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="5pt"
+                    android:text="Rondin TAGS" />
+
+                <ProgressBar
+                    android:id="@+id/progressBar_CheckPoints"
+                    style="@android:style/Widget.ProgressBar.Horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:indeterminate="false"
+                    android:max="3"
+                    android:progress="1"
+                    android:progressBackgroundTint="#E91E63"
+                    android:progressTint="#4CAF50" />
+
+            </TableRow>
+<!--            <TableRow-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="match_parent">-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/vehicletextView1"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:text="Cajones Faltantes"-->
+<!--                    android:textAlignment="center" />-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/vehicletextView2"-->
+<!--                    android:layout_width="wrap_content"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:text="Cajones Completados"-->
+<!--                    android:textAlignment="center" />-->
+<!--            </TableRow>-->
+
+<!--            <TableRow-->
+<!--                android:layout_width="match_parent"-->
+<!--                android:layout_height="match_parent">-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/vehicleText_PSFaltantes"-->
+<!--                    android:layout_width="203dp"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:ems="10"-->
+<!--                    android:fontFamily="sans-serif-black"-->
+<!--                    android:text="34"-->
+<!--                    android:textAlignment="center"-->
+<!--                    android:textColor="#E91E63"-->
+<!--                    android:textSize="48sp" />-->
+
+<!--                <TextView-->
+<!--                    android:id="@+id/vehicleText_PSCompletos"-->
+<!--                    android:layout_width="203dp"-->
+<!--                    android:layout_height="wrap_content"-->
+<!--                    android:ems="10"-->
+<!--                    android:fontFamily="sans-serif-black"-->
+<!--                    android:text="34"-->
+<!--                    android:textAlignment="center"-->
+<!--                    android:textColor="#4CAF50"-->
+<!--                    android:textColorHint="#009688"-->
+<!--                    android:textSize="48sp" />-->
+<!--            </TableRow>-->
+
+        </TableLayout>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -88,60 +196,6 @@
 
         </FrameLayout>
 
-
-
-        <TableLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content">
-
-            <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-                <TextView
-                    android:id="@+id/vehicletextView1"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Cajones Faltantes"
-                    android:textAlignment="center" />
-
-                <TextView
-                    android:id="@+id/vehicletextView2"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Cajones Completados"
-                    android:textAlignment="center" />
-            </TableRow>
-
-            <TableRow
-                android:layout_width="match_parent"
-                android:layout_height="match_parent">
-
-                <TextView
-                    android:id="@+id/vehicleText_PSFaltantes"
-                    android:layout_width="203dp"
-                    android:layout_height="wrap_content"
-                    android:ems="10"
-                    android:fontFamily="sans-serif-black"
-                    android:text="34"
-                    android:textAlignment="center"
-                    android:textColor="#E91E63"
-                    android:textSize="48sp" />
-
-                <TextView
-                    android:id="@+id/vehicleText_PSCompletos"
-                    android:layout_width="203dp"
-                    android:layout_height="wrap_content"
-                    android:ems="10"
-                    android:fontFamily="sans-serif-black"
-                    android:text="34"
-                    android:textAlignment="center"
-                    android:textColor="#4CAF50"
-                    android:textColorHint="#009688"
-                    android:textSize="48sp" />
-            </TableRow>
-
-        </TableLayout>
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/eventsRecyclerView"

@@ -78,7 +78,8 @@
                         android:layout_margin="5dp"
                         android:layout_weight="0.5"
                         android:text="Iniciar RONDIN"
-                        android:textSize="24sp" />
+                        android:textSize="24sp"
+                        android:visibility="gone" />
 
                     <Button
                         android:id="@+id/btn_vehiculos"
@@ -88,7 +89,7 @@
                         android:layout_margin="5dp"
                         android:layout_weight="0.5"
                         android:enabled="true"
-                        android:text="Vehiculos"
+                        android:text="MAPA"
                         android:textSize="24sp" />
                 </TableRow>
 

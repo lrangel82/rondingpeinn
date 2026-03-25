@@ -1,5 +1,6 @@
 package com.larangel.rondingpeinn
 
+import CheckPoint
 import MySettings
 import DataRawRondin
 import EventAdapter
@@ -7,19 +8,33 @@ import EventModal
 import PorRevisarRecord
 import kotlinx.coroutines.*
 import android.Manifest
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.content.IntentFilter.MalformedMimeTypeException
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Rect
+import android.graphics.Typeface
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.location.Location
+import android.nfc.NdefRecord
+import android.nfc.NfcAdapter
+import android.nfc.Tag
+import android.nfc.tech.Ndef
 import android.os.Build
+import android.os.Environment
+import android.provider.Settings
+import android.view.LayoutInflater
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -65,8 +80,11 @@ import java.io.File
 import java.io.FileOutputStream
 import android.view.View
 import android.view.ViewGroup
+import android.widget.CompoundButton
 import android.widget.ProgressBar
 import android.widget.FrameLayout
+import android.widget.Switch
+import androidx.core.graphics.createBitmap
 import androidx.core.widget.doOnTextChanged
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -75,7 +93,11 @@ import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CircleOptions
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.material.switchmaterial.SwitchMaterial
+import com.larangel.rondingpeinn.StartRondinActivity
+import java.time.temporal.ChronoUnit
 import kotlin.String
 import kotlin.collections.List
 
@@ -92,7 +114,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private lateinit var porRevisarButton: Button
     private lateinit var photoThumbnail: ImageView
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var sheetsService: Sheets
+    //private lateinit var sheetsService: Sheets
     private val events = ArrayList<EventModal>()
     private val REQUEST_CAMERA_PERMISSION = 100
     private val REQUEST_LOCATION_PERMISSION = 101
@@ -105,8 +127,8 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private var vehicleSource: String? = null
     private var keySlotSeleccionado: String? = null
     private val porRevisarRecords = mutableListOf<PorRevisarRecord>()
-    private var porRevisarSheetId: Int = 0
-    private var domicilioWarningsSheetId: Int = 0
+    //private var porRevisarSheetId: Int = 0
+    //private var domicilioWarningsSheetId: Int = 0
     private val handler = Handler(Looper.getMainLooper())
     private val checkRunnable = Runnable { checkPorRevisarLocations() }
     private var loadingOverlay: View? = null
@@ -114,6 +136,12 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private var googleMap: GoogleMap? = null
 
     private var stopSearchVehicle: Boolean = false
+
+    //RONDIN NFC
+    private var nfcAdapter: NfcAdapter? = null
+    private var pendingIntentNFC: PendingIntent? = null
+    private var intentNFCFiltersArray: Array<IntentFilter>? = null
+    private var techNFCListsArray: Array<Array<String>>? = null
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -175,6 +203,34 @@ class  VehicleSearchActivity : AppCompatActivity() {
         saveEventButton.setOnClickListener {
             saveNewEvent()
         }
+
+        // ##### NFC #####  Inicializa Rondin SWTICH
+        pendingIntentNFC = PendingIntent.getActivity(
+            //Start pending intent ESCUCHANDO..
+            this, 0, Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_MUTABLE
+        )
+        val ndef = IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED).apply {
+            // Setup an intent filter for all MIME based dispatches
+            try {
+                addDataType("*/*")
+            } catch (e: MalformedMimeTypeException) {
+                throw RuntimeException("fail", e)
+            }
+        }
+        intentNFCFiltersArray = arrayOf(ndef, IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED), IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED))
+        techNFCListsArray = arrayOf(
+            arrayOf(Ndef::class.java.name),
+            arrayOf(android.nfc.tech.NfcA::class.java.name),
+            arrayOf(android.nfc.tech.NfcB::class.java.name),
+            arrayOf(android.nfc.tech.IsoDep::class.java.name),
+            arrayOf(android.nfc.tech.MifareClassic::class.java.name),
+            arrayOf(android.nfc.tech.MifareUltralight::class.java.name)
+        )
+                //arrayOf(arrayOf<String>(Ndef::class.java.name)) // Setup a tech list for all Ndef tags
+        inicializaRondinSwitch()
+        // ##### END NFC INIT #####
+
 
         // Add Por Revisar button
         porRevisarButton = Button(this)
@@ -265,10 +321,9 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private fun updateMapMarkers() {
         googleMap?.let { gMap ->
             gMap.clear()
-
+            //**************** PARKING SLOTS ***************************
             // 1. Obtén la lista de espacios (your implementation here)
             val parkSlots = dataRaw?.getParkingSlots()
-
             // 2. Filtra eventos de las últimas horas
             val eventosRecientes = dataRaw?.getAutosEventos_6horas()
 
@@ -297,18 +352,9 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
                 )
             }
+            //**************** FIN PARKING SLOTS **********************
 
-            // 4. Setea listener para selección del círculo o marker
-            gMap.setOnMarkerClickListener { marker ->
-                if (marker.snippet.isNullOrEmpty() ) {
-                    val tagLugar = marker.title ?: ""
-                    keySlotSeleccionado = tagLugar
-                    preguntarYProcesarLugar(tagLugar)
-                    true
-                }
-                false
-            }
-            //PERMISOS
+            //**************** PERMISOS *******************************
             val permisos = dataRaw?.getPermisosCache_DeHoy()
             val direciones = dataRaw?.getDomiciliosUbicacion()
             permisos?.forEach { permiso ->
@@ -343,6 +389,34 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
                     )
                 }
+            }
+            //**************** FIN PERMISOS ***************************
+
+            //**************** TAGS Rondinero *************************
+            val checkPoints = mySettings?.getListCheckPoint("LIST_CHECKPOINT")!!.toMutableList()
+            checkPoints.forEachIndexed { index,pointTag ->
+                val strTag = (index + 1).toString()
+                val bitmap = createMarkerTAGRondinero(this, strTag)
+                gMap.addMarker(
+                    MarkerOptions()
+                        .flat(true)
+                        .title(pointTag.identificador)
+                        .icon(BitmapDescriptorFactory.fromBitmap(bitmap))
+                        .position(LatLng(pointTag.latitud,pointTag.longitud) )
+                )
+            }
+            //*********************************************************
+
+            // LISTENER por cad click en los markers
+            gMap.setOnMarkerClickListener { marker ->
+                if (marker.snippet.isNullOrEmpty() ) {
+                    //Solo si no tiene info puesta en el marker
+                    val tagLugar = marker.title ?: ""
+                    keySlotSeleccionado = tagLugar
+                    preguntarYProcesarLugar(tagLugar)
+                    true
+                }
+                false
             }
         }
     }
@@ -433,8 +507,6 @@ class  VehicleSearchActivity : AppCompatActivity() {
         porRevisarButton.setBackgroundColor(if (porRevisarRecords.size > 0) Color.RED else Color.GRAY)
         porRevisarButton.tooltipText = porRevisarRecords.size.toString()
     }
-
-
 
     private fun cleanOldThumbnails() {
         lifecycleScope.launch(Dispatchers.IO) {
@@ -776,12 +848,30 @@ class  VehicleSearchActivity : AppCompatActivity() {
                     //Solo ULTIMAS 6 HORAS
                     val plateEvents = dataRaw?.getAutosEventos_6horas()
                     val parkSlots = dataRaw?.getParkingSlots()
+                    val checkPoints = mySettings?.getListCheckPoint("LIST_CHECKPOINT")!!.toMutableList()
+                    val totalCheckPoints = mySettings?.getInt("rondin_num_tags",0)!!
 
-                    val tFaltantes: TextView = findViewById<TextView>(R.id.vehicleText_PSFaltantes)
-                    val tCompletados: TextView = findViewById<TextView>(R.id.vehicleText_PSCompletos)
 
-                    tFaltantes.text = (parkSlots?.size?.minus(plateEvents?.size ?: 0)).toString()
-                    tCompletados.text= plateEvents?.size.toString()
+                    //*** Parking Slots Progress
+                    val pBarParkingSlots: ProgressBar = findViewById<ProgressBar>(R.id.progressBar_ParkingSlots)
+                    val tPBarParkingSlots: TextView = findViewById<TextView>(R.id.txtPBar_ParkingSlots)
+                    pBarParkingSlots.max = parkSlots?.size ?: 0
+                    pBarParkingSlots.progress = plateEvents?.size ?: 0
+                    tPBarParkingSlots.text = "Visitas: ${(plateEvents?.size ?: 0)}/${(parkSlots?.size ?: 0)}"
+
+                    //*** CheckPoints de rondinero
+                    val pBarCheckPoints: ProgressBar = findViewById<ProgressBar>(R.id.progressBar_CheckPoints)
+                    val tPBarCheckPoints: TextView = findViewById<TextView>(R.id.txtPBar_CheckPoints)
+                    pBarCheckPoints.max = totalCheckPoints
+                    pBarCheckPoints.progress = checkPoints?.size ?: 0
+                    tPBarCheckPoints.text = "Rondin TAGS ${(checkPoints?.size ?: 0)}/${totalCheckPoints}"
+
+
+//                    val tFaltantes: TextView = findViewById<TextView>(R.id.vehicleText_PSFaltantes)
+//                    val tCompletados: TextView = findViewById<TextView>(R.id.vehicleText_PSCompletos)
+//
+//                    tFaltantes.text = (parkSlots?.size?.minus(plateEvents?.size ?: 0)).toString()
+//                    tCompletados.text= plateEvents?.size.toString()
 
                     waitingOff()
                 }
@@ -1454,12 +1544,17 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        inicializaRondinSwitch()
+        //Recalcular y redibujar mapa
+        updateMapMarkers()
+        refreshContadorEventos()
         loadPorRevisar()
         handler.postDelayed(checkRunnable, 2000)
     }
 
     override fun onPause() {
         super.onPause()
+        stopNFC()
         handler.removeCallbacks(checkRunnable)
     }
 
@@ -1517,119 +1612,6 @@ class  VehicleSearchActivity : AppCompatActivity() {
         }
     }
 
-//    private fun showVerificationAlert(record: PorRevisarRecord) {
-//        AlertDialog.Builder(this)
-//            .setTitle("Verificar Cochera")
-//            .setMessage("¿La cochera está vacía en ${record.street} ${record.number}?")
-//            .setPositiveButton("Sí") { _, _ ->
-//                lifecycleScope.launch(Dispatchers.IO) {
-//                    try {
-//                        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-//                        // Get or create warning record
-//                        val response = sheetsService.spreadsheets().values()
-//                            .get(yourEventsSpreadSheetID, "DomicilioWarnings!A:C")
-//                            .execute()
-//                        val rows = response.getValues() ?: emptyList()
-//                        var existingRowIndex: Int? = null
-//                        var currentCount = 0
-//                        rows.forEachIndexed { index, row ->
-//                            if (row.size >= 2 && row[0].toString() == record.street && row[1].toString() == record.number) {
-//                                existingRowIndex = index + 1
-//                                currentCount = row[2].toString().toIntOrNull() ?: 0
-//                                return@forEachIndexed
-//                            }
-//                        }
-//                        val newCount = currentCount + 1
-//                        val values = listOf(
-//                            listOf(
-//                                record.street,
-//                                record.number,
-//                                newCount.toString()
-//                            )
-//                        )
-//                        val body = ValueRange().setValues(values)
-//                        if (existingRowIndex != null) {
-//                            sheetsService.spreadsheets().values()
-//                                .update(yourEventsSpreadSheetID, "DomicilioWarnings!A$existingRowIndex:C$existingRowIndex", body)
-//                                .setValueInputOption("RAW")
-//                                .execute()
-//                        } else {
-//                            sheetsService.spreadsheets().values()
-//                                .append(yourEventsSpreadSheetID, "DomicilioWarnings!A:C", body)
-//                                .setValueInputOption("RAW")
-//                                .execute()
-//                        }
-//                        withContext(Dispatchers.Main) {
-//                            val message = if (newCount < 3) "El domicilio es acredor a un aviso por tener vehículo en visita con cochera vacía."
-//                            else "El domicilio es acredor a una multa por tener vehículo en visita con cochera vacía (3er aviso)."
-//                            AlertDialog.Builder(this@VehicleSearchActivity)
-//                                .setTitle("Acredor")
-//                                .setMessage(message)
-//                                .setPositiveButton("OK") { _, _ -> }
-//                                .show()
-//                            deletePorRevisarRecord(record)
-//                        }
-//                    } catch (e: Exception) {
-//                        withContext(Dispatchers.Main) {
-//                            Toast.makeText(this@VehicleSearchActivity, "Error actualizando warnings: ${e.message}", Toast.LENGTH_SHORT).show()
-//                        }
-//                    }
-//                }
-//            }
-//            .setNegativeButton("No") { _, _ ->
-//                deletePorRevisarRecord(record)
-//            }
-//            .show()
-//    }
-
-    private fun deletePorRevisarRecord(record: PorRevisarRecord) {
-        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-
-                //########## ELIMINAR POR REVISAR CACHE ###############
-                if (dataRaw?.eliminarPorRevisar(record.street,record.number,record.parkingSlotKey) == false)
-                    withContext(Dispatchers.Main) {
-                        Toast.makeText(
-                            this@VehicleSearchActivity,
-                            "NO Internet: al eliminar registro antiguo",
-                            Toast.LENGTH_LONG
-                        ).show()
-                    }
-                //######################################################
-
-//                val rows = dataRaw?.getPorRevisar()// response.getValues() ?: emptyList()
-//                var rowIndex: Int? = null
-//                rows?.forEachIndexed { index, row ->
-//                    if (row.size >= 2 && row[0].toString() == record.street && row[1].toString() == record.number) {
-//                        rowIndex = index + 1
-//                        return@forEachIndexed
-//                    }
-//                }
-//                if (rowIndex != null) {
-//                    val dimensionRange = DimensionRange()
-//                        .setSheetId(porRevisarSheetId)
-//                        .setDimension("ROWS")
-//                        .setStartIndex(rowIndex!! - 1)
-//                        .setEndIndex(rowIndex!!)
-//                    val deleteRequest = DeleteDimensionRequest().setRange(dimensionRange)
-//                    val request = Request().setDeleteDimension(deleteRequest)
-//                    val batchRequest = BatchUpdateSpreadsheetRequest().setRequests(listOf(request))
-//                    sheetsService.spreadsheets().batchUpdate(yourEventsSpreadSheetID, batchRequest).execute()
-//                    withContext(Dispatchers.Main) {
-//                        porRevisarRecords.remove(record)
-//                        updatePorRevisarButton()
-//                        Toast.makeText(this@VehicleSearchActivity, "Registro eliminado", Toast.LENGTH_SHORT).show()
-//                    }
-//                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@VehicleSearchActivity, "Error eliminando registro: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
-    }
-
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         when (requestCode) {
@@ -1677,39 +1659,364 @@ class  VehicleSearchActivity : AppCompatActivity() {
         }
     }
 
-    data class Vehicle(val plate: String, val street: String, val number: String, val registrationDate: String)
+    //##################### RONDINERO ##################
+    private fun inicializaRondinSwitch(){
+        val rswitch = findViewById<Switch>(R.id.swRonding)
+        val checkPoints = mySettings?.getListCheckPoint("LIST_CHECKPOINT")!!.toMutableList()
+        try { //Limpiar cualquier listener existente
+            rswitch.setOnCheckedChangeListener(null)
+            //Hay algun rondin iniciado?
+            rswitch.isChecked = checkPoints.size > 0
+
+            setListenerRondinSwitch(rswitch)
+            //Ocultar/Mostrar elementos
+            val pBarCheckPoints: ProgressBar = findViewById<ProgressBar>(R.id.progressBar_CheckPoints)
+            val tPBarCheckPoints: TextView = findViewById<TextView>(R.id.txtPBar_CheckPoints)
+            if (rswitch.isChecked){
+                pBarCheckPoints.visibility = View.VISIBLE
+                tPBarCheckPoints.visibility = View.VISIBLE
+                InitNFC()
+            }else{
+                pBarCheckPoints.visibility = View.GONE
+                tPBarCheckPoints.visibility = View.GONE
+            }
+
+        }catch (e: Exception){
+            Toast.makeText(this, "Error al incializar el Rondin: ${e.message}", Toast.LENGTH_SHORT).show()
+            val pBarCheckPoints: ProgressBar = findViewById<ProgressBar>(R.id.progressBar_CheckPoints)
+            val tPBarCheckPoints: TextView = findViewById<TextView>(R.id.txtPBar_CheckPoints)
+            pBarCheckPoints.visibility = View.GONE
+            tPBarCheckPoints.visibility = View.GONE
+        }
+
+    }
+    private fun setListenerRondinSwitch(rswitch: Switch) {
+        rswitch.setOnCheckedChangeListener { buttonView, isChecked ->
+            // 1. Obtener valor: isChecked ya nos da el nuevo estado
+            if (!isChecked) {
+                // 2. Validación: Si el usuario intenta apagarlo preguntar si desea realmete finalizar
+                msgDeseaFinalizarelRondin(buttonView)
+            } else {
+                // Lógica cuando se enciende normalmente
+                msgDeseaIniciarRondin(buttonView)
+            }
+        }
+    }
+    private fun msgDeseaFinalizarelRondin(rswitch: CompoundButton){
+        AlertDialog.Builder(this)
+            .setTitle("¿Finalizar rondin?")
+            .setMessage("¿Estás seguro de que deseas FINALIZAR el RONDIN?")
+            .setPositiveButton("-->Sí, fin rondin") { _, _ ->
+                // El switch ya cambió a 'false' (apagado), no hacemos nada más
+                //Toast.makeText(this, "Servicio Desactivado", Toast.LENGTH_SHORT).show()
+                //Aqui logica para enviar los datos
+                finalizarRondin()
+            }
+            .setNegativeButton("No") { dialog, _ ->
+                // 3. Cancelar acción: Revertimos el estado a 'true'
+                // Quitamos el listener antes de cambiar el estado para no disparar el diálogo otra vez
+                rswitch.setOnCheckedChangeListener(null)
+                rswitch.isChecked = true
+                // Reasignamos el listener después del cambio programático
+                setListenerRondinSwitch(rswitch as Switch)
+                dialog.dismiss()
+            }
+            .setCancelable(false) // Evita que cierren el mensaje tocando fuera
+            .show()
+    }
+    private fun msgDeseaIniciarRondin(rswitch: CompoundButton){
+        AlertDialog.Builder(this)
+            .setTitle("¿Iniciar rondin?")
+            .setMessage("¿Deseas INCIAR EL RODIN?")
+            .setPositiveButton("Sí, iniciar") { _, _ ->
+                Toast.makeText(this, "Iniciando Rondin...", Toast.LENGTH_SHORT).show()
+                //Aqui logica para activar el NFC
+                iniciarRondin()
+            }
+            .setNegativeButton("Cancelar") { dialog, _ ->
+                // 3. Cancelar acción: Revertimos el estado a 'false'
+                // Quitamos el listener antes de cambiar el estado para no disparar el diálogo otra vez
+                rswitch.setOnCheckedChangeListener(null)
+                rswitch.isChecked = false
+                // Reasignamos el listener después del cambio programático
+                setListenerRondinSwitch(rswitch as Switch)
+                dialog.dismiss()
+            }
+            .setCancelable(false) // Evita que cierren el mensaje tocando fuera
+            .show()
+    }
+    private fun iniciarRondin(){
+        //Mostrar barProgress
+        val pBarCheckPoints: ProgressBar = findViewById<ProgressBar>(R.id.progressBar_CheckPoints)
+        val tPBarCheckPoints: TextView = findViewById<TextView>(R.id.txtPBar_CheckPoints)
+        pBarCheckPoints.visibility = View.VISIBLE
+        tPBarCheckPoints.visibility = View.VISIBLE
+        //Start NFC
+        InitNFC()
+    }
+    private fun finalizarRondin(){
+        try {
+            //Enviar mensaje e imagen por whatsapp
+            enviarFinRondintoWhatsapp()
+            //Limpiar memoria
+            mySettings?.saveListCheckPoint("LIST_CHECKPOINT",mutableListOf())
+            //Detener NFC
+            stopNFC()
+
+            //Ocultar barProgress
+            val pBarCheckPoints: ProgressBar = findViewById<ProgressBar>(R.id.progressBar_CheckPoints)
+            val tPBarCheckPoints: TextView = findViewById<TextView>(R.id.txtPBar_CheckPoints)
+            val txtLog: TextView = findViewById<EditText>(R.id.resultText)
+            pBarCheckPoints.visibility = View.GONE
+            tPBarCheckPoints.visibility = View.GONE
+            txtLog.setText("")
+        }catch (e: Exception){
+            Toast.makeText(this, "Error al Finalizar el Rondin: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+    private fun InitNFC(){
+        nfcAdapter =  NfcAdapter.getDefaultAdapter(this)
+        val rswitch = findViewById<Switch>(R.id.swRonding)
+        // Check the NFC adapter
+        if (nfcAdapter == null && !isRunningOnEmulator()) {
+            nfcAdapter = null
+            val builder = AlertDialog.Builder(this@VehicleSearchActivity)
+            builder.setMessage("Este dispositivo no tiene NFC. Imposible hacer uso del Rondin")
+            //Return to MAIN
+            builder.setPositiveButton("Enterado") { dialog, _ ->
+                //Apagar ek switch
+                rswitch.setOnCheckedChangeListener(null)
+                rswitch.isChecked = false
+                setListenerRondinSwitch(rswitch as Switch)
+                dialog.dismiss()
+            }
+            val myDialog = builder.create()
+            myDialog.setCanceledOnTouchOutside(false)
+            myDialog.show()
+            return
+        }
+        else if (nfcAdapter != null && nfcAdapter?.isEnabled ==false) {
+            val builder = AlertDialog.Builder(this@VehicleSearchActivity)//, R.style.MyAlertDialogStyle)
+            builder.setTitle("NFC Deshabilitado")
+            builder.setMessage("Por favor habilita el NFC")
+
+            builder.setPositiveButton("Settings") { _, _ -> startActivity(Intent(Settings.ACTION_NFC_SETTINGS)) }
+            builder.setNegativeButton("Cancel", null)
+            val myDialog = builder.create()
+            myDialog.setCanceledOnTouchOutside(false)
+            myDialog.show()
+            return
+        }
+
+        //ENABLE LISTENING IN THIS ACTIVITY
+        if (nfcAdapter != null && nfcAdapter!!.isEnabled)
+            nfcAdapter?.enableForegroundDispatch(this, pendingIntentNFC, intentNFCFiltersArray, techNFCListsArray)
+    }
+    private fun stopNFC(){
+        if (nfcAdapter != null) nfcAdapter!!.disableForegroundDispatch(this)
+    }
+    private fun isRunningOnEmulator(): Boolean {
+        return (Build.FINGERPRINT.startsWith("generic")
+                || Build.FINGERPRINT.contains("unknown")
+                || Build.MODEL.contains("google_sdk")
+                || Build.MODEL.contains("Emulator")
+                || Build.MODEL.contains("Android SDK built for x86")
+                || Build.HARDWARE.contains("goldfish")
+                || Build.HARDWARE.contains("ranchu")
+                || Build.MANUFACTURER.contains("Genymotion")
+                || Build.PRODUCT.contains("sdk_google")
+                || Build.PRODUCT.contains("google_sdk")
+                || Build.PRODUCT.contains("sdk")
+                || Build.PRODUCT.contains("sdk_x86")
+                || Build.PRODUCT.contains("vbox86p")
+                || Build.PRODUCT.contains("emulator")
+                || Build.PRODUCT.contains("simulator"))
+    }
+    //LECTOR DE NFC se ejecuta el intent y valida si es del NFC correcto
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        val txtLog: TextView = findViewById<EditText>(R.id.resultText)
+        if (NfcAdapter.ACTION_NDEF_DISCOVERED == intent.action) {
+            try {
+                val tagFromIntent: Tag? = intent.getParcelableExtra(NfcAdapter.EXTRA_TAG)
+                val nfc = Ndef.get(tagFromIntent)
+
+
+                val ndefMessage = nfc?.cachedNdefMessage
+                ndefMessage?.records?.forEach { record ->
+                    if (record.tnf == NdefRecord.TNF_MIME_MEDIA) {
+                        // This is a MIME type record
+                        val data = String(record.payload, Charsets.UTF_8)
+                        // Process the mimeType and data
+                        val checkP = convertTagStringToCheckPoint(data)
+                        checkP.strTime =  LocalDateTime.now().toString()
+                        if (addCheckPoint(checkP)) {
+                            txtLog.text = "-----TAG-----\nAT:" + checkP.strTime + "\n ${data}"
+                            updateMapMarkers()
+                            refreshContadorEventos()
+                            //Centrar MAPA a este punto leido
+                            val userLatLng = LatLng(checkP.latitud, checkP.longitud)
+                            googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 21f))
+                        }else{
+                            txtLog.text = "-----TAG REPETIDO (ya se habia leido)-----\n"
+                        }
+                    }
+                }
+            }catch (e: Exception) {
+                txtLog.append("Lectura ERRONEA:" + e.message + "\n")
+            }
+        }else{
+            txtLog.append("NO VALID TAG\n")
+        }
+
+    }
+    fun convertTagStringToCheckPoint(tagString:String):CheckPoint{
+        val index2 = tagString.indexOf(' ')
+        val index1 = tagString.indexOf(':')
+        val identificador=tagString.substring(index1+1, index2)
+        val location = tagString.substring(index2+2,tagString.length - 1).split(',')
+        return CheckPoint(identificador,location[0].toDouble(),location[1].toDouble(),true)
+    }
+    fun addCheckPoint(checkP: CheckPoint):Boolean{
+        val checkPoints = mySettings?.getListCheckPoint("LIST_CHECKPOINT")!!.toMutableList()
+        val listIterator = checkPoints.listIterator()
+        while (listIterator.hasNext()) {
+            val element: CheckPoint = listIterator.next()
+            if (element.identificador == checkP.identificador) {
+                //exists
+                return false
+            }
+        }
+        //Add new one
+        checkPoints.add(checkP)
+        mySettings?.saveListCheckPoint("LIST_CHECKPOINT",checkPoints.toList())
+        return true
+    }
+    fun createMarkerTAGRondinero(context: Context, text: String): Bitmap {
+        val markerView = LayoutInflater.from(context).inflate(R.layout.custom_marker_layout, null)
+
+        val markerText = markerView.findViewById<TextView>(R.id.marker_text)
+        markerText.text = text
+
+        markerView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        markerView.layout(0, 0, markerView.measuredWidth, markerView.measuredHeight)
+        markerView.isDrawingCacheEnabled = true
+        markerView.buildDrawingCache()
+        val bitmap = createBitmap(markerView.measuredWidth, markerView.measuredHeight)
+        val canvas = Canvas(bitmap)
+        markerView.draw(canvas)
+
+        return bitmap
+    }
+    fun moveCameraToShowAllTAGS(){
+        val checkPoints = mySettings?.getListCheckPoint("LIST_CHECKPOINT")!!.toMutableList()
+        if (checkPoints.isEmpty()){
+            return
+        }
+
+        val builder = LatLngBounds.Builder()
+        checkPoints.forEach { builder.include(LatLng(it.latitud,it.longitud)) }
+        val bounds = builder.build()
+        val padding = 100 // offset from edges of the map in pixels
+        val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, padding)
+        googleMap?.moveCamera(cameraUpdate)
+
+//        val mapFragment = supportFragmentManager.findFragmentById(
+//            R.id.map_fragment
+//        ) as? SupportMapFragment
+//        mapFragment?.getMapAsync { googleMap ->
+//            val builder = LatLngBounds.Builder()
+//            dataList.forEach { builder.include(LatLng(it.latitud,it.longitud)) }
+//            val bounds = builder.build()
+//            val padding = 100 // offset from edges of the map in pixels
+//            val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, padding)
+//            googleMap.moveCamera(cameraUpdate)
+//
+//        }
+    }
+    fun enviarFinRondintoWhatsapp(){
+        val checkPoints = mySettings?.getListCheckPoint("LIST_CHECKPOINT")!!.toMutableList()
+        val tPBarParkingSlots: TextView = findViewById<TextView>(R.id.txtPBar_ParkingSlots)
+        var message: String = ""
+        checkPoints.forEachIndexed { index, point ->
+            message += "-----------\nP(${index + 1}) AT:" + point.strTime + "\n"
+        }
+        var minutosTotales: Long
+        try {
+            val fechaInicio = LocalDateTime.parse(checkPoints[0].strTime)
+            minutosTotales = ChronoUnit.MINUTES.between(fechaInicio, LocalDateTime.now())
+        }catch (e: Exception){
+            minutosTotales = 0
+        }
+        message+="END TIME:"+LocalDateTime.now().toString()+"\n"
+        moveCameraToShowAllTAGS()
+        googleMap?.snapshot { bitmap ->
+            val msgMapa = "GpeINN Rondin: ${LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm"))}"
+            val msg2Mapa = "Tiempo: ${minutosTotales} min"
+            val msg3Mapa = tPBarParkingSlots.text.toString()
+            // 1. Copy of bitmap
+            var bitmaptext = bitmap!!.copy(Bitmap.Config.ARGB_8888, true)
+            // 2. Create a Canvas to draw on the Bitmap
+            val canvas = Canvas(bitmaptext)
+
+            // 3. Define the Paint object for the text
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+            paint.color = Color.GREEN // Set text color
+            paint.textSize = 50f // Set text size in pixels
+            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+            paint.setShadowLayer(2f, 1f, 1f, Color.BLACK) // Add a slight shadow
+
+            // 4. Calculate the text position
+            val textBounds = Rect()
+            paint.getTextBounds(msgMapa, 0, msgMapa.length, textBounds)
+            val textBounds3 = Rect()
+            paint.getTextBounds(msg3Mapa,0,msg3Mapa.length, textBounds3)
+
+            // Position the text at the bottom center of the image
+            val x = (bitmaptext.width - textBounds.width()) / 2f
+            val y = (bitmaptext.height + textBounds.height()) - 100f // 20f for padding from bottom
+
+            // 5. Draw the text onto the canvas
+            canvas.drawText(msgMapa, x, y, paint)
+            canvas.drawText(msg2Mapa, 5F, 55F, paint)
+            canvas.drawText(msg3Mapa, bitmaptext.width - textBounds3.width() - 5f, 55f,paint)
+
+            //########### Save the photo
+            val imageFile = File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "map_snapshot.png")
+            FileOutputStream(imageFile).use { out ->
+                bitmaptext.compress(Bitmap.CompressFormat.PNG, 100, out)
+            }
+            //############ Send de message
+            // Creating intent with action send
+            val imageUri: Uri? = try {
+                FileProvider.getUriForFile(
+                    applicationContext,
+                    "${packageName}.fileprovider", // Replace with your actual provider authority
+                    imageFile
+                )
+            } catch (e: IllegalArgumentException) {
+                // Handle the case where the file is not found or the FileProvider is not configured correctly
+                null
+            }
+
+            val sendIntent: Intent = Intent(Intent.ACTION_SEND).apply {
+                type = "image/*"
+                putExtra(Intent.EXTRA_TEXT, message)
+                putExtra(Intent.EXTRA_STREAM, imageUri)
+                putExtra("android.intent.extra.TEXT", message)
+                //type = "text/plain"
+                //type = "*/*"
+                //setPackage("com.whatsapp")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            val shareIntent = Intent.createChooser(sendIntent, "Enviar rondin con...")
+            startActivity(shareIntent)
+
+        } // end google map snapshot
+
+    }// end SendMessage
+    //##################### FIN RONDINERO ##############
+
     data class ParkingSlot(val latitude: Double, val longitude: Double, val key: String, val distance: Double)
-//    data class PorRevisarRecord(val street: String, val number: String, var time: LocalDateTime, var parkingSlotKey: String, val validation: String, var latitude: Double, var longitude: Double) : Parcelable {
-//        constructor(parcel: Parcel) : this(
-//            parcel.readString()!!,
-//            parcel.readString()!!,
-//            LocalDateTime.parse(parcel.readString()),
-//            parcel.readString()!!,
-//            parcel.readString()!!,
-//            parcel.readDouble(),
-//            parcel.readDouble()
-//        ) {}
-//
-//        override fun writeToParcel(parcel: Parcel, flags: Int) {
-//            parcel.writeString(street)
-//            parcel.writeString(number)
-//            parcel.writeString(time.toString())
-//            parcel.writeString(parkingSlotKey)
-//            parcel.writeString(validation)
-//            parcel.writeDouble(latitude)
-//            parcel.writeDouble(longitude)
-//        }
-//
-//        override fun describeContents(): Int = 0
-//
-//        companion object CREATOR : Parcelable.Creator<PorRevisarRecord> {
-//            override fun createFromParcel(parcel: Parcel): PorRevisarRecord {
-//                return PorRevisarRecord(parcel)
-//            }
-//
-//            override fun newArray(size: Int): Array<PorRevisarRecord?> {
-//                return arrayOfNulls(size)
-//            }
-//        }
-//    }
+
 }

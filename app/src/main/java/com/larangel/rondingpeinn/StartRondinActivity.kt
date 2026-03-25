@@ -184,7 +184,7 @@ class StartRondinActivity : AppCompatActivity() {
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         // Initialize Google services (requires Google Sign-In setup)
-        initializeGoogleServices()
+        //initializeGoogleServices()
         loadPorRevisar()
 
         //Hay datos guardados?
@@ -206,32 +206,32 @@ class StartRondinActivity : AppCompatActivity() {
         val network = cm.activeNetworkInfo
         return network?.isConnected == true
     }
-    private fun initializeGoogleServices() {
-        val serviceAccountStream = applicationContext.resources.openRawResource(R.raw.json_google_service_account)
-        val credential = GoogleCredential.fromStream(serviceAccountStream)
-            .createScoped(listOf("https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"))
-        sheetsService = Sheets.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance(), credential)
-            .setApplicationName("My First Project")
-            .build()
-
-        // Get sheet ID for PorRevisar
-        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val spreadsheet = sheetsService.spreadsheets().get(yourEventsSpreadSheetID).execute()
-                val nameWS      = mySettings?.getString("WS_POR_REVISAR", "PorRevisar")!!
-                for (sheet in spreadsheet.sheets) {
-                    when (sheet.properties.title) {
-                        nameWS -> porRevisarSheetId = sheet.properties.sheetId
-                    }
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@StartRondinActivity, "Error initializing sheet ID: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
+//    private fun initializeGoogleServices() {
+//        val serviceAccountStream = applicationContext.resources.openRawResource(R.raw.json_google_service_account)
+//        val credential = GoogleCredential.fromStream(serviceAccountStream)
+//            .createScoped(listOf("https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"))
+//        sheetsService = Sheets.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance(), credential)
+//            .setApplicationName("My First Project")
+//            .build()
+//
+//        // Get sheet ID for PorRevisar
+//        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+//        lifecycleScope.launch(Dispatchers.IO) {
+//            try {
+//                val spreadsheet = sheetsService.spreadsheets().get(yourEventsSpreadSheetID).execute()
+//                val nameWS      = mySettings?.getString("WS_POR_REVISAR", "PorRevisar")!!
+//                for (sheet in spreadsheet.sheets) {
+//                    when (sheet.properties.title) {
+//                        nameWS -> porRevisarSheetId = sheet.properties.sheetId
+//                    }
+//                }
+//            } catch (e: Exception) {
+//                withContext(Dispatchers.Main) {
+//                    Toast.makeText(this@StartRondinActivity, "Error initializing sheet ID: ${e.message}", Toast.LENGTH_SHORT).show()
+//                }
+//            }
+//        }
+//    }
     private fun loadPorRevisar() {
         val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {

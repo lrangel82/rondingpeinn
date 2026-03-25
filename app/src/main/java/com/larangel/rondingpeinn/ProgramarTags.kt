@@ -21,10 +21,12 @@ import android.nfc.tech.Ndef
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -37,65 +39,38 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.larangel.rondingpeinn.VehicleSearchActivity
 import java.nio.charset.Charset
 
 class ProgramarTags : AppCompatActivity() {
     private var nfcAdapter: NfcAdapter? = null
-    private var pendingIntent: PendingIntent? = null
-    private var intentFiltersArray: Array<IntentFilter>? = null
+    private var pendingNFCIntent: PendingIntent? = null
+    private var intentNFCFiltersArray: Array<IntentFilter>? = null
+    private var techNFCListsArray: Array<Array<String>>? = null//        }
 
-    private lateinit var recyclerView: RecyclerView
-    private lateinit var dataList: MutableList<CheckPoint>
-    private lateinit var myAdapter: CheckPointAdapter
+        private lateinit var recyclerView: RecyclerView
+        private lateinit var dataList: MutableList<CheckPoint>
+        private lateinit var myAdapter: CheckPointAdapter
 
-    private var wichCheckpointToSave: CheckPoint? = null
-    private var locationListener: LocationListener? = null
+        private var wichCheckpointToSave: CheckPoint? = null
+        private var locationListener: LocationListener? = null
+
+        private var isScanning: Boolean? = false
 
 
-    @SuppressLint("MissingInflatedId")
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContentView(R.layout.activity_programar_tags)
+        @SuppressLint("MissingInflatedId")
+        override fun onCreate(savedInstanceState: Bundle?) {
+            super.onCreate(savedInstanceState)
+            enableEdgeToEdge()
+            setContentView(R.layout.activity_programar_tags)
 
-        nfcAdapter =  NfcAdapter.getDefaultAdapter(this)
-        // Check the NFC adapter
-        if (nfcAdapter == null && !isRunningOnEmulator()) {
-            val builder = AlertDialog.Builder(this@ProgramarTags)
-            builder.setMessage("Este dispositivo no tiene NFC.")
-            //Return to MAIN
-            builder.setPositiveButton("Enterado") { _, _ ->
-                //startActivity(Intent(this, MainActivity::class.java))
-            }
-            val myDialog = builder.create()
-            myDialog.setCanceledOnTouchOutside(false)
-            myDialog.show()
-        }
-        else if (nfcAdapter != null && nfcAdapter?.isEnabled ==false ) {
-            val builder = AlertDialog.Builder(this@ProgramarTags)
-            builder.setTitle("NFC Disabled")
-            builder.setMessage("Porfavor habilitar NFC en la configuracion")
-
-            builder.setPositiveButton("Settings") { _, _ -> startActivity(Intent(Settings.ACTION_NFC_SETTINGS)) }
-            builder.setNegativeButton("Cancel", null)
-            val myDialog = builder.create()
-            myDialog.setCanceledOnTouchOutside(false)
-            myDialog.show()
-        }
-        else {
+            //######### Setup all for READING tags NFC and write
+            nfcAdapter =  NfcAdapter.getDefaultAdapter(this)
             //Setting Pending intent
-            pendingIntent = PendingIntent.getActivity(
+            pendingNFCIntent = PendingIntent.getActivity(
                 this, 0, Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
                 PendingIntent.FLAG_MUTABLE
             )
-        }
-
-        val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
-        btnProgramarTag.setOnClickListener{
-            val myText = "Scanning...."
-            btnProgramarTag.text = myText
-            hideKeyboard()
-
             // Setup an intent filter for all MIME based dispatches
             val ndef = IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED).apply {
                 try {
@@ -104,23 +79,35 @@ class ProgramarTags : AppCompatActivity() {
                     throw RuntimeException("fail", e)
                 }
             }
-            intentFiltersArray = arrayOf(ndef, IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED), IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED))
+            intentNFCFiltersArray = arrayOf(ndef, IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED), IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED))
             // Setup a tech list for all Ndef tags
-            val techListsArray = arrayOf(arrayOf<String>(Ndef::class.java.name))
-            nfcAdapter?.enableForegroundDispatch(this, pendingIntent, intentFiltersArray, techListsArray)
+            techNFCListsArray = arrayOf(
+                arrayOf(Ndef::class.java.name),
+                arrayOf(android.nfc.tech.NfcA::class.java.name),
+                arrayOf(android.nfc.tech.NfcB::class.java.name),
+                arrayOf(android.nfc.tech.IsoDep::class.java.name),
+                arrayOf(android.nfc.tech.MifareClassic::class.java.name),
+                arrayOf(android.nfc.tech.MifareUltralight::class.java.name)
+            )
+            InitNFC()
+            //######### FIN Setup NFC #########################
 
-        }
 
-        val btncerrar: Button = findViewById<Button>(R.id.btn_cerrar)
-        btncerrar.setOnClickListener{
-            val intent: Intent = Intent(this, MainActivity::class.java )
-            startActivity(intent)
-        }
+            val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
+            btnProgramarTag.setOnClickListener{
+                clickProgramarTag()
+            }
 
-        val btnSettings: ImageButton = findViewById<ImageButton>(R.id.btnSettings)
-        btnSettings.setOnClickListener{
-            startActivity(Intent(this, SettingsActivity::class.java ))
-        }
+            val btncerrar: Button = findViewById<Button>(R.id.btn_cerrar)
+            btncerrar.setOnClickListener{
+                val intent: Intent = Intent(this, MainActivity::class.java )
+                startActivity(intent)
+            }
+
+            val btnSettings: ImageButton = findViewById<ImageButton>(R.id.btnSettings)
+            btnSettings.setOnClickListener{
+                startActivity(Intent(this, SettingsActivity::class.java ))
+            }
 
 //        //LISTADO de checkpoints
 //        recyclerView = findViewById(R.id.recyclerView)
@@ -135,7 +122,7 @@ class ProgramarTags : AppCompatActivity() {
 //            btnProgramarTag.setEnabled(true)
 //            btnProgramarTag.text="Programar TAG " + item.identificador
 //            wichCheckpointToSave=item
-//        }
+
 //        recyclerView.adapter = myAdapter
 
 //        val layoutManager = LinearLayoutManager(this)
@@ -212,22 +199,10 @@ class ProgramarTags : AppCompatActivity() {
                     // Actualizar la ubicación del usuario
                     val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
                     val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
-                    val txtDesc: EditText = findViewById<EditText>(R.id.txtDescripcion)
-                    txtLat.text = String.format("%.6f", location.latitude)
-                    txtLon.text = String.format("%.6f",location.longitude)
-                    if (txtDesc.text.length >= 3) {
-                        val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
-                        wichCheckpointToSave = CheckPoint(
-                            txtDesc.text.toString(),
-                            location.latitude,
-                            location.longitude,
-                            false
-                        )
-                        btnProgramarTag.setEnabled(true)
-                        btnProgramarTag.text =
-                            "Programar TAG " + wichCheckpointToSave?.identificador
-
-                    }
+                    val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
+                    txtLat.text = String.format("%.8f", location.latitude)
+                    txtLon.text = String.format("%.8f",location.longitude)
+                    btnProgramarTag.setEnabled(true)
                 }
 
                 override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
@@ -286,62 +261,146 @@ class ProgramarTags : AppCompatActivity() {
     public override fun onPause() {
         super.onPause()
         set_pause_gps()
-        if (nfcAdapter != null && !isRunningOnEmulator()) {
-            nfcAdapter!!.disableForegroundDispatch(this)
-        }
+        stopNFC()
     }
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     @SuppressLint("SetTextI18n")
     public override fun onResume() {
         super.onResume()
-        val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
+//        val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
         get_gps_location_lister()
-        btnProgramarTag.text="Programar TAG nuevo"
-        wichCheckpointToSave=null
-        btnProgramarTag.setEnabled(false)
+        InitNFC()
+//        btnProgramarTag.text="Programar TAG nuevo"
+//        wichCheckpointToSave=null
+//        btnProgramarTag.setEnabled(false)
+    }
+
+    private fun InitNFC(){
+        nfcAdapter =  NfcAdapter.getDefaultAdapter(this)
+        // Check the NFC adapter
+        if (nfcAdapter == null && !isRunningOnEmulator()) {
+            nfcAdapter = null
+            val builder = AlertDialog.Builder(this@ProgramarTags)
+            builder.setMessage("Este dispositivo no tiene NFC. Imposible programar TAGS")
+            //Return to MAIN
+            builder.setPositiveButton("Enterado") { dialog, _ ->
+                //Desaparecer boton
+                val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
+                val txtDesc: EditText = findViewById<EditText>(R.id.txtDescripcion)
+                btnProgramarTag.visibility = View.GONE
+                txtDesc.visibility = View.GONE
+                dialog.dismiss()
+            }
+            val myDialog = builder.create()
+            myDialog.setCanceledOnTouchOutside(false)
+            myDialog.show()
+            return
+        }
+        else if (nfcAdapter != null && nfcAdapter?.isEnabled ==false) {
+            val builder = AlertDialog.Builder(this@ProgramarTags)//, R.style.MyAlertDialogStyle)
+            builder.setTitle("NFC Deshabilitado")
+            builder.setMessage("Por favor habilita el NFC")
+
+            builder.setPositiveButton("Settings") { _, _ -> startActivity(Intent(Settings.ACTION_NFC_SETTINGS)) }
+            builder.setNegativeButton("Cancel", null)
+            val myDialog = builder.create()
+            myDialog.setCanceledOnTouchOutside(false)
+            myDialog.show()
+            return
+        }
+
+        //ENABLE LISTENING IN THIS ACTIVITY
+        if (nfcAdapter != null && nfcAdapter!!.isEnabled)
+            nfcAdapter?.enableForegroundDispatch(this, pendingNFCIntent, intentNFCFiltersArray, techNFCListsArray)
+    }
+    private fun stopNFC(){
+        if (nfcAdapter != null && !isRunningOnEmulator()) nfcAdapter!!.disableForegroundDispatch(this)
+    }
+
+    private fun clickProgramarTag(){
+        val txtLog: TextView = findViewById<EditText>(R.id.txtlog2)
+        val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
+        if (isScanning == true){
+            btnProgramarTag.text = "Programar TAG nuevo"
+            isScanning = false
+            return
+        }
+        if (nfcAdapter != null && nfcAdapter?.isEnabled == true) {
+            hideKeyboard()
+            try {
+                val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
+                val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
+                val txtDesc: EditText = findViewById<EditText>(R.id.txtDescripcion)
+                if (txtDesc.text.length >= 3) {
+                    wichCheckpointToSave = CheckPoint(
+                        txtDesc.text.toString(),
+                        txtLat.text.toString().toDouble(),
+                        txtLon.text.toString().toDouble(),
+                        false
+                    )
+                    btnProgramarTag.text =
+                        "Scanning for ${wichCheckpointToSave?.identificador} ..."
+                    isScanning = true
+
+                }else{
+                    txtLog.append("Error: El texto debe ser por lo menos de 3 caracteres")
+                }
+            } catch (e: Exception) {
+                txtLog.append("Error al iniciar los datos para el NFC: ${e.message}\n")
+            }
+        }else{
+            txtLog.append("No hay NFC activo para realizar esta accion, active primero el NFC")
+        }
+
     }
 
     override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
         val txtLog: TextView = findViewById<EditText>(R.id.txtlog2)
+        if (isScanning == false){
+            txtLog.append("<<precione 'programar TAG' antes de acercar el TAG>>>")
+            return
+        }
+        super.onNewIntent(intent)
+        val txtDesc: EditText = findViewById<EditText>(R.id.txtDescripcion)
         txtLog.text=""
 
         if (NfcAdapter.ACTION_NDEF_DISCOVERED == intent.action || NfcAdapter.ACTION_TECH_DISCOVERED == intent.action) {
-            val tagFromIntent: Tag? = intent.getParcelableExtra<Tag>(NfcAdapter.EXTRA_TAG)
-            val nfc = Ndef.get(tagFromIntent)
-            txtLog.append("NFC TAG:"+tagFromIntent?.id+"\n")
-            val txtdata = "Checkpoint:"+ wichCheckpointToSave?.identificador +
+            val txtdata = "Checkpoint:" + wichCheckpointToSave?.identificador +
                     " [" +
-                        String.format("%.6f",wichCheckpointToSave?.latitud) + "," +
-                    String.format("%.6f",wichCheckpointToSave?.longitud) +
-                      "]"
-            val outRecord = NdefRecord.createMime(
-                "application/rondingpeinn",
-                txtdata.toByteArray(Charset.forName("US-ASCII")))
+                    String.format("%.6f", wichCheckpointToSave?.latitud) + "," +
+                    String.format("%.6f", wichCheckpointToSave?.longitud) +
+                    "]"
+            try {
+                val tagFromIntent: Tag? = intent.getParcelableExtra<Tag>(NfcAdapter.EXTRA_TAG)
+                val nfc = Ndef.get(tagFromIntent)
+                txtLog.append("NFC TAG:" + tagFromIntent?.id + "\n")
 
-            val ndefMessage = NdefMessage(arrayOf(outRecord))
+                val outRecord = NdefRecord.createMime(
+                    "application/rondingpeinn",
+                    txtdata.toByteArray(Charset.forName("US-ASCII"))
+                )
 
-            //Write
-            nfc.connect()
-            val isConnected= nfc.isConnected()
+                val ndefMessage = NdefMessage(arrayOf(outRecord))
 
-            if(isConnected)
-            {
-                nfc?.writeNdefMessage(ndefMessage)
-                nfc?.close()
-                //val receivedData:ByteArray= nfc.transceive(byteArrayOf(0b00000001))
-                //code to handle the received data
-                // Received data would be in the form of a byte array that can be converted to string
-                //NFC_READ_COMMAND would be the custom command you would have to send to your NFC Tag in order to read it
-                val tmptext = txtLog.text
-                txtLog.text = "EXITOSO!!!: " + txtdata + "\n\n" + tmptext
+                //Write
+                nfc.connect()
+                val isConnected = nfc.isConnected()
 
-            }else{
-                val myText = "Error: Not connected"
-                txtLog.append(myText+"\n")
+                if (isConnected) {
+                    nfc?.writeNdefMessage(ndefMessage)
+                    nfc?.close()
+                    txtLog.text = "EXITOSO!!!: ${txtdata}\n"
+                    txtDesc.setText("")
+                    val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
+                    btnProgramarTag.text = "Programar TAG nuevo"
+                    isScanning = false
+                } else {
+                    val myText = "Error: Not connected"
+                    txtLog.append(myText + "\n")
+                }
+            }catch(e: Exception){
+                txtLog.append("Error al guardar!!! error: ${e.message}\n --> Intenta de nuevo \n")
             }
-            val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
-            btnProgramarTag.text="Programar TAG nuevo"
         }
 
     }

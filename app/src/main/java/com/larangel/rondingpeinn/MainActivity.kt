@@ -193,7 +193,7 @@ class MainActivity : AppCompatActivity() {
                 //Init textos
                 nombreCoto.text = mySettings?.getString("COTO","Version Gratuita")
                 val btn_vehiculos: Button = findViewById(R.id.btn_vehiculos)
-                btn_vehiculos.text = "Vehiculos ${vehiculosData?.count()}"
+                btn_vehiculos.text = "MAPA v:${vehiculosData?.count()}"
                 val btn_permisos: Button = findViewById(R.id.btn_permisos)
                 btn_permisos.text = "Permisos ${permisosData?.count()}"
 

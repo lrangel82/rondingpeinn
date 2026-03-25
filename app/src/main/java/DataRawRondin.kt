@@ -36,7 +36,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
     companion object {
         private var platesCache: List<List<Any>>? = null
         private var tagsCache: List<List<Any>>? = null
-        private var parkingSlotsCache: List<List<Any>>? = null
+        private var parkingSlotsCache: MutableList<List<Any>>? = null
         private var autosEventosCache: MutableList<List<Any>>? = null
         private var incidenciaEventosCache: MutableList<List<Any>>? = null
         private var directionsCache: List<List<Any>>? = null
@@ -66,6 +66,8 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
     private var porRevisarSheetId: Int = 0
 
     //Variables temporales para salvar
+    private var forSave_parkingSlots: MutableList<List<Any>>? = mutableListOf<List<Any>>()
+    private var isRunningSave_parkingSlots: Boolean = false
     private var forSave_autosEventos: MutableList<List<Any>>? = mutableListOf<List<Any>>()
     private var isRunningSave_autosEventos: Boolean = false
     private var forSave_incidenciaEventos: MutableList<List<Any>>? = mutableListOf<List<Any>>()
@@ -118,6 +120,13 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
 
     //Pendientes por guardar en cache? ejecuta el ciclo
     fun checarPendientePorSalvarEnCACHE(){
+        //forSave_parkingSlots
+        val cacheList0 = mySettings?.getList("CACHE_forSave_parkingSlots")!!.toMutableList()
+        if (forSave_parkingSlots?.isEmpty() == true && cacheList0.isNotEmpty()){
+            forSave_parkingSlots= cacheList0 as MutableList<List<Any>>?
+            saveParkingSlotsToSheetWithRetry(listOf())
+        }
+
         //forSave_autosEventos
         val cacheList1 = mySettings?.getList("CACHE_forSave_autosEventos")!!.toMutableList()
         if (forSave_autosEventos?.isEmpty() == true && cacheList1.isNotEmpty()){
@@ -266,6 +275,37 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             }
         }
         return false
+    }
+    fun saveParkingSlotsToSheetWithRetry(dataRow:List<String>): Boolean{
+        if (dataRow.isNotEmpty()) {
+            forSave_parkingSlots?.add(dataRow)
+            mySettings?.saveList("CACHE_forSave_parkingSlots", forSave_parkingSlots as List<List<String>>)
+        }
+        if (isRunningSave_parkingSlots) return false //Solo debe correr uno a la ves
+        coroutineScope?.launch {
+            isRunningSave_parkingSlots=true
+            while (isActive) {
+                try {
+                    val nameWS                  = mySettings?.getString("WS_PARKING_SLOTS", "ParkingSlots")!!
+                    val success = saveToGoogleSheets("$nameWS!A:E",forSave_parkingSlots as List<List<String>>)
+                    if (success){ // Éxito, no necesita reintentar
+                        forSave_parkingSlots!!.clear()
+                        mySettings?.saveList("CACHE_forSave_parkingSlots", forSave_parkingSlots as List<List<String>>)
+                        isRunningSave_parkingSlots=false
+                        break
+                    }
+                    mySettings?.saveList("CACHE_forSave_parkingSlots", forSave_parkingSlots as List<List<String>>)
+                } catch (e: Exception) {
+                    mySettings?.saveList("CACHE_forSave_parkingSlots", forSave_parkingSlots as List<List<String>>)
+                    val customMessage = "Error al salvar registros a PARKING SLOTS sheet REINTENTAR en 5 Min: ${e.message}"
+                    //throw Exception(customMessage, e) // e is the original cause
+                    Log.d(TAG,customMessage)
+                }
+                delay(5.minutes)
+                // Reintenta
+            }
+        }
+        return true
     }
     fun saveAutosEventosToSheetWithRetry(dataRow:List<String>): Boolean{
         if (dataRow.isNotEmpty()) {
@@ -991,7 +1031,7 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
         val cacheTimestamp = mySettings?.getLong("PARKINGSLOTS_CACHE_TIMESTAMP", 0L) ?: 0L
         val isDiskFresh = cacheList?.isEmpty() == false && (now - cacheTimestamp <= CACHE_DURATION_MS || thereConection==false)
         if (isDiskFresh) {
-            parkingSlotsCache = cacheList //as MutableList<List<Any>>
+            parkingSlotsCache = cacheList as MutableList<List<Any>>
             parkingSlotsCacheTimestamp = cacheTimestamp
             return parkingSlotsCache!!
         }
@@ -1000,13 +1040,15 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             try {
                 //PARKING SLOTS
                 GlobalScope.launch(Dispatchers.IO) {
+                    val allRows = mutableListOf<List<Any>>()
                     val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
                     val nameWS                  = mySettings?.getString("WS_PARKING_SLOTS", "ParkingSlots")!!
                     try{
                         val response = sheetsService.spreadsheets().values()
                             .get(yourEventsSpreadSheetID, "$nameWS!A:C") // Latitude, Longitude, Key
                             .execute()
-                        val allRows = response.getValues() ?: emptyList()
+                        val rows = response.getValues().drop(1) ?: emptyList()
+                        allRows.addAll(rows)
                         withContext(Dispatchers.Main) {
                             // Cachear y timestamp
                             mySettings?.saveList("PARKINGSLOTS_CACHE", allRows as List<List<String>>)
@@ -1037,6 +1079,13 @@ class DataRawRondin(context: Context, coroutineScopeObject: CoroutineScope ) {
             // Si no hay nada, regresa vacío
             return emptyList()
         }
+    }
+    fun _addPartkingSlotCache(row: List<String>): Boolean{
+        if (parkingSlotsCache == null) getParkingSlots()
+        parkingSlotsCache?.add(row)
+        mySettings?.saveList("PARKINGSLOTS_CACHE", parkingSlotsCache as List<List<String>>)
+        mySettings?.saveLong("PARKINGSLOTS_CACHE_TIMESTAMP", System.currentTimeMillis())
+        return saveParkingSlotsToSheetWithRetry(row)
     }
 
     //AutoEventos

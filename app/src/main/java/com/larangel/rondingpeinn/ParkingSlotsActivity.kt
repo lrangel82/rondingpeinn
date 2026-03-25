@@ -1,5 +1,6 @@
 package com.larangel.rondingpeinn
 
+import DataRawRondin
 import MySettings
 import ParkingSlotAdapter
 import ParkingSlot
@@ -27,9 +28,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.lifecycleScope
+import com.larangel.rondingpeinn.VehicleSearchActivity
+import kotlinx.coroutines.CoroutineScope
 
 class ParkingSlotsActivity : AppCompatActivity() {
     private var mySettings: MySettings? = null
+    private var dataRaw: DataRawRondin? = null
     private lateinit var sheetsService: Sheets
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var parkingSlotsRecyclerView: RecyclerView
@@ -49,6 +53,7 @@ class ParkingSlotsActivity : AppCompatActivity() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         mySettings = MySettings(this)
+        dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
 
         initializeGoogleServices()
 
@@ -94,16 +99,17 @@ class ParkingSlotsActivity : AppCompatActivity() {
     }
 
     private fun loadParkingSlots() {
-        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+        val allSlots = dataRaw?.getParkingSlots( )
+        //val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val nameWS                  = mySettings?.getString("WS_PARKING_SLOTS", "ParkingSlots")!!
-                val response = sheetsService.spreadsheets().values()
-                    .get(yourEventsSpreadSheetID, "$nameWS!A:C")
-                    .execute()
-                val rows = response.getValues() ?: emptyList()
+                //val nameWS                  = mySettings?.getString("WS_PARKING_SLOTS", "ParkingSlots")!!
+                //val response = sheetsService.spreadsheets().values()
+                //    .get(yourEventsSpreadSheetID, "$nameWS!A:C")
+                //    .execute()
+                //val rows = response.getValues() ?: emptyList()
                 parkingSlots.clear()
-                rows.forEachIndexed { index, row ->
+                allSlots?.forEachIndexed { index, row ->
                     if (row.size >= 3) {
                         val lat = row[0].toString().toDoubleOrNull() ?: return@forEachIndexed
                         val lon = row[1].toString().toDoubleOrNull() ?: return@forEachIndexed
@@ -155,26 +161,59 @@ class ParkingSlotsActivity : AppCompatActivity() {
     }
 
     private fun saveNewParkingSlot(lat: Double, lon: Double, key: String) {
-        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-        val values = listOf(listOf(lat.toString(), lon.toString(), key))
-        val body = ValueRange().setValues(values)
+
+        //########## GUARDAR NUEVO PARKING SLOT CACHE ###############
+        val valuesParking = listOf(
+            lat.toString(),
+            lon.toString(),
+            key
+        )
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val nameWS                  = mySettings?.getString("WS_PARKING_SLOTS", "ParkingSlots")!!
-                sheetsService.spreadsheets().values()
-                    .append(yourEventsSpreadSheetID, "$nameWS!A:C", body)
-                    .setValueInputOption("RAW")
-                    .execute()
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(this@ParkingSlotsActivity, "Parking slot added", Toast.LENGTH_SHORT).show()
-                    loadParkingSlots()
-                }
+                if (dataRaw?._addPartkingSlotCache(valuesParking) == false)
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(
+                            this@ParkingSlotsActivity,
+                            "NO Internet: ERROR salvando CAJON DE VISITAS\nAuto reintento en 5 minutos",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                else
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(this@ParkingSlotsActivity, "Parking slot added", Toast.LENGTH_SHORT).show()
+                        loadParkingSlots()
+                    }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(this@ParkingSlotsActivity, "Error adding parking slot: ${e.message}", Toast.LENGTH_SHORT).show()
+                    println("LARANGEL exception saveEventToSheet: ${e}")
+                    e.printStackTrace()
                 }
             }
         }
+        //######################################################
+
+
+//        val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
+//        val values = listOf(listOf(lat.toString(), lon.toString(), key))
+//        val body = ValueRange().setValues(values)
+//        lifecycleScope.launch(Dispatchers.IO) {
+//            try {
+//                val nameWS                  = mySettings?.getString("WS_PARKING_SLOTS", "ParkingSlots")!!
+//                sheetsService.spreadsheets().values()
+//                    .append(yourEventsSpreadSheetID, "$nameWS!A:C", body)
+//                    .setValueInputOption("RAW")
+//                    .execute()
+//                withContext(Dispatchers.Main) {
+//                    Toast.makeText(this@ParkingSlotsActivity, "Parking slot added", Toast.LENGTH_SHORT).show()
+//                    loadParkingSlots()
+//                }
+//            } catch (e: Exception) {
+//                withContext(Dispatchers.Main) {
+//                    Toast.makeText(this@ParkingSlotsActivity, "Error adding parking slot: ${e.message}", Toast.LENGTH_SHORT).show()
+//                }
+//            }
+//        }
     }
 
     private fun editParkingSlot(slotWithRow: ParkingSlotWithRow) {

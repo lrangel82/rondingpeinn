@@ -1,5 +1,6 @@
 package com.larangel.rondingpeinn
 
+import DataRawRondin
 import MySettings
 import android.content.Intent
 import android.os.Bundle
@@ -12,24 +13,32 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import com.larangel.rondingpeinn.MainActivity
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class SettingsActivity : AppCompatActivity() {
     private var mySettings: MySettings? = null
+    private var dataRaw: DataRawRondin? = null
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_settings)
 
         mySettings=MySettings(this)
+        dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
+
+        val parkingSlots = dataRaw?.getParkingSlots()
 
         readConfig()
 
         val btnCancel: Button = findViewById(R.id.btnCancelarConf)
         val btnGuardar: Button = findViewById(R.id.btnGuardarConf)
         val btnParkignSlots: Button = findViewById(R.id.btnParkingSlotsConf)
+
+        btnParkignSlots.text = "Parking Slots: ${parkingSlots?.count()}"
+
         btnGuardar.setOnClickListener{
             salvarConfig()
             startActivity(Intent(this, ProgramarTags::class.java ))
