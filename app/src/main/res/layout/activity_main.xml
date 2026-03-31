@@ -27,6 +27,15 @@
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@drawable/logo_gpeinn_2" />
 
+    <ImageButton
+        android:id="@+id/btnConfigTag"
+        android:layout_width="50dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@android:drawable/ic_menu_manage" />
+
     <Button
         android:id="@+id/btn_StartRondin"
         android:layout_width="350dp"

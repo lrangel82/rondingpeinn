@@ -63,7 +63,7 @@ class SettingsActivity : AppCompatActivity() {
         val txtBucketName: EditText = findViewById(R.id.txtBucketName)
         val txtRegionStr: EditText = findViewById(R.id.txtRegionStr)
         val txtCodigoActivacion: EditText = findViewById(R.id.txtCodigoActivacion)
-//        //val txtMapToken: EditText = findViewById(R.id.txtMapToken)
+        val txtPwdPermisos: EditText = findViewById(R.id.txtPwdPermisos)
 //        //val txtSheetPermisos: EditText = findViewById(R.id.txtPermisosSheet)
 //        val txtRegistroCarrosSheetID: EditText = findViewById(R.id.txtBucketName)
 //        val txtParkingSheetID: EditText = findViewById(R.id.txtRegionStr)
@@ -75,11 +75,13 @@ class SettingsActivity : AppCompatActivity() {
         val _bucketName         = mySettings?.getString("BUCKET_NAME","")
         val _regionStr          = mySettings?.getString("REGION_STR","")
         val _codigoActivacion   = mySettings?.getString("CODIGO_ACTIVACION","")
+        val _pwdPermisos        = mySettings?.getString("PASSWORD_PERMISOS","")
 
         txtNumTags.setText( _numTags )
         txtBucketName.setText(_bucketName)
         txtRegionStr.setText(_regionStr)
         txtCodigoActivacion.setText(_codigoActivacion)
+        txtPwdPermisos.setText(_pwdPermisos)
 
         //txtMapToken.setText(mySettings?.getString("rondin_map_token",""))
         //txtSheetPermisos.setText(mySettings?.getString("url_googlesheet_permisos",""))
@@ -94,11 +96,13 @@ class SettingsActivity : AppCompatActivity() {
         val txtBucketName: EditText = findViewById(R.id.txtBucketName)
         val txtRegionStr: EditText = findViewById(R.id.txtRegionStr)
         val txtCodigoActivation: EditText = findViewById(R.id.txtCodigoActivacion)
+        val txtPwdPermisos: EditText = findViewById(R.id.txtPwdPermisos)
 
         mySettings?.saveInt("rondin_num_tags",txtNumTags.text.toString().toInt())
         mySettings?.saveString("BUCKET_NAME", txtBucketName.text.toString())
         mySettings?.saveString("REGION_STR", txtRegionStr.text.toString())
         mySettings?.saveString("CODIGO_ACTIVACION", txtCodigoActivation.text.toString())
+        mySettings?.saveString("PASSWORD_PERMISOS", txtPwdPermisos.text.toString())
 
         //Procesar la configuracion de la red y la validacion del codigo
         lifecycleScope.launch(Dispatchers.IO) {

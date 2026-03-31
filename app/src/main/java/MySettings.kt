@@ -116,12 +116,21 @@ class MySettings(context: Context) {
             putLong("INCIDENCIAEVENTOS_CACHE_TIMESTAMP",0)
             putLong("MULTAS_CACHE_TIMESTAMP",0)
             putLong("DOMICILIOWARNINGS_CACHE_TIMESTAMP",0)
+
+            //Validar ADMIN para PERMISOS
+            val sheet_permisos_id = getSimpleList("PERMISOS_SPREADSHEET_ID")[0].toString()
+            val pwdPermisos = getString("PASSWORD_PERMISOS","").toString()
+            if (pwdPermisos.length > 0 && sheet_permisos_id.startsWith(pwdPermisos))
+                putInt("ESADMIN",1)
+            else
+                putInt("ESADMIN",0)
             apply()
         }
     }
     private fun cleanPreference(){
         with(sharedPreferences.edit()) {
             putInt("APP_ACTIVADA", 0)
+            putInt("ESADMIN",0)
             putString("REGISTRO_CARROS_SPREADSHEET_ID", "")
             putString("PARKING_SPREADSHEET_ID", "")
             putString("PERMISOS_SPREADSHEET_ID", "[]")

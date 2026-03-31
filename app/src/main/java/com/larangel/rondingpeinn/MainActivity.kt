@@ -9,6 +9,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.FrameLayout
+import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -34,7 +35,7 @@ class MainActivity : AppCompatActivity() {
     private var counterAdmin: Int = 0
     private var mySettings: MySettings? = null
     private var dataRaw: DataRawRondin? = null
-    private lateinit var sheetsService: Sheets
+    //private lateinit var sheetsService: Sheets
     private var loadingOverlay: View? = null
     private var progressBar: ProgressBar? = null
 
@@ -80,6 +81,12 @@ class MainActivity : AppCompatActivity() {
 
         }
 
+        val btnCnfTags: ImageButton = findViewById(R.id.btnConfigTag)
+        btnCnfTags.setOnClickListener {
+            val intent: Intent = Intent(this, ProgramarTags::class.java )
+            startActivity(intent)
+        }
+
         mySettings = MySettings(this)
         val codigoActiviacion = mySettings?.getString("CODIGO_ACTIVACION", "")!!
         if (codigoActiviacion.isEmpty()){
@@ -87,115 +94,106 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }else {
             dataRaw = DataRawRondin(this, CoroutineScope(Dispatchers.IO))
-            dataRaw?.checarPendientePorSalvarEnCACHE()
+            SheetTable.initializeAll(mySettings) //Inizializa el ENUM
+            //dataRaw?.checarPendientePorSalvarEnCACHE()
             LoadingSheetDATA()
         }
 
 
 
     }
+    override fun onResume() {
+        super.onResume()
+        updateTextoBotones()
+    }
 
     private fun LoadingSheetDATA(){
         waitingOn()
         val copyRAdmin: TextView = findViewById<TextView>(R.id.textCopyright)
-        val nombreCoto: TextView = findViewById<TextView>(R.id.txtCotoName)
 
-        val autosEventos = dataRaw?.getAutosEventos()
-        val vehiculosData = dataRaw?.getCachedVehiclesData()
-        val tagsData = dataRaw?.getTagsCache()
-        val domiciliosUbicacion = dataRaw?.getDomiciliosUbicacion()
-        val porRevisar = dataRaw?.getPorRevisar()
-        val parkingSlots = dataRaw?.getParkingSlots()
-        val multas = dataRaw?.getMultas()
-        val domiciliosWarnings = dataRaw?.getDomicilioWarnings()
-        val permisosData = dataRaw?.getPermisosCache_DeHoy()
-        val configIncidencias = dataRaw?.getIncidenciasConfig()
-        //Loading all the sheets
-        if (isNetworkAvailable()) {
-            // Initialize Google services (requires Google Sign-In setup)
-            initializeGoogleServices()
-            lifecycleScope.launch(Dispatchers.IO) {
-                try {
+        //Load all the data in thread
+        lifecycleScope.launch(Dispatchers.IO) {
+            val autosEventos = dataRaw?.getAutosEventos()
+            val vehiculosData = dataRaw?.getCachedVehiclesData()
+            val tagsData = dataRaw?.getTagsCache()
+            val domiciliosUbicacion = dataRaw?.getDomiciliosUbicacion()
+            val porRevisar = dataRaw?.getPorRevisar()
+            val parkingSlots = dataRaw?.getParkingSlots()
+            val multas = dataRaw?.getMultas()
+            val domiciliosWarnings = dataRaw?.getDomicilioWarnings()
+            val permisosData = dataRaw?.getPermisosCache_DeHoy()
+            val configIncidencias = dataRaw?.getIncidenciasConfig()
+
+            withContext(Dispatchers.Main) {
+                //Una ves finalizado enviar la info a la UI
+                if (isNetworkAvailable()){
                     val bucketName = mySettings?.getString("BUCKET_NAME", "").toString()
                     val regionStr  = mySettings?.getString("REGION_STR", "").toString()
                     val codigoActiv= mySettings?.getString("CODIGO_ACTIVACION", "").toString()
-                    mySettings?.fetchAndProcessS3Config(bucketName,regionStr,codigoActiv)
-                    val appActivada = mySettings?.getInt("APP_ACTIVADA",0)
-                    withContext(Dispatchers.Main) {
-                        if (appActivada == 1) {
-                            copyRAdmin.text = "v1.0 develop by Luis Rangel"
-                        } else {
-                            copyRAdmin.text = "#### APP DESACTIVADA #### contactar luisrangel@gmail.com"
-                            abrirAlertDesactivada()
+                    //Ejecutar la lectura del CONFIG
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        try {
+                            mySettings?.fetchAndProcessS3Config(bucketName,regionStr,codigoActiv)
+                            val appActivada = mySettings?.getInt("APP_ACTIVADA",0)
+                            withContext(Dispatchers.Main) {
+                                if (appActivada == 1) {
+                                    copyRAdmin.text = "v1.0 develop by Luis Rangel"
+                                } else {
+                                    copyRAdmin.text = "#### APP DESACTIVADA #### contactar luisrangel@gmail.com"
+                                    abrirAlertDesactivada()
+                                }
+                                println("LARANGEL total autos: ${autosEventos?.size}")
+                                waitingOff()
+                            }
+                        }catch (e: Exception) {
+                            withContext(Dispatchers.Main) {
+                                waitingOff()
+                                println("LARANGEL exception Loading Sheet DATA error:${e}")
+                                e.printStackTrace()
+                                Toast.makeText(
+                                    this@MainActivity,
+                                    "Error al cargar INFORMACION, no hay conexion a INTERNET: ${e.message}",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
                         }
-                        println("LARANGEL total autos: ${autosEventos?.size}")
-                        waitingOff()
-                    }
-                }catch (e: Exception) {
-                    withContext(Dispatchers.Main) {
-                        waitingOff()
-                        println("LARANGEL exception Loading Sheet DATA error:${e}")
-                        e.printStackTrace()
-                        Toast.makeText(
-                            this@MainActivity,
-                            "Error al cargar INFORMACION, no hay conexion a INTERNET: ${e.message}",
-                            Toast.LENGTH_SHORT
-                        ).show()
                     }
                 }
-            }
-            waitingOff()
-
-        }else{
-            val appActivada = mySettings?.getInt("APP_ACTIVADA",0)
-            if (appActivada == 1) {
-                copyRAdmin.text = "(SIN INTERNET)       v1.0 develop by Luis Rangel"
-                //Mostrar cache
-                AlertDialog.Builder(this@MainActivity)
-                    .setTitle("Datos en cache!!")
-                    .setMessage(
-                        "Multas: ${multas?.count()}\n" +
-                        "Advertencias: ${domiciliosWarnings?.count()}\n" +
-                        "Cajones Visita: ${parkingSlots?.count()}\n" +
-                        "Por Revisar: ${porRevisar?.count()}\n" +
-                        "Domicilios: ${domiciliosUbicacion?.count()}\n" +
-                        "Permisos: ${permisosData?.count()}\n" +
-                        "Vehiculos: ${vehiculosData?.count()}\n" +
-                        "Tags: ${tagsData?.count()}\n" +
-                        "IncidenciasConfig: ${configIncidencias?.count()}"
-                    )
-                    .setPositiveButton("OK", null)
-                    .show()
-            }else {
-                copyRAdmin.text = "#### APP DESACTIVADA #### contactar luisrangel@gmail.com"
-                abrirAlertDesactivada()
-            }
-            lifecycleScope.launch(Dispatchers.IO) {
-                withContext(Dispatchers.Main) {
+                else{
+                //Indicar que no hay INTERNET
                     waitingOff()
+                    val appActivada = mySettings?.getInt("APP_ACTIVADA",0)
+                    if (appActivada == 1) {
+                        copyRAdmin.text = "(SIN INTERNET)       v1.0 develop by Luis Rangel"
+                        //Mostrar cache
+                        AlertDialog.Builder(this@MainActivity)
+                            .setTitle("Datos en cache!!")
+                            .setMessage(
+                                "Multas: ${multas?.count()}\n" +
+                                        "Advertencias: ${domiciliosWarnings?.count()}\n" +
+                                        "Cajones Visita: ${parkingSlots?.count()}\n" +
+                                        "Por Revisar: ${porRevisar?.count()}\n" +
+                                        "Domicilios: ${domiciliosUbicacion?.count()}\n" +
+                                        "Permisos: ${permisosData?.count()}\n" +
+                                        "Vehiculos: ${vehiculosData?.count()}\n" +
+                                        "Tags: ${tagsData?.count()}\n" +
+                                        "IncidenciasConfig: ${configIncidencias?.count()}"
+                            )
+                            .setPositiveButton("OK", null)
+                            .show()
+                    }
+                    else {
+                        copyRAdmin.text = "#### APP DESACTIVADA #### contactar luisrangel@gmail.com"
+                        abrirAlertDesactivada()
+                    }
                     Toast.makeText(
                         this@MainActivity,
                         "No hay conexion a INTERNET, usando CACHE",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
-            }
-        }
-
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            val vehiculosData = dataRaw?.getCachedVehiclesData()
-            val permisosData = dataRaw?.getPermisosCache_DeHoy()
-
-            withContext(Dispatchers.Main) {
-                waitingOff()
-
                 //Init textos
-                nombreCoto.text = mySettings?.getString("COTO","Version Gratuita")
-                val btn_vehiculos: Button = findViewById(R.id.btn_vehiculos)
-                btn_vehiculos.text = "MAPA v:${vehiculosData?.count()}"
-                val btn_permisos: Button = findViewById(R.id.btn_permisos)
-                btn_permisos.text = "Permisos ${permisosData?.count()}"
+                updateTextoBotones()
 
                 Toast.makeText(
                     this@MainActivity,
@@ -203,6 +201,35 @@ class MainActivity : AppCompatActivity() {
                     Toast.LENGTH_LONG
                 ).show()
             }
+
+        }
+
+
+    }
+
+    private fun updateTextoBotones(){
+        val vehiculosData = dataRaw?.getCachedVehiclesData()
+        val permisosData = dataRaw?.getPermisosCache_DeHoy()
+
+        //Init textos
+        val nombreCoto: TextView = findViewById<TextView>(R.id.txtCotoName)
+        val str_coto = mySettings?.getString("COTO","Version Gratuita")
+        nombreCoto.text = mySettings?.getString("COTO","Version Gratuita")
+        val btn_vehiculos: Button = findViewById(R.id.btn_vehiculos)
+        btn_vehiculos.text = "MAPA v:${vehiculosData?.count()}"
+        val btn_permisos: Button = findViewById(R.id.btn_permisos)
+        btn_permisos.text = "Permisos ${permisosData?.count()}"
+
+        //ES ADMIN mostrar el boton de config
+        val esAdmin = mySettings?.getInt("ESADMIN",0)
+        val btnCnfTags: ImageButton = findViewById(R.id.btnConfigTag)
+        if (esAdmin == 1) {
+            btnCnfTags.visibility = View.VISIBLE
+            nombreCoto.text = "Administrador ${str_coto}"
+        }
+        else {
+            btnCnfTags.visibility = View.GONE
+            nombreCoto.text = str_coto
         }
     }
 
@@ -227,22 +254,22 @@ class MainActivity : AppCompatActivity() {
         val network = cm.activeNetworkInfo
         return network?.isConnected == true
     }
-    private fun initializeGoogleServices() {
-        val serviceAccountStream =
-            applicationContext.resources.openRawResource(R.raw.json_google_service_account)
-        val credential = GoogleCredential.fromStream(serviceAccountStream)
-            .createScoped(
-                listOf(
-                    "https://www.googleapis.com/auth/drive",
-                    "https://www.googleapis.com/auth/spreadsheets"
-                )
-            )
-        sheetsService =
-            Sheets.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance(), credential)
-                .setApplicationName("My First Project")
-                .build()
-        println("LARANGEL sheetsService:${sheetsService}")
-    }
+//    private fun initializeGoogleServices() {
+//        val serviceAccountStream =
+//            applicationContext.resources.openRawResource(R.raw.json_google_service_account)
+//        val credential = GoogleCredential.fromStream(serviceAccountStream)
+//            .createScoped(
+//                listOf(
+//                    "https://www.googleapis.com/auth/drive",
+//                    "https://www.googleapis.com/auth/spreadsheets"
+//                )
+//            )
+//        sheetsService =
+//            Sheets.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance(), credential)
+//                .setApplicationName("My First Project")
+//                .build()
+//        println("LARANGEL sheetsService:${sheetsService}")
+//    }
     private fun waitingOn() {
         if (loadingOverlay == null) {
             val rootView = findViewById<ViewGroup>(android.R.id.content)

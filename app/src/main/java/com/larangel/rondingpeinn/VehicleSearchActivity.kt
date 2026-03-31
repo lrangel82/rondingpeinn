@@ -1758,18 +1758,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
         try {
             //Enviar mensaje e imagen por whatsapp
             enviarFinRondintoWhatsapp()
-            //Limpiar memoria
-            mySettings?.saveListCheckPoint("LIST_CHECKPOINT",mutableListOf())
-            //Detener NFC
-            stopNFC()
 
-            //Ocultar barProgress
-            val pBarCheckPoints: ProgressBar = findViewById<ProgressBar>(R.id.progressBar_CheckPoints)
-            val tPBarCheckPoints: TextView = findViewById<TextView>(R.id.txtPBar_CheckPoints)
-            val txtLog: TextView = findViewById<EditText>(R.id.resultText)
-            pBarCheckPoints.visibility = View.GONE
-            tPBarCheckPoints.visibility = View.GONE
-            txtLog.setText("")
         }catch (e: Exception){
             Toast.makeText(this, "Error al Finalizar el Rondin: ${e.message}", Toast.LENGTH_SHORT).show()
         }
@@ -2011,6 +2000,18 @@ class  VehicleSearchActivity : AppCompatActivity() {
             }
             val shareIntent = Intent.createChooser(sendIntent, "Enviar rondin con...")
             startActivity(shareIntent)
+
+            //######## Limpiar Memoria #####################################
+            mySettings?.saveListCheckPoint("LIST_CHECKPOINT",mutableListOf())
+            stopNFC()
+            //Ocultar barProgress
+            val pBarCheckPoints: ProgressBar = findViewById<ProgressBar>(R.id.progressBar_CheckPoints)
+            val tPBarCheckPoints: TextView = findViewById<TextView>(R.id.txtPBar_CheckPoints)
+            val txtLog: TextView = findViewById<EditText>(R.id.resultText)
+            pBarCheckPoints.visibility = View.GONE
+            tPBarCheckPoints.visibility = View.GONE
+            txtLog.setText("")
+            //######## FIN Limpiar Memoria ##################################
 
         } // end google map snapshot
 

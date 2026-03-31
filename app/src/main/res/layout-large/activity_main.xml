@@ -46,6 +46,13 @@
                 android:textColor="@color/teal_700"
                 android:textSize="30sp"
                 android:textStyle="bold|italic" />
+
+            <ImageButton
+                android:id="@+id/btnConfigTag"
+                android:layout_width="50dp"
+                android:layout_height="wrap_content"
+                android:layout_margin="10px"
+                app:srcCompat="@android:drawable/ic_menu_manage" />
         </LinearLayout>
 
         <LinearLayout

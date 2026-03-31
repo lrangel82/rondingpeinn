@@ -497,6 +497,11 @@ class PorRevisarListActivity : AppCompatActivity() {
                             Toast.LENGTH_LONG
                         ).show()
                     }
+                else
+                    withContext(Dispatchers.Main) {
+                        loadPorRevisar()
+                        updateList()
+                    }
                 //######################################################
 
             } catch (e: Exception) {

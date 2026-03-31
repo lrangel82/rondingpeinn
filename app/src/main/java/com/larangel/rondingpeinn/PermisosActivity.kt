@@ -127,7 +127,7 @@ class PermisosActivity : AppCompatActivity() {
 
     private fun fetchSheetData() {
         progressBar.visibility = View.VISIBLE
-        val permisosData = dataRaw?.getPermisosCache()
+        val permisosData = dataRaw?.getPermisosCache_DeHoy()
 
         val stringTrue = arrayOf("1", "Si", "si", "SI", "x", "X")
         permisosData?.forEach { permiso ->
@@ -148,9 +148,9 @@ class PermisosActivity : AppCompatActivity() {
                     motivo_denegado = permiso[12].toString(),
                     procesado = stringTrue.contains(permiso[13])
                 )
-                if (filterPermisos(userModal)) {
-                    permisosModalArrayList.add(userModal)
-                }
+
+                permisosModalArrayList.add(userModal)
+
             }catch (e: Exception) {
                 println("Error: ${e.message}")
             }
@@ -158,94 +158,8 @@ class PermisosActivity : AppCompatActivity() {
         permisosRVAdapter.notifyDataSetChanged()
         progressBar.visibility = View.GONE
 
-
-
-//        //Coto1: https://docs.google.com/spreadsheets/d/e/2PACX-1vTk443om2jiXzF62FFliGAhjqHZikVR-1ziu3lg8-wk3TmWrd31fawCu_z7S0Kp41zTxaJnSZXLexRz/pub?output=csv
-//        //Coto2: https://docs.google.com/spreadsheets/d/e/2PACX-1vTXQSO3BMLsPdRW3nF-b6wWJlbBPvf_0cF9v6dPkyuVN0ihKOMbhVGDPx5PqHq4Ai6u_aalCIMbK_Zt/pub?output=csv
-//        val url = mySettings?.getString("url_googlesheet_permisos","")!!
-//        if (url.isNotEmpty()) {
-//            progressBar.visibility = View.VISIBLE
-//            CoroutineScope(Dispatchers.IO).launch {
-//                try {
-//
-//                    // Convert Google Sheets URL to CSV export URL
-//                    val csvUrl = url.replace("/edit#gid=", "/export?format=csv&gid=")
-//                    val response = URL(csvUrl).readText()
-//                    val rows = parseCSV(response)
-//
-//                    // Clear the existing data
-//                    permisosModalArrayList.clear()
-//
-//                    var flag = 0
-//
-//                    // Convert CSV rows to UserModal objects
-//                    for (row in rows) {
-//                        if (flag == 0) {
-//                            flag = 1;
-//                            continue;
-//                        }
-//                        if (row.cells.size >= 4) {
-//
-//                            val stringTrue = arrayOf("1", "Si", "si", "SI", "x", "X")
-//                            // Ensure the row has enough columns
-//                            try{
-//                                val userModal = PermisosModal(
-//                                    fechaCreado = parseLenientDateTime(row.cells[0]),
-//                                    calle = row.cells[1],
-//                                    numero = row.cells[2],
-//                                    solicitante = row.cells[3],
-//                                    correo = row.cells[4],
-//                                    tipoAcceso = row.cells[5],
-//                                    tipo = row.cells[6],
-//                                    fechaInicio = parseLenientDate(row.cells[7]),
-//                                    fechaFin = parseLenientDate(row.cells[8]),
-//                                    descripcion = row.cells[9],
-//                                    nombrePersonas = row.cells[10],
-//                                    aprobado = stringTrue.contains(row.cells[11]),
-//                                    motivo_denegado = row.cells[12],
-//                                    procesado = stringTrue.contains(row.cells[13])
-//                                )
-//                                if (filterPermisos(userModal)) {
-//                                    permisosModalArrayList.add(userModal)
-//                                }
-//                            }catch (e: Exception) {
-//                                println("Error: ${e.message}")
-//                            }
-//                        }
-//                    }
-//
-//                    // Update the adapter on the main thread
-//                    withContext(Dispatchers.Main) {
-//                        permisosRVAdapter.notifyDataSetChanged()
-//                    }
-//                } catch (e: Exception) {
-//
-//                    withContext(Dispatchers.Main) {
-//                        //Toast.makeText(currentCoroutineContext(), e.message, Toast.LENGTH_LONG).show()
-//                        // Handle errors (e.g., show a toast or log the error)
-//                        println("Error: ${e.message}")
-//                    }
-//                }
-//                progressBar.visibility = View.GONE
-//            } //End Coroutine
-//        }
     }
 
-    private fun parseCSV(csvData: String): List<SheetRow> {
-        return csvData.split("\n")
-            .filter { it.isNotBlank() }
-            .map { row ->
-
-                // Split by comma, but respect quoted values
-                val cells = row.split(",(?=(?:[^\"]*\"[^\"]*\")*[^\"]*$)".toRegex())
-                    .map { cell ->
-                        cell.trim()
-                            .removeSurrounding("\"")
-                            .replace("\"\"", "\"")
-                    }
-                SheetRow(cells)
-            }
-    }
 
     private fun filterPermisos(itemPermiso: PermisosModal ) : Boolean {
         val currentDate = LocalDate.now()
