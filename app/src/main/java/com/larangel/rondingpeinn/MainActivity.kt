@@ -13,9 +13,11 @@ import android.widget.ImageButton
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
@@ -38,12 +40,15 @@ class MainActivity : AppCompatActivity() {
     //private lateinit var sheetsService: Sheets
     private var loadingOverlay: View? = null
     private var progressBar: ProgressBar? = null
+    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContentView(R.layout.activity_main)
 
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+//        binding = ActivityMainBinding.inflate(layoutInflater)
+//        setContentView(binding.root)
 
         val btn: Button = findViewById(R.id.btn_StartRondin)
         btn.setOnClickListener{
@@ -88,6 +93,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         mySettings = MySettings(this)
+
         val codigoActiviacion = mySettings?.getString("CODIGO_ACTIVACION", "")!!
         if (codigoActiviacion.isEmpty()){
             val intent: Intent = Intent(this, ProgramarTags::class.java )
@@ -99,7 +105,10 @@ class MainActivity : AppCompatActivity() {
             LoadingSheetDATA()
         }
 
-
+        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayoutMain)
+        swipeRefreshLayout.setOnRefreshListener {
+            LoadingSheetDATA(true)
+        }
 
     }
     override fun onResume() {
@@ -107,22 +116,25 @@ class MainActivity : AppCompatActivity() {
         updateTextoBotones()
     }
 
-    private fun LoadingSheetDATA(){
-        waitingOn()
+    private fun LoadingSheetDATA(forceLoad: Boolean = false){
+        //waitingOn()
         val copyRAdmin: TextView = findViewById<TextView>(R.id.textCopyright)
 
         //Load all the data in thread
         lifecycleScope.launch(Dispatchers.IO) {
-            val autosEventos = dataRaw?.getAutosEventos()
-            val vehiculosData = dataRaw?.getCachedVehiclesData()
-            val tagsData = dataRaw?.getTagsCache()
-            val domiciliosUbicacion = dataRaw?.getDomiciliosUbicacion()
-            val porRevisar = dataRaw?.getPorRevisar()
-            val parkingSlots = dataRaw?.getParkingSlots()
-            val multas = dataRaw?.getMultas()
-            val domiciliosWarnings = dataRaw?.getDomicilioWarnings()
-            val permisosData = dataRaw?.getPermisosCache_DeHoy()
-            val configIncidencias = dataRaw?.getIncidenciasConfig()
+            if (::swipeRefreshLayout.isInitialized)
+                swipeRefreshLayout.isRefreshing = true
+
+            val autosEventos = dataRaw?.getAutosEventos(forceLoad)
+            val vehiculosData = dataRaw?.getCachedVehiclesData(forceLoad)
+            val tagsData = dataRaw?.getTagsCache(forceLoad)
+            val domiciliosUbicacion = dataRaw?.getDomiciliosUbicacion(forceLoad)
+            val porRevisar = dataRaw?.getPorRevisar_20horas(forceLoad)
+            val parkingSlots = dataRaw?.getParkingSlots(forceLoad)
+            val multas = dataRaw?.getMultas(forceLoad)
+            val domiciliosWarnings = dataRaw?.getDomicilioWarnings(forceLoad)
+            val permisosData = dataRaw?.getPermisosCache_DeHoy(forceLoad)
+            val configIncidencias = dataRaw?.getIncidenciasConfig(forceLoad)
 
             withContext(Dispatchers.Main) {
                 //Una ves finalizado enviar la info a la UI
@@ -143,11 +155,15 @@ class MainActivity : AppCompatActivity() {
                                     abrirAlertDesactivada()
                                 }
                                 println("LARANGEL total autos: ${autosEventos?.size}")
-                                waitingOff()
+                                //waitingOff()
+                                if (::swipeRefreshLayout.isInitialized)
+                                    swipeRefreshLayout.isRefreshing = false
                             }
                         }catch (e: Exception) {
                             withContext(Dispatchers.Main) {
-                                waitingOff()
+                                //waitingOff()
+                                if (::swipeRefreshLayout.isInitialized)
+                                    swipeRefreshLayout.isRefreshing = false
                                 println("LARANGEL exception Loading Sheet DATA error:${e}")
                                 e.printStackTrace()
                                 Toast.makeText(
@@ -161,7 +177,9 @@ class MainActivity : AppCompatActivity() {
                 }
                 else{
                 //Indicar que no hay INTERNET
-                    waitingOff()
+                    //waitingOff()
+                    if (::swipeRefreshLayout.isInitialized)
+                        swipeRefreshLayout.isRefreshing = false
                     val appActivada = mySettings?.getInt("APP_ACTIVADA",0)
                     if (appActivada == 1) {
                         copyRAdmin.text = "(SIN INTERNET)       v1.0 develop by Luis Rangel"

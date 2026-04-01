@@ -19,118 +19,127 @@
         app:layout_constraintTop_toTopOf="parent"
         app:navGraph="@navigation/mobile_navigation" />
 
-    <LinearLayout
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshLayoutMain"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="horizontal">
+        android:layout_height="match_parent">
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical">
+            android:baselineAligned="false"
+            android:orientation="horizontal">
 
-            <ImageView
-                android:id="@+id/imageView"
-                android:layout_width="396dp"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                app:srcCompat="@drawable/logo_gpeinn_2" />
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/txtCotoName"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="NombreCoto"
-                android:textAlignment="center"
-                android:textAllCaps="true"
-                android:textColor="@color/teal_700"
-                android:textSize="30sp"
-                android:textStyle="bold|italic" />
+                <ImageView
+                    android:id="@+id/imageView"
+                    android:layout_width="396dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:contentDescription="LOGO"
+                    app:srcCompat="@drawable/logo_gpeinn_2" />
 
-            <ImageButton
-                android:id="@+id/btnConfigTag"
-                android:layout_width="50dp"
-                android:layout_height="wrap_content"
-                android:layout_margin="10px"
-                app:srcCompat="@android:drawable/ic_menu_manage" />
+                <TextView
+                    android:id="@+id/txtCotoName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="NombreCoto"
+                    android:textAlignment="center"
+                    android:textAllCaps="true"
+                    android:textColor="@color/teal_700"
+                    android:textSize="30sp"
+                    android:textStyle="bold|italic" />
+
+                <ImageButton
+                    android:id="@+id/btnConfigTag"
+                    android:layout_width="50dp"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="10px"
+                    android:contentDescription="Configuracion"
+                    app:srcCompat="@android:drawable/ic_menu_manage" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/textCopyright"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="v0.1 Free develop by Luis Rangel"
+                    android:textAlignment="viewEnd" />
+
+                <TableLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1">
+
+                    <TableRow
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_weight="0.5">
+
+                        <Button
+                            android:id="@+id/btn_StartRondin"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:layout_margin="5dp"
+                            android:layout_weight="0.5"
+                            android:text="Iniciar RONDIN"
+                            android:textSize="24sp"
+                            android:visibility="gone" />
+
+                        <Button
+                            android:id="@+id/btn_vehiculos"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+
+                            android:layout_margin="5dp"
+                            android:layout_weight="0.5"
+                            android:enabled="true"
+                            android:text="MAPA"
+                            android:textSize="24sp" />
+                    </TableRow>
+
+                    <TableRow
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_weight="0.5">
+
+                        <Button
+                            android:id="@+id/btnIncidenciasMain"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:layout_margin="5dp"
+                            android:layout_weight="0.5"
+                            android:text="Incidencias"
+                            android:textSize="24sp" />
+
+                        <Button
+                            android:id="@+id/btn_permisos"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+
+                            android:layout_margin="5dp"
+                            android:layout_weight="0.5"
+                            android:text="Permisos"
+                            android:textSize="24sp" />
+                    </TableRow>
+
+                </TableLayout>
+            </LinearLayout>
+
         </LinearLayout>
 
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/textCopyright"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="v0.1 Free develop by Luis Rangel"
-                android:textAlignment="viewEnd" />
-
-            <TableLayout
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1">
-
-                <TableRow
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_weight="0.5">
-
-                    <Button
-                        android:id="@+id/btn_StartRondin"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:layout_margin="5dp"
-                        android:layout_weight="0.5"
-                        android:text="Iniciar RONDIN"
-                        android:textSize="24sp"
-                        android:visibility="gone" />
-
-                    <Button
-                        android:id="@+id/btn_vehiculos"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-
-                        android:layout_margin="5dp"
-                        android:layout_weight="0.5"
-                        android:enabled="true"
-                        android:text="MAPA"
-                        android:textSize="24sp" />
-                </TableRow>
-
-                <TableRow
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_weight="0.5">
-
-                    <Button
-                        android:id="@+id/btnIncidenciasMain"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:layout_margin="5dp"
-                        android:layout_weight="0.5"
-                        android:text="Incidencias"
-                        android:textSize="24sp" />
-
-                    <Button
-                        android:id="@+id/btn_permisos"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-
-                        android:layout_margin="5dp"
-                        android:layout_weight="0.5"
-                        android:text="Permisos"
-                        android:textSize="24sp" />
-                </TableRow>
-
-            </TableLayout>
-        </LinearLayout>
-
-    </LinearLayout>
-
-
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
 
 

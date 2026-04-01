@@ -172,20 +172,62 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             return networkInfo != null && networkInfo.isConnected
         }
     }
+    fun sonCadenasSimilares(str1: String, str2: String): Boolean {
+
+        // 1. Limpiar: Solo letras y números, y todo a Mayúsculas
+        val s1 = str1.filter { it.isLetterOrDigit() }.uppercase()
+        val s2 = str2.filter { it.isLetterOrDigit() }.uppercase()
+
+        // 2. Si son idénticas después de limpiar
+        if (s1 == s2) return true
+
+        // 3. Si la diferencia de longitud es mayor a 1, no pueden ser similares
+        if (Math.abs(s1.length - s2.length) > 1) return false
+
+        // 4. Comparación de diferencia por un solo caracter (Levenshtein simplificado)
+        var i = 0
+        var j = 0
+        var errores = 0
+
+        while (i < s1.length && j < s2.length) {
+            if (s1[i] != s2[j]) {
+                errores++
+                if (errores > 1) return false
+
+                // Si las longitudes son distintas, avanzamos solo el índice de la cadena más larga
+                if (s1.length > s2.length) i++
+                else if (s2.length > s1.length) j++
+                else { // Misma longitud, avanzamos ambos (es una sustitución)
+                    i++
+                    j++
+                }
+            } else {
+                i++
+                j++
+            }
+        }
+
+        // Considerar un caracter extra al final de la cadena más larga
+        if (i < s1.length || j < s2.length) errores++
+
+        return errores <= 1
+
+    }
 
     // --- SECCIÓN 1: LECTURA Y CACHÉ INTELIGENTE ---
-    suspend fun getSmartCache(table: SheetTable, fetcher: suspend () -> List<List<Any>>): List<List<Any>> {
+    suspend fun getSmartCache(table: SheetTable, forceLoad: Boolean = false,fetcher: suspend () -> List<List<Any>>): List<List<Any>> {
         val state = tableStates[table]!!
         val now = System.currentTimeMillis()
         val isConnected = isNetworkAvailable()
 
         // 1. RAM
-        if (state.cache != null && (now - state.timestamp <= CACHE_DURATION_MS || !isConnected)) return state.cache!!
+        if (state.cache != null && (now - state.timestamp <= CACHE_DURATION_MS || !isConnected) && !forceLoad)
+            return state.cache!!
 
         // 2. Disco
         val diskCache = mySettings.getList("${table.cacheKey}_CACHE") ?: emptyList()
         val diskTs = mySettings.getLong(table.timestampKey, 0L)
-        if (diskCache.isNotEmpty() && (now - diskTs <= CACHE_DURATION_MS || !isConnected)) {
+        if (diskCache.isNotEmpty() && (now - diskTs <= CACHE_DURATION_MS || !isConnected) && !forceLoad) {
             state.cache = diskCache; state.timestamp = diskTs
             return diskCache
         }
@@ -200,6 +242,7 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                     state.cache = freshData; state.timestamp = now
                     freshData
                 } catch (e: Exception) {
+                    Log.e(TAG, "Error leyendo datos en red(${table.cacheKey}), error: ${e.message}")
                     diskCache
                 }
             }
@@ -302,11 +345,11 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
         if (state.forDeleteIndexes.isEmpty()) return@withContext true
 
         var spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "") ?: ""
-        var rangeStr = "${table.sheetName}!${table.range}"
+        var rangeStr = "${table.sheetName}!${table.range}".toString()
 
         if (table == SheetTable.PERMISOS) {
-            rangeStr = table.range
-            spreadsheetId = mySettings.getSimpleList("PERMISOS_SPREADSHEET_ID")[0]
+            rangeStr = table.range.toString()
+            spreadsheetId = mySettings.getSimpleList("PERMISOS_SPREADSHEET_ID")[0].toString()
         }
 
         try {
@@ -347,7 +390,11 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     private fun getSheetIdByName(spreadsheetId: String, sheetName: String): Int? {
         return try {
             val spreadsheet = sheetsService.spreadsheets().get(spreadsheetId).execute()
-            spreadsheet.sheets.find { it.properties.title == sheetName }?.properties?.sheetId
+            if (sheetName.isNotEmpty()) {
+                spreadsheet.sheets.find { it.properties.title == sheetName }?.properties?.sheetId
+            }else{
+                spreadsheet.sheets.first()?.properties?.sheetId
+            }
         } catch (e: Exception) {
             Log.e(TAG, "No se pudo obtener el ID de la hoja $sheetName")
             null
@@ -356,39 +403,39 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
 
 
     // VEHICULOS
-    fun getCachedVehiclesData(): List<List<Any>> = runBlocking {
+    fun getCachedVehiclesData(forceLoad: Boolean = false): List<List<Any>> = runBlocking {
         // Llamamos a la función genérica usando el Enum de VEHICULOS
-        getSmartCache(SheetTable.VEHICULOS) {
+        getSmartCache(SheetTable.VEHICULOS,forceLoad) {
             val allRows = mutableListOf<List<Any>>()
 
             // 1. Obtener Vehículos RESIDENTES
             val residentsId = mySettings.getString("PARKING_SPREADSHEET_ID", "")!!
             val residentsSheet = SheetTable.VEHICULOS.sheetName //mySettings.getString("WS_AUTOS_REGISTRADOS", "AutosRegistrados")!!
 
-            try {
+            //try {
                 val response = sheetsService.spreadsheets().values()
                     .get(residentsId, "$residentsSheet!A:C") // placa, calle, numero
                     .execute()
                 response.getValues().drop(1)?.let { allRows.addAll(it) }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error leyendo Residentes: ${e.message}")
-            }
+            //} catch (e: Exception) {
+            //    Log.e(TAG, "Error leyendo Residentes: ${e.message}")
+            //}
 
             // 2. Obtener Vehículos VISITANTES (Hojas: ingreso y salida)
             val visitorsId = mySettings.getString("REGISTRO_CARROS_SPREADSHEET_ID", "")
             if (!visitorsId.isNullOrEmpty()) {
                 val visitorSheets = listOf("ingreso", "salida")
                 for (sheetName in visitorSheets) {
-                    try {
+                    //try {
                         val response = sheetsService.spreadsheets().values()
                             .get(visitorsId, "$sheetName!C:E") // placa, calle, numero
                             .execute()
                         // drop(1) para omitir los encabezados de la tabla de visitantes
                         val rows = response.getValues()?.drop(1) ?: emptyList()
                         allRows.addAll(rows)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error leyendo Visitantes ($sheetName): ${e.message}")
-                    }
+                    //} catch (e: Exception) {
+                    //    Log.e(TAG, "Error leyendo Visitantes ($sheetName): ${e.message}")
+                    //}
                 }
             }
 
@@ -396,13 +443,13 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             allRows
         }
     }
-    fun getTagsCache(): List<List<Any>> = runBlocking {
-        getSmartCache(SheetTable.TAGS) {
+    fun getTagsCache(forceLoad: Boolean = false): List<List<Any>> = runBlocking {
+        getSmartCache(SheetTable.TAGS,forceLoad) {
             val allParsedTags = mutableListOf<List<Any>>()
             val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")!!
             val nameWS = SheetTable.TAGS.sheetName //mySettings.getString("WS_AUTOS_REGISTRADOS", "AutosRegistrados")!!
 
-            try {
+            //try {
                 // Obtenemos el rango A:H (Placas, Calle, Numero, Marca, Modelo, Color, Tag1, Tag2, Tag3)
                 val response = sheetsService.spreadsheets().values()
                     .get(spreadsheetId, "$nameWS!A:I")
@@ -424,9 +471,9 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                         }
                     }
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error procesando Tags desde Google Sheets: ${e.message}")
-            }
+            //} catch (e: Exception) {
+            //    Log.e(TAG, "Error procesando Tags desde Google Sheets: ${e.message}")
+            //}
 
             // Retornamos la lista de [Tag, Calle, Numero]
             allParsedTags
@@ -434,16 +481,16 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     }
 
     // Permisos
-    fun getPermisosCache(): List<List<Any>> = runBlocking {
+    fun getPermisosCache(forceLoad: Boolean = false): List<List<Any>> = runBlocking {
         // Usamos el Enum de PERMISOS y el SmartCache genérico
-        getSmartCache(SheetTable.PERMISOS) {
+        getSmartCache(SheetTable.PERMISOS,forceLoad) {
             val allPermisos = mutableListOf<List<Any>>()
 
             // Obtenemos la lista de IDs de Spreadsheets desde MySettings
             val spreadsheetIds = mySettings.getSimpleList("PERMISOS_SPREADSHEET_ID") ?: emptyList<String>()
 
             for (id in spreadsheetIds) {
-                try {
+                //try {
                     // Consultamos el rango A:N (desde Marca temporal hasta Procesado por ROBOT)
                     val response = sheetsService.spreadsheets().values()
                         .get(id, "A:N")
@@ -453,17 +500,17 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                     val rows = response.getValues()?.drop(1) ?: emptyList()
                     allPermisos.addAll(rows)
 
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error leyendo permisos del ID: $id - ${e.message}")
-                }
+                //} catch (e: Exception) {
+                //    Log.e(TAG, "Error leyendo permisos del ID: $id - ${e.message}")
+                //}
             }
 
             // Retornamos la lista consolidada al SmartCache
             allPermisos
         }
     }
-    fun getPermisosCache_DeHoy(): List<List<Any>> {
-        val rows = getPermisosCache()
+    fun getPermisosCache_DeHoy(forceLoad: Boolean = false): List<List<Any>> {
+        val rows = getPermisosCache(forceLoad)
         val stringTrue = arrayOf("1", "Si", "si", "SI", "x", "X")
         if (rows.isEmpty()) return emptyList()
 
@@ -536,18 +583,57 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
 
         return true
     }
+    fun eliminarPermisoCache(row: List<String>): Boolean{
+        val state = tableStates[SheetTable.PERMISOS] ?: return false
+
+        var indexFind = -1
+        // 1. Aseguramos que la RAM tenga datos (Carga desde RAM -> Disco -> Red)
+        if (state.cache == null) runBlocking { getPermisosCache() }
+        val currentCache = state.cache?.toMutableList() ?: return false
+
+        // 2. Búsqueda por fecha de creacion
+        val pCreadp = LocalDateTime.parse(row[0].toString(), flexibleDateTimeFormatter)
+        currentCache.forEachIndexed { index, permiso ->
+            val _fCreado = LocalDateTime.parse(permiso[0].toString(), flexibleDateTimeFormatter)
+            if (permiso.size >= 4 &&
+                pCreadp == _fCreado ) {
+                indexFind = index
+                return@forEachIndexed
+            }
+        }
+
+        if (indexFind >= 0) {
+            // 2. Eliminar de la RAM inmediatamente para que el usuario ya no lo vea
+            currentCache.removeAt(indexFind)
+            state.cache = currentCache
+
+            // 3. Actualizar el caché de disco (MySettings) para persistir el cambio visual
+            mySettings.saveList("${SheetTable.PERMISOS.cacheKey}_CACHE", currentCache as List<List<String>>)
+            mySettings.saveLong(SheetTable.PERMISOS.timestampKey, System.currentTimeMillis())
+
+            /**
+             * 4. Disparar el borrado en la Nube.
+             * Usamos indexFind + 1 (si no hay encabezado) o + 2 (si hay encabezado).
+             */
+            sync(SheetTable.PERMISOS, Operation.DELETE, index = indexFind + 2)
+
+            return true
+        }
+
+        return false // No se encontró el registro
+    }
 
     //Direcciones de casas y ubicacion
-    fun getDomiciliosUbicacion(): List<List<Any>> = runBlocking {
+    fun getDomiciliosUbicacion(forceLoad: Boolean = false): List<List<Any>> = runBlocking {
         // Usamos el SmartCache genérico con el Enum correspondiente
-        getSmartCache(SheetTable.DIRECCIONES) {
+        getSmartCache(SheetTable.DIRECCIONES,forceLoad) {
             val allDirections = mutableListOf<List<Any>>()
             val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")!!
 
             // Intentamos obtener el nombre de la hoja desde settings o usamos el default
             val nameWS = SheetTable.DIRECCIONES.sheetName
 
-            try {
+            //try {
                 // Leemos el rango configurado (ej. A:C para Calle, Número, ID)
                 val response = sheetsService.spreadsheets().values()
                     .get(spreadsheetId, "$nameWS!${SheetTable.DIRECCIONES.range}")
@@ -557,26 +643,48 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                 val rows = response.getValues().drop(1) ?: emptyList()
                 allDirections.addAll(rows)
 
-            } catch (e: Exception) {
-                Log.e(TAG, "Error leyendo catálogo de direcciones: ${e.message}")
-            }
+//            } catch (e: Exception) {
+//                Log.e(TAG, "Error leyendo catálogo de direcciones: ${e.message}")
+//            }
 
             // Retornamos la lista para que SmartCache la guarde en RAM y Disco
             allDirections
         }
     }
+    fun getDomiciliosSimilares(calle: String, numero: String): List<List<Any>>{
+        val _calle=calle.filter { it.isLetterOrDigit() }.uppercase()
+        val _numero=numero.filter { it.isLetterOrDigit() }.uppercase()
+        val rows = getDomiciliosUbicacion()
+        val result = mutableListOf<List<Any>>()
+        run loop@{
+            rows.forEach { row ->
+                val _rcalle = row[0].toString().uppercase()
+                val _rnumer = row[1].toString().uppercase()
+                if (_rcalle == _calle && _rnumer == _numero) {
+                    //Concidencia exacta
+                    result.clear()
+                    result.add(row)
+                    return@loop
+                }
+                if (sonCadenasSimilares("${_rcalle}:${_rnumer}", "${_calle}:${_numero}")) {
+                    result.add(row)
+                }
+            }
+        }
+        return result as List<List<Any>>
+    }
 
     //Por Revisar registros
-    fun getPorRevisar(): List<List<Any>> = runBlocking {
+    fun getPorRevisar(forceLoad: Boolean = false): List<List<Any>> = runBlocking {
         // Usamos el SmartCache genérico con el Enum POR_REVISAR
-        getSmartCache(SheetTable.POR_REVISAR) {
+        getSmartCache(SheetTable.POR_REVISAR,forceLoad) {
             val allPending = mutableListOf<List<Any>>()
             val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")!!
 
             // Intentamos obtener el nombre de la hoja (o usamos el default "PorRevisar")
             val nameWS = SheetTable.POR_REVISAR.sheetName
 
-            try {
+            //try {
                 // Leemos el rango A:G (basado en tu Parte 2: calle, número, tiempo, slotkey, veridicado, lat, lon)
                 val response = sheetsService.spreadsheets().values()
                     .get(spreadsheetId, "$nameWS!${SheetTable.POR_REVISAR.range}")
@@ -588,16 +696,16 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                 // Agregamos a la lista maestra
                 allPending.addAll(rows)
 
-            } catch (e: Exception) {
-                Log.e(TAG, "Error leyendo lista de Por Revisar: ${e.message}")
-            }
+//            } catch (e: Exception) {
+//                Log.e(TAG, "Error leyendo lista de Por Revisar: ${e.message}")
+//            }
 
             // Retornamos para que SmartCache lo guarde en RAM y Disco
             allPending
         }
     }
-    fun getPorRevisar_20horas(): MutableList<List<Any>>?{
-        val rows = getPorRevisar()
+    fun getPorRevisar_20horas(forceLoad: Boolean = false): MutableList<List<Any>>?{
+        val rows = getPorRevisar(forceLoad)
         val date20HoursAgo = LocalDateTime.now().minusHours(20)
         val porRevisar = rows?.filter { LocalDateTime.parse(it[2].toString(),flexibleDateTimeFormatter) >= date20HoursAgo }
             ?.reversed()
@@ -607,6 +715,8 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     }
     fun eliminarPorRevisar(calle: String, numero: String, slotKey: String): Boolean {
         val state = tableStates[SheetTable.POR_REVISAR] ?: return false
+
+        if (state.cache == null) runBlocking { getPorRevisar() }
         val currentCache = state.cache?.toMutableList() ?: return false
 
         var indexFind = -1
@@ -672,16 +782,16 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     }
 
     //Lugares de VISITAS
-    fun getParkingSlots(): List<List<Any>> = runBlocking {
+    fun getParkingSlots(forceLoad: Boolean = false): List<List<Any>> = runBlocking {
         // Usamos el SmartCache genérico con el Enum correspondiente
-        getSmartCache(SheetTable.PARKING_SLOTS) {
+        getSmartCache(SheetTable.PARKING_SLOTS,forceLoad) {
             val allSlots = mutableListOf<List<Any>>()
             val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")
 
             // Buscamos el nombre de la hoja en settings o usamos el default "ParkingSlots"
             val nameWS = SheetTable.PARKING_SLOTS.sheetName
 
-            try {
+            //try {
                 // Consultamos el rango A:E de la hoja de Google Sheets
                 val response = sheetsService.spreadsheets().values()
                     .get(spreadsheetId, "$nameWS!${SheetTable.PARKING_SLOTS.range}")
@@ -690,9 +800,9 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                 val rows = response.getValues().drop(1) ?: emptyList()
                 allSlots.addAll(rows)
 
-            } catch (e: Exception) {
-                Log.e(TAG, "Error leyendo Parking Slots desde la red: ${e.message}")
-            }
+//            } catch (e: Exception) {
+//                Log.e(TAG, "Error leyendo Parking Slots desde la red: ${e.message}")
+//            }
 
             // Retornamos la lista para que SmartCache la guarde en RAM y Disco local
             allSlots
@@ -720,16 +830,16 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     }
 
     //AutoEventos
-    fun getAutosEventos(): List<List<Any>> = runBlocking {
+    fun getAutosEventos(forceLoad: Boolean = false): List<List<Any>> = runBlocking {
         // Usamos el SmartCache genérico con el Enum correspondiente
-        getSmartCache(SheetTable.AUTOS_EVENTOS) {
+        getSmartCache(SheetTable.AUTOS_EVENTOS,forceLoad) {
             val allEvents = mutableListOf<List<Any>>()
             val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")!!
 
             // Buscamos el nombre de la hoja en settings o usamos el default
             val nameWS = SheetTable.AUTOS_EVENTOS.sheetName
 
-            try {
+            //try {
                 // Consultamos el rango A:E (o el que tengas configurado)
                 val response = sheetsService.spreadsheets().values()
                     .get(spreadsheetId, "$nameWS!${SheetTable.AUTOS_EVENTOS.range}")
@@ -738,16 +848,16 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                 val rows = response.getValues().drop(1) ?: emptyList()
                 allEvents.addAll(rows)
 
-            } catch (e: Exception) {
-                Log.e(TAG, "Error leyendo Autos Eventos desde la red: ${e.message}")
-            }
+//            } catch (e: Exception) {
+//                Log.e(TAG, "Error leyendo Autos Eventos desde la red: ${e.message}")
+//            }
 
             // Retornamos la lista para que SmartCache la guarde en RAM y Disco
             allEvents
         }
     }
-    fun getAutosEventos_6horas( ): List<List<Any>>{
-        val rows = getAutosEventos()
+    fun getAutosEventos_6horas(forceLoad: Boolean = false ): List<List<Any>>{
+        val rows = getAutosEventos(forceLoad)
         val date6HoursAgo = LocalDateTime.now().minusHours(6)
         val plateEvents = rows.filter {
             LocalDateTime.parse(it[2].toString(),flexibleDateTimeFormatter) >= date6HoursAgo
@@ -778,16 +888,16 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     }
 
     //IncidenciasEventos
-    fun getIncidenciasConfig(): List<List<Any>> = runBlocking {
+    fun getIncidenciasConfig(forceLoad: Boolean = false): List<List<Any>> = runBlocking {
         // Usamos el SmartCache genérico con el Enum correspondiente
-        getSmartCache(SheetTable.INCIDENCIAS_CONFIG) {
+        getSmartCache(SheetTable.INCIDENCIAS_CONFIG,forceLoad) {
             val allRows = mutableListOf<List<Any>>()
             val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")
 
             // Buscamos el nombre de la hoja en settings o usamos el default
             val nameWS = SheetTable.INCIDENCIAS_CONFIG.sheetName
 
-            try {
+            //try {
                 // Consultamos el rango A:E (o el que tengas configurado)
                 val response = sheetsService.spreadsheets().values()
                     .get(spreadsheetId, "$nameWS!${SheetTable.INCIDENCIAS_CONFIG.range}")
@@ -796,24 +906,24 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                 val rows = response.getValues().drop(1) ?: emptyList()
                 allRows.addAll(rows)
 
-            } catch (e: Exception) {
-                Log.e(TAG, "Error leyendo ${nameWS} config desde la red: ${e.message}")
-            }
+//            } catch (e: Exception) {
+//                Log.e(TAG, "Error leyendo ${nameWS} config desde la red: ${e.message}")
+//            }
 
             // Retornamos la lista para que SmartCache la guarde en RAM y Disco
             allRows
         }
     }
-    fun getIncidenciasEventos(): List<List<Any>> = runBlocking {
+    fun getIncidenciasEventos(forceLoad: Boolean = false): List<List<Any>> = runBlocking {
         // Usamos el SmartCache genérico con el Enum correspondiente
-        getSmartCache(SheetTable.INCIDENCIAS) {
+        getSmartCache(SheetTable.INCIDENCIAS,forceLoad) {
             val allRows = mutableListOf<List<Any>>()
             val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")
 
             // Buscamos el nombre de la hoja en settings o usamos el default
             val nameWS = SheetTable.INCIDENCIAS.sheetName
 
-            try {
+            //try {
                 // Consultamos el rango A:E (o el que tengas configurado)
                 val response = sheetsService.spreadsheets().values()
                     .get(spreadsheetId, "$nameWS!${SheetTable.INCIDENCIAS.range}")
@@ -822,9 +932,9 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                 val rows = response.getValues().drop(1) ?: emptyList()
                 allRows.addAll(rows)
 
-            } catch (e: Exception) {
-                Log.e(TAG, "Error leyendo ${nameWS} config desde la red: ${e.message}")
-            }
+//            } catch (e: Exception) {
+//                Log.e(TAG, "Error leyendo ${nameWS} config desde la red: ${e.message}")
+//            }
 
             // Retornamos la lista para que SmartCache la guarde en RAM y Disco
             allRows
@@ -860,16 +970,16 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     }
 
     //DomicilioWarnings
-    fun getDomicilioWarnings(): List<List<Any>> = runBlocking {
+    fun getDomicilioWarnings(forceLoad: Boolean = false): List<List<Any>> = runBlocking {
         // Usamos el SmartCache genérico con el Enum correspondiente
-        getSmartCache(SheetTable.DOMICILIO_WARNINGS) {
+        getSmartCache(SheetTable.DOMICILIO_WARNINGS,forceLoad) {
             val allRows = mutableListOf<List<Any>>()
             val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")
 
             // Buscamos el nombre de la hoja en settings o usamos el default
             val nameWS = SheetTable.DOMICILIO_WARNINGS.sheetName
 
-            try {
+            //try {
                 // Consultamos el rango A:E (o el que tengas configurado)
                 val response = sheetsService.spreadsheets().values()
                     .get(spreadsheetId, "$nameWS!${SheetTable.DOMICILIO_WARNINGS.range}")
@@ -878,9 +988,9 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                 val rows = response.getValues().drop(1) ?: emptyList()
                 allRows.addAll(rows)
 
-            } catch (e: Exception) {
-                Log.e(TAG, "Error leyendo ${nameWS} config desde la red: ${e.message}")
-            }
+//            } catch (e: Exception) {
+//                Log.e(TAG, "Error leyendo ${nameWS} config desde la red: ${e.message}")
+//            }
 
             // Retornamos la lista para que SmartCache la guarde en RAM y Disco
             allRows
@@ -962,16 +1072,16 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     }
 
     //Multas
-    fun getMultas(): List<List<Any>> = runBlocking {
+    fun getMultas(forceLoad: Boolean = false): List<List<Any>> = runBlocking {
         // Usamos el SmartCache genérico con el Enum correspondiente
-        getSmartCache(SheetTable.MULTAS) {
+        getSmartCache(SheetTable.MULTAS,forceLoad) {
             val allRows = mutableListOf<List<Any>>()
             val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")
 
             // Buscamos el nombre de la hoja en settings o usamos el default
             val nameWS = SheetTable.MULTAS.sheetName
 
-            try {
+            //try {
                 // Consultamos el rango A:E (o el que tengas configurado)
                 val response = sheetsService.spreadsheets().values()
                     .get(spreadsheetId, "$nameWS!${SheetTable.MULTAS.range}")
@@ -980,9 +1090,9 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                 val rows = response.getValues().drop(1) ?: emptyList()
                 allRows.addAll(rows)
 
-            } catch (e: Exception) {
-                Log.e(TAG, "Error leyendo ${nameWS} config desde la red: ${e.message}")
-            }
+//            } catch (e: Exception) {
+//                Log.e(TAG, "Error leyendo ${nameWS} config desde la red: ${e.message}")
+//            }
 
             // Retornamos la lista para que SmartCache la guarde en RAM y Disco
             allRows

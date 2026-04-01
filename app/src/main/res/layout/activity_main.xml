@@ -16,104 +16,92 @@
         app:defaultNavHost="true"
         app:navGraph="@navigation/mobile_navigation" />
 
-    <ImageView
-        android:id="@+id/imageView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@drawable/logo_gpeinn_2" />
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshLayoutMain"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
 
-    <ImageButton
-        android:id="@+id/btnConfigTag"
-        android:layout_width="50dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@android:drawable/ic_menu_manage" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="10dp"
+                    android:orientation="horizontal">
 
-    <Button
-        android:id="@+id/btn_StartRondin"
-        android:layout_width="350dp"
-        android:layout_height="55dp"
-        android:text="Iniciar RONDIN"
-        android:textSize="24sp"
-        android:visibility="gone"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.491"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_creator="@android:integer/status_bar_notification_info_maxnum"
-        app:layout_constraintTop_toTopOf="@+id/imageView" />
+                    <TextView
+                        android:id="@+id/txtCotoName"
+                        android:layout_width="match_parent"
+                        android:layout_height="35dp"
+                        android:layout_weight="1"
+                        android:text="NombreCoto"
+                        android:textAlignment="center"
+                        android:textAllCaps="true"
+                        android:textColor="@color/teal_700"
+                        android:textSize="30sp"
+                        android:textStyle="bold|italic"
+                        tools:ignore="MissingConstraints" />
 
-    <Button
-        android:id="@+id/btn_permisos"
-        android:layout_width="350dp"
-        android:layout_height="55dp"
+                    <ImageButton
+                        android:id="@+id/btnConfigTag"
+                        android:layout_width="50dp"
+                        android:layout_height="wrap_content"
+                        android:contentDescription="Configuracion"
+                        app:srcCompat="@android:drawable/ic_menu_manage" />
+                </LinearLayout>
 
-        android:text="Permisos"
-        android:textSize="24sp"
-        app:layout_constraintBottom_toTopOf="@+id/btnIncidenciasMain"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.491"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btn_vehiculos"
-        app:layout_constraintVertical_bias="0.97" />
+                <Button
+                    android:id="@+id/btn_StartRondin"
+                    android:layout_width="350dp"
+                    android:layout_height="55dp"
+                    android:text="Iniciar RONDIN"
+                    android:textSize="24sp"
+                    android:visibility="gone" />
 
-    <Button
-        android:id="@+id/btn_vehiculos"
-        android:layout_width="350dp"
-        android:layout_height="55dp"
+                <Button
+                    android:id="@+id/btn_vehiculos"
+                    android:layout_width="350dp"
+                    android:layout_height="55dp"
 
-        android:enabled="true"
-        android:text="MAPA"
-        android:textSize="24sp"
-        app:layout_constraintBottom_toTopOf="@+id/imageView"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.491"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.884" />
+                    android:enabled="true"
+                    android:text="MAPA"
+                    android:textSize="24sp" />
 
-    <TextView
-        android:id="@+id/textCopyright"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="16dp"
-        android:text="v0.1 Free develop by Luis Rangel"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+                <ImageView
+                    android:id="@+id/imageView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    app:srcCompat="@drawable/logo_gpeinn_2" />
 
-    <Button
-        android:id="@+id/btnIncidenciasMain"
-        android:layout_width="350dp"
-        android:layout_height="55dp"
-        android:layout_marginBottom="156dp"
-        android:text="Incidencias"
-        android:textSize="24sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.491"
-        app:layout_constraintStart_toStartOf="parent" />
+                <Button
+                    android:id="@+id/btn_permisos"
+                    android:layout_width="350dp"
+                    android:layout_height="55dp"
 
-    <TextView
-        android:id="@+id/txtCotoName"
-        android:layout_width="370dp"
-        android:layout_height="35dp"
-        android:text="NombreCoto"
-        android:textAlignment="center"
-        android:textAllCaps="true"
-        android:textColor="@color/teal_700"
-        android:textSize="30sp"
-        android:textStyle="bold|italic"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/btn_StartRondin"
-        tools:ignore="MissingConstraints" />
+                    android:text="Permisos"
+                    android:textSize="24sp" />
 
+                <Button
+                    android:id="@+id/btnIncidenciasMain"
+                    android:layout_width="350dp"
+                    android:layout_height="55dp"
+                    android:text="Incidencias"
+                    android:textSize="24sp" />
+
+                <TextView
+                    android:id="@+id/textCopyright"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="20dp"
+                    android:layout_marginEnd="16dp"
+                    android:layout_marginBottom="16dp"
+                    android:text="v0.1 Free develop by Luis Rangel" />
+            </LinearLayout>
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -95,6 +95,9 @@ class PermisosRVAdapter(
             if (!permisosModal.procesado) {
                 mostrarDialogoDecision(context, permisosModal, position)
             }
+            else if(!permisosModal.aprobado){
+                mostrarDialogoEliminacionPermiso(context, permisosModal, position)
+            }
         }
 
     }
@@ -122,6 +125,18 @@ class PermisosRVAdapter(
     }
 
     private fun mostrarDialogoDecision(context: Context, permiso: PermisosModal, position: Int) {
+        //Verificar que el domicilio es correcto
+        val dataRaw = DataRawRondin(context,CoroutineScope(Dispatchers.IO))
+        val direciones = dataRaw.getDomiciliosSimilares(permiso.calle, permiso.numero)
+        if (direciones.size != 1){
+            //Mas de una direccion, se debe denegar porque no hay domicilio coincidente
+            mostrarDialogoDenegadoDireccionIncorrecta(context,permiso,position,direciones)
+            return
+        }
+        //Update direccion por si era necesario
+        permiso.calle = direciones[0][0].toString()
+        permiso.numero= direciones[0][1].toString()
+
         val builder = androidx.appcompat.app.AlertDialog.Builder(context)
         builder.setTitle("Gestión de Permiso")
         builder.setMessage("¿Qué desea hacer para este permiso?")
@@ -178,28 +193,68 @@ class PermisosRVAdapter(
                     ).show()
             }
             .setNegativeButton("Atrás", null)
+            .setNeutralButton("ELIMINAR") { _, _ ->
+                mostrarDialogoEliminacionPermiso(context,permiso,position)
+            }
             .show()
     }
 
+    private fun mostrarDialogoDenegadoDireccionIncorrecta(context: Context, permiso: PermisosModal, position: Int, direcciones: List<List<Any>>){
+
+        androidx.appcompat.app.AlertDialog.Builder(context)
+            .setTitle("Gestión de Permiso")
+            .setMessage("La direccion de este permiso es INCORRECTA debe denegarse y pedir que lo envie de nuevo")
+            .setPositiveButton("Denegar") { _, _ ->
+                permiso.procesado = true
+                permiso.aprobado = false
+                permiso.motivo_denegado = "La direccion ${permiso.calle}:${permiso.numero} es incorrecta, debe generar un nuevo permiso!"
+                //UPDATE APROBADO
+                if (updatePermiso(context,permiso)) {
+                    notifyItemChanged(position)
+                    enviarCorreoDenegado(context, permiso, direcciones)
+                }
+                else
+                    Toast.makeText(
+                        context,
+                        "Error al Actualizar Permiso...",
+                        Toast.LENGTH_LONG
+                    ).show()
+            }
+            .setNegativeButton("Atrás", null)
+            .show()
+    }
+
+    private fun mostrarDialogoEliminacionPermiso(context: Context, permiso: PermisosModal, position: Int){
+        androidx.appcompat.app.AlertDialog.Builder(context)
+            .setTitle("Confirmar ELIMINACION?")
+            .setMessage("Esta seguro de eliminar el permiso? ->\n ${permisosModalToList(permiso).toString()}")
+
+            .setPositiveButton("Eliminar") { _, _ ->
+                //Eliminar
+                if (eliminarPermiso(context,permiso)) {
+                    permisosModalArrayList.removeAt(position)
+                    notifyItemRemoved(position)
+                    notifyItemRangeChanged(position, permisosModalArrayList.size)
+                }
+                else
+                    Toast.makeText(
+                        context,
+                        "Error al Actualizar Permiso...",
+                        Toast.LENGTH_LONG
+                    ).show()
+            }
+            .setNegativeButton("Cancelar", null)
+            .show()
+    }
     private fun updatePermiso(context: Context, permiso: PermisosModal): Boolean{
         val dataRaw = DataRawRondin(context,CoroutineScope(Dispatchers.IO))
-        val newData = listOf(
-            permiso.fechaCreado.toString(),             // FechaInicio
-            permiso.calle.toString(),                   // Calle
-            permiso.numero.toString(),                  // Numero
-            permiso.solicitante.toString(),             // Solicitante
-            permiso.correo.toString(),                  // email
-            permiso.tipoAcceso.toString(),              // Ingreso/Egreso
-            permiso.tipo.toString(),                    // Tipo Permiso
-            permiso.fechaInicio.toString(),             // Fecha Ini
-            permiso.fechaFin.toString(),                // Fecha Fin
-            permiso.descripcion.toString(),             // Descripcion
-            permiso.nombrePersonas.toString(),          // Nombre personas acceso
-            if(permiso.aprobado) "1" else "0",          // Aporbado
-            permiso.motivo_denegado.toString(),         // Motivo Denegado
-            if(permiso.procesado) "Si" else "No"        // Procesado por ROBOT
-        )
+        val newData = permisosModalToList(permiso)
         return dataRaw.updatePermisoCache(newData)
+    }
+    private fun eliminarPermiso(context: Context, permiso: PermisosModal): Boolean{
+        val dataRaw = DataRawRondin(context,CoroutineScope(Dispatchers.IO))
+        val data = permisosModalToList(permiso)
+        return dataRaw.eliminarPermisoCache(data)
     }
 
     private fun enviarCorreoAprobado(context: Context, permiso: PermisosModal) {
@@ -208,59 +263,52 @@ class PermisosRVAdapter(
 
         val sujeto = "Permiso APROBADO: ${permiso.tipo} - ${permiso.calle} ${permiso.numero}"
         val cuerpo = """
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-            <meta charset="UTF-8">
-            <title>Su permiso ha sido APROBADO</title>
-        </head>
-        <body>
-            <img src="https://lh7-us.googleusercontent.com/Dnh2ahdVtjFhMfAYbX900qZAgFwqDpnPsIrpVPYJWbB0P0Bo3XBvUFH0grcQg-HLcCfxrbOVfwrcnZt9b8qRHhop1ZCEURK1-71MT--1Qv_hIhAvDXKMi-d1212AEYQpJ8prPJhb4iqfUEfTCarcSL3vIfpyRGQPP_akpczJkuz7cTXN5p34eRJvgjHX0If52WmDhi3O?key=JeFt4ibeyu8-7qsUmC1ZjQ">
-            <p>Estimado/a ${permiso.solicitante},<br><br>
+        ###########################################
+        Su permiso ha sido     A P R O B A D O
+        ###########################################
         
-            Nos complace informarle que su solicitud de permiso ha sido <h3><font color="green">APROBADA.</font></h3><br>
-            </p>
-            <p>Detalles:<br/>
-                - Tipo: <b>${permiso.tipo}</b><br/>
-                - Ubicación: <b>${permiso.calle} ${permiso.numero}</b><br>
-                - Vigencia: del <b>${permiso.fechaInicio} al ${permiso.fechaFin}</b><br>
-                - Descripción: <b>${permiso.descripcion}</b><br>
-            </p>
+        Estimado/a ${permiso.solicitante},
         
-            <p>
-            Saludos cordiales,<br>
-            Administración.
-            </p>
-        </body>
-        </html>
+        Nos complace informarle que su solicitud de permiso ha sido APROBADA.
+            
+            Detalles:
+                - Tipo: ${permiso.tipo}
+                - Ubicación: ${permiso.calle} ${permiso.numero}
+                - Vigencia: del ${permiso.fechaInicio} al ${permiso.fechaFin}
+                - Descripción: ${permiso.descripcion}
+            
+        Saludos cordiales,
+        Administración.
+
     """.trimIndent()
 
         dispararIntentCorreo(context, permiso.correo, sujeto, cuerpo)
     }
 
-    private fun enviarCorreoDenegado(context: Context, permiso: PermisosModal) {
+    private fun enviarCorreoDenegado(context: Context, permiso: PermisosModal, direcciones: List<List<Any>> = listOf<List<Any>>()) {
         val sujeto = "Permiso DENEGADO: ${permiso.tipo} - ${permiso.calle} ${permiso.numero}"
+        val strDirecciones = direcciones.joinToString(separator = "\n") { fila ->
+            val calle = fila.getOrNull(0) ?: ""
+            val numero = fila.getOrNull(1) ?: ""
+            "$calle: $numero"
+        }
+        val direcionesSimilares = if (strDirecciones.length > 0) "Direcciones Similares:\n${strDirecciones}" else ""
         val cuerpo = """
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-            <meta charset="UTF-8">
-            <title>Su permiso ha sido DENEGADO</title>
-        </head>
-        <body>
-            <img src="https://lh7-us.googleusercontent.com/Dnh2ahdVtjFhMfAYbX900qZAgFwqDpnPsIrpVPYJWbB0P0Bo3XBvUFH0grcQg-HLcCfxrbOVfwrcnZt9b8qRHhop1ZCEURK1-71MT--1Qv_hIhAvDXKMi-d1212AEYQpJ8prPJhb4iqfUEfTCarcSL3vIfpyRGQPP_akpczJkuz7cTXN5p34eRJvgjHX0If52WmDhi3O?key=JeFt4ibeyu8-7qsUmC1ZjQ">
-            <p>Estimado/a ${permiso.solicitante},<br><br>
+        ##############################################
+        Su permiso ha sido       D E N E G A D O
+        ##############################################
         
-            Lamentamos informarle que su solicitud de permiso ha sido <h3><font color="red">DENEGADA.</font></h3><br>
-            </p>
-            <p>
-            Razón de la denegación:</br>
+        Estimado/a ${permiso.solicitante},
+        
+        Lamentamos informarle que su solicitud de permiso ha sido DENEGADA.
+            
+        Razón de la denegación:
             ${permiso.motivo_denegado}
-            </p>
+           
+        ${direcionesSimilares}
         
-            <p>Si tiene dudas, favor de contactar a la administración.</p>
-        </body>
-        </html>
+        Si tiene dudas, favor de contactar a la administración.
+
     """.trimIndent()
 
         dispararIntentCorreo(context, permiso.correo, sujeto, cuerpo)
@@ -281,4 +329,22 @@ class PermisosRVAdapter(
         }
     }
 
+    private fun permisosModalToList(permiso: PermisosModal): List<String>{
+        return listOf(
+            permiso.fechaCreado.toString(),             // FechaInicio
+            permiso.calle.toString(),                   // Calle
+            permiso.numero.toString(),                  // Numero
+            permiso.solicitante.toString(),             // Solicitante
+            permiso.correo.toString(),                  // email
+            permiso.tipoAcceso.toString(),              // Ingreso/Egreso
+            permiso.tipo.toString(),                    // Tipo Permiso
+            permiso.fechaInicio.toString(),             // Fecha Ini
+            permiso.fechaFin.toString(),                // Fecha Fin
+            permiso.descripcion.toString(),             // Descripcion
+            permiso.nombrePersonas.toString(),          // Nombre personas acceso
+            if(permiso.aprobado) "1" else "0",          // Aporbado
+            permiso.motivo_denegado.toString(),         // Motivo Denegado
+            if(permiso.procesado) "Si" else "No"        // Procesado por ROBOT
+        )
+    }
 }
