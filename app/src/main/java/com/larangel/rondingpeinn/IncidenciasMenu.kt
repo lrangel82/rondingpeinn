@@ -6,6 +6,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
@@ -16,13 +17,12 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.Environment
 import android.provider.MediaStore
 import android.widget.Button
 import android.widget.EditText
+import android.widget.GridLayout
 import android.widget.LinearLayout
 import android.widget.RadioButton
-import android.widget.RadioGroup
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AlertDialog
@@ -33,16 +33,15 @@ import androidx.core.graphics.scale
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.button.MaterialButton
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import com.larangel.rondingpeinn.VehicleSearchActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -50,7 +49,6 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Date
-import java.util.Locale
 
 class IncidenciasMenu : AppCompatActivity() {
     private var mySettings: MySettings? = null
@@ -72,7 +70,8 @@ class IncidenciasMenu : AppCompatActivity() {
 
     private val arrayBotonesIncidencias: ArrayList<Button>? = ArrayList<Button>()
     private var indexBtnClicked: Int = -1
-    private var configuraIncidencias: List<List<String>>? = listOf()//listOf(
+    private var configuraIncidencias: List<List<String>>? = listOf()
+    private lateinit var swipeRefreshLayout: SwipeRefreshLayout
 
     @SuppressLint("SetTextI18n")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -113,53 +112,118 @@ class IncidenciasMenu : AppCompatActivity() {
         }
 
         //Agregar Botones
-        val contenedor = findViewById<LinearLayout>(R.id.layoutBotonesIncidencias)
+//        val contenedor = findViewById<LinearLayout>(R.id.layoutBotonesIncidencias)
+//        configuraIncidencias?.forEachIndexed { index, rowIncidencia ->
+//            val nuevoBoton = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle)
+//            nuevoBoton.text = rowIncidencia[1].toString()
+//            nuevoBoton.id = index
+//            // Configura los parámetros de diseño (LayoutParams)
+//            val layoutParams = LinearLayout.LayoutParams(
+//                LinearLayout.LayoutParams.MATCH_PARENT, // Ancho
+//                LinearLayout.LayoutParams.WRAP_CONTENT // Alto
+//            )
+//            layoutParams.setMargins(16, 8, 16, 8) // Márgenes (izquierda, arriba, derecha, abajo)
+//            nuevoBoton.layoutParams = layoutParams
+//            nuevoBoton.setOnClickListener {
+//                indexBtnClicked = index
+//                showOpcionesDialog(rowIncidencia[0].toString())
+//            }
+//            // Agrega el botón al contenedor
+//            contenedor.addView(nuevoBoton)
+//            arrayBotonesIncidencias!!.add(nuevoBoton)
+//        }
+
+        findViewById<Button>(R.id.btnBackIncidenciasMenu).setOnClickListener { finish() }
+
+        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayoutIncidencias)
+        swipeRefreshLayout.setOnRefreshListener {
+            loadIncidencias(true)
+        }
+
+        loadIncidencias()
+    }
+
+    private fun crearBotonesIncidenciaDinamicos(){
+        val contenedor = findViewById<GridLayout>(R.id.contenedorBotones)
+        contenedor.removeAllViews()
+        arrayBotonesIncidencias!!.clear()
+
+        // Configurar columnas según la orientación
+        val orientacion = resources.configuration.orientation
+        if (orientacion == Configuration.ORIENTATION_LANDSCAPE) {
+            contenedor.columnCount = 3 // Máximo 3 columnas en horizontal
+        } else {
+            contenedor.columnCount = 1 // 1 columna (lista vertical) en retrato
+        }
+
         configuraIncidencias?.forEachIndexed { index, rowIncidencia ->
             val nuevoBoton = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle)
-            nuevoBoton.text = rowIncidencia[2].toString()
+            nuevoBoton.text = rowIncidencia[1].toString()
             nuevoBoton.id = index
-            // Configura los parámetros de diseño (LayoutParams)
-            val layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, // Ancho
-                LinearLayout.LayoutParams.WRAP_CONTENT // Alto
-            )
-            layoutParams.setMargins(16, 8, 16, 8) // Márgenes (izquierda, arriba, derecha, abajo)
-            nuevoBoton.layoutParams = layoutParams
+            nuevoBoton.layoutParams = GridLayout.LayoutParams().apply {
+                // Esto hace que el botón use el espacio disponible
+                width = 0
+                height = GridLayout.LayoutParams.WRAP_CONTENT
+                columnSpec = GridLayout.spec(GridLayout.UNDEFINED, 1f)
+                setMargins(8, 8, 8, 8) // Espaciado entre botones
+            }
             nuevoBoton.setOnClickListener {
                 indexBtnClicked = index
                 showOpcionesDialog(rowIncidencia[0].toString())
             }
             // Agrega el botón al contenedor
             contenedor.addView(nuevoBoton)
-            arrayBotonesIncidencias!!.add(nuevoBoton)
+            arrayBotonesIncidencias.add(nuevoBoton)
         }
-
-        findViewById<Button>(R.id.btnBackIncidenciasMenu).setOnClickListener { finish() }
-
-        loadIncidencias()
     }
 
-    private fun loadIncidencias() {
-        //val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
-        //lifecycleScope.launch(Dispatchers.IO) {
+    private fun loadIncidencias(forceLoad: Boolean = false) {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
-                configuraIncidencias?.forEachIndexed { index, rowIncidencia ->
-                    val tipo = rowIncidencia[0].toString()
-                    val textoBoton = rowIncidencia[1].toString()
-                    val eventos = dataRaw?.getIncidenciasEventosTipo(tipo,FechaIncidencias)
-                    arrayBotonesIncidencias?.get(index)?.text = "$textoBoton (${eventos?.size})"
-                }
+                swipeRefreshLayout.isRefreshing = true
 
+                configuraIncidencias = dataRaw?.getIncidenciasConfig(forceLoad) as List<List<String>>?
+                val totalEventos = dataRaw?.getIncidenciasEventos(forceLoad)?.count() ?: 0
+
+                withContext(Dispatchers.Main) {
+                    //Crear Botones
+                    crearBotonesIncidenciaDinamicos()
+
+                    //Total por categoria y fecha seleccionada
+                    configuraIncidencias?.forEachIndexed { index, rowIncidencia ->
+                        val tipo = rowIncidencia[0].toString()
+                        val textoBoton = rowIncidencia[1].toString()
+                        val eventos = dataRaw?.getIncidenciasEventosTipo(tipo, FechaIncidencias)
+                        arrayBotonesIncidencias?.get(index)?.text = "$textoBoton (${eventos?.size})"
+                    }
+                    //Total por dia
+                    val totalhoy = dataRaw?.getIncidenciasEventosDesde(LocalDate.now())?.count() ?: 0
+                    val totalayer =
+                        dataRaw?.getIncidenciasEventosDesde(LocalDate.now().minusDays(1))?.count() ?: 0
+                    val totalanti =
+                        dataRaw?.getIncidenciasEventosDesde(LocalDate.now().minusDays(2))?.count() ?: 0
+                    radioHoy.text = "Hoy (${totalhoy})"
+                    radioAyer.text = "Ayer (${(totalayer - totalhoy).coerceAtLeast(0)})"
+                    radioAntier.text = "Antier(${(totalanti - totalayer - totalhoy).coerceAtLeast(0)})"
+
+                    swipeRefreshLayout.isRefreshing = false
+                    Toast.makeText(
+                        this@IncidenciasMenu,
+                        "Incidencias cargadas: ${totalanti}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
             } catch (e: Exception) {
-                //withContext(Dispatchers.Main) {
+                withContext(Dispatchers.Main) {
+                    swipeRefreshLayout.isRefreshing = false
                     Toast.makeText(
                         this@IncidenciasMenu,
                         "Error loading Incidencias: ${e.message}",
                         Toast.LENGTH_SHORT
                     ).show()
-                //}
+                }
             }
-        //}
+        }
     }
 
     fun showOpcionesDialog(tipo: String) {

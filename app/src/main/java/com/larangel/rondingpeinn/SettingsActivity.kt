@@ -64,11 +64,6 @@ class SettingsActivity : AppCompatActivity() {
         val txtRegionStr: EditText = findViewById(R.id.txtRegionStr)
         val txtCodigoActivacion: EditText = findViewById(R.id.txtCodigoActivacion)
         val txtPwdPermisos: EditText = findViewById(R.id.txtPwdPermisos)
-//        //val txtSheetPermisos: EditText = findViewById(R.id.txtPermisosSheet)
-//        val txtRegistroCarrosSheetID: EditText = findViewById(R.id.txtBucketName)
-//        val txtParkingSheetID: EditText = findViewById(R.id.txtRegionStr)
-//        val txtPermisosSheetID: EditText = findViewById(R.id.txtCodigoActivacion)
-
 
         //Config data
         val _numTags            = mySettings?.getInt("rondin_num_tags",22).toString()
@@ -83,11 +78,6 @@ class SettingsActivity : AppCompatActivity() {
         txtCodigoActivacion.setText(_codigoActivacion)
         txtPwdPermisos.setText(_pwdPermisos)
 
-        //txtMapToken.setText(mySettings?.getString("rondin_map_token",""))
-        //txtSheetPermisos.setText(mySettings?.getString("url_googlesheet_permisos",""))
-//        txtRegistroCarrosSheetID.setText(mySettings?.getString("REGISTRO_CARROS_SPREADSHEET_ID","13rBJRlnD1qE1qe1dqbytn0zpZggo4uzW4-SQMHRz0cM"))
-//        txtParkingSheetID.setText(mySettings?.getString("PARKING_SPREADSHEET_ID","1cTuxxmZlPArfLXg0sR8fG0-rsTLOBRx-1AEeufiKz9M"))
-//        txtPermisosSheetID.setText(mySettings?.getString("PERMISOS_SPREADSHEET_ID","1vlbn_jHV5qKLjmZjuMMND1sJYle9fdHmjxSwiAArtos"))
     }
 
     fun salvarConfig(){
@@ -130,12 +120,6 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
-
-//        //mySettings?.saveString("rondin_map_token",txtMapToken.text.toString())
-//        //mySettings?.saveString("url_googlesheet_permisos", txtSheetPermisos.text.toString())
-//        mySettings?.saveString("REGISTRO_CARROS_SPREADSHEET_ID", txtRegistroCarrosSheetID.text.toString())
-//        mySettings?.saveString("PARKING_SPREADSHEET_ID", txtParkingSheetID.text.toString())
-//        mySettings?.saveString("PERMISOS_SPREADSHEET_ID", txtPermisosSheetID.text.toString())
     }
 
     // Utilidad simple para detectar red

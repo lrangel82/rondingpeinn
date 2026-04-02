@@ -10,71 +10,84 @@
     android:layout_marginTop="?attr/actionBarSize"
     android:layout_marginBottom="?attr/actionBarSize">
 
-    <ScrollView
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshLayoutIncidencias"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <LinearLayout
-            android:id="@+id/layoutBotonesIncidencias"
+        <ScrollView
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <Button
-                android:id="@+id/btnBackIncidenciasMenu"
-                android:layout_width="171dp"
-                android:layout_height="48dp"
-                android:text="Regresar" />
-
-            <TextView
-                android:id="@+id/textView8"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:gravity="center"
-                android:text="INCIDENCIAS"
-                android:textColor="@color/teal_700"
-                android:textSize="24sp"
-                android:textStyle="bold" />
+            android:layout_height="match_parent">
 
             <LinearLayout
+                android:id="@+id/layoutBotonesIncidencias"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingBottom="20dp">
+                android:orientation="vertical">
 
-                <RadioGroup
-                    android:id="@+id/radioG_FechaIncidencias"
+                <Button
+                    android:id="@+id/btnBackIncidenciasMenu"
+                    android:layout_width="171dp"
+                    android:layout_height="48dp"
+                    android:text="Regresar" />
+
+                <TextView
+                    android:id="@+id/textView8"
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:layout_weight="0.3"
-                    android:orientation="horizontal">
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center"
+                    android:text="INCIDENCIAS"
+                    android:textColor="@color/teal_700"
+                    android:textSize="24sp"
+                    android:textStyle="bold" />
 
-                    <RadioButton
-                        android:id="@+id/radioButtonDayAntier"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingBottom="20dp">
+
+                    <RadioGroup
+                        android:id="@+id/radioG_FechaIncidencias"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
                         android:layout_weight="0.3"
-                        android:text="Antier" />
+                        android:orientation="horizontal">
 
-                    <RadioButton
-                        android:id="@+id/radioButtonDayAyer"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="0.3"
-                        android:text="Ayer" />
+                        <RadioButton
+                            android:id="@+id/radioButtonDayAntier"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="0.3"
+                            android:text="Antier" />
 
-                    <RadioButton
-                        android:id="@+id/radioButtonDayHoy"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="0.3"
-                        android:text="Hoy" />
-                </RadioGroup>
+                        <RadioButton
+                            android:id="@+id/radioButtonDayAyer"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="0.3"
+                            android:text="Ayer" />
 
+                        <RadioButton
+                            android:id="@+id/radioButtonDayHoy"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="0.3"
+                            android:text="Hoy" />
+                    </RadioGroup>
+
+                </LinearLayout>
+
+                <GridLayout
+                    android:id="@+id/contenedorBotones"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:columnCount="1"
+                    android:orientation="horizontal" />
             </LinearLayout>
-        </LinearLayout>
-    </ScrollView>
+        </ScrollView>
 
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

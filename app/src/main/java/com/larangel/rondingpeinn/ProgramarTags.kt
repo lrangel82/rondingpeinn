@@ -48,14 +48,11 @@ class ProgramarTags : AppCompatActivity() {
     private var intentNFCFiltersArray: Array<IntentFilter>? = null
     private var techNFCListsArray: Array<Array<String>>? = null//        }
 
-        private lateinit var recyclerView: RecyclerView
-        private lateinit var dataList: MutableList<CheckPoint>
-        private lateinit var myAdapter: CheckPointAdapter
 
-        private var wichCheckpointToSave: CheckPoint? = null
-        private var locationListener: LocationListener? = null
+    private var wichCheckpointToSave: CheckPoint? = null
+    private var locationListener: LocationListener? = null
 
-        private var isScanning: Boolean? = false
+    private var isScanning: Boolean? = false
 
 
         @SuppressLint("MissingInflatedId")
@@ -109,24 +106,6 @@ class ProgramarTags : AppCompatActivity() {
                 startActivity(Intent(this, SettingsActivity::class.java ))
             }
 
-//        //LISTADO de checkpoints
-//        recyclerView = findViewById(R.id.recyclerView)
-
-//        dataList = mutableListOf(
-//            CheckPoint("DR006", 20.660325, -103.446918, false),
-//
-//        )
-
-//        myAdapter = CheckPointAdapter(dataList) { item ->
-//            val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
-//            btnProgramarTag.setEnabled(true)
-//            btnProgramarTag.text="Programar TAG " + item.identificador
-//            wichCheckpointToSave=item
-
-//        recyclerView.adapter = myAdapter
-
-//        val layoutManager = LinearLayoutManager(this)
-//        recyclerView.layoutManager = layoutManager
 
         //Request GPS Permissions
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)

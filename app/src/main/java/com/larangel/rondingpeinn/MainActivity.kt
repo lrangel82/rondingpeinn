@@ -18,18 +18,12 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
-import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.gson.GsonFactory
-import com.google.api.services.sheets.v4.Sheets
-import com.larangel.rondingpeinn.R
-import com.larangel.rondingpeinn.VehicleSearchActivity
 import com.larangel.rondingpeinn.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.w3c.dom.Text
+import java.time.LocalDate
 
 class MainActivity : AppCompatActivity() {
 
@@ -134,7 +128,7 @@ class MainActivity : AppCompatActivity() {
             val multas = dataRaw?.getMultas(forceLoad)
             val domiciliosWarnings = dataRaw?.getDomicilioWarnings(forceLoad)
             val permisosData = dataRaw?.getPermisosCache_DeHoy(forceLoad)
-            val configIncidencias = dataRaw?.getIncidenciasConfig(forceLoad)
+            val incidenciasData = dataRaw?.getIncidenciasEventos(forceLoad)
 
             withContext(Dispatchers.Main) {
                 //Una ves finalizado enviar la info a la UI
@@ -195,7 +189,7 @@ class MainActivity : AppCompatActivity() {
                                         "Permisos: ${permisosData?.count()}\n" +
                                         "Vehiculos: ${vehiculosData?.count()}\n" +
                                         "Tags: ${tagsData?.count()}\n" +
-                                        "IncidenciasConfig: ${configIncidencias?.count()}"
+                                        "Incidencias: ${incidenciasData?.count()}"
                             )
                             .setPositiveButton("OK", null)
                             .show()
@@ -228,15 +222,24 @@ class MainActivity : AppCompatActivity() {
     private fun updateTextoBotones(){
         val vehiculosData = dataRaw?.getCachedVehiclesData()
         val permisosData = dataRaw?.getPermisosCache_DeHoy()
+        val incidenciasData = dataRaw?.getIncidenciasEventosDesde(LocalDate.now().minusDays(2)) //Desde antier (3 dias)
 
-        //Init textos
+        //Nombre coto
         val nombreCoto: TextView = findViewById<TextView>(R.id.txtCotoName)
         val str_coto = mySettings?.getString("COTO","Version Gratuita")
         nombreCoto.text = mySettings?.getString("COTO","Version Gratuita")
+
+        //Vehiculos
         val btn_vehiculos: Button = findViewById(R.id.btn_vehiculos)
         btn_vehiculos.text = "MAPA v:${vehiculosData?.count()}"
+
+        //Permisos
         val btn_permisos: Button = findViewById(R.id.btn_permisos)
         btn_permisos.text = "Permisos ${permisosData?.count()}"
+
+        //Incidencias
+        val btn_incidencias: Button = findViewById(R.id.btnIncidenciasMain)
+        btn_incidencias.text = "Incidencias ${incidenciasData?.count()}"
 
         //ES ADMIN mostrar el boton de config
         val esAdmin = mySettings?.getInt("ESADMIN",0)

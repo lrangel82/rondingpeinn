@@ -525,13 +525,20 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                 val procesadoRobot = row.getOrNull(13)?.toString() ?: ""
 
                 if ( !stringTrue.contains(procesadoRobot) && esAdmin == 1){ //Si es Admin regresar los no validados
+                    //No ha sido procesado y es admin
                     true
-                }else if (fechaInicioStr.isNotBlank() && fechaFinStr.isNotBlank() && stringTrue.contains(procesadoRobot)) {
+                }
+                else if (fechaInicioStr.isNotBlank() && fechaFinStr.isNotBlank() && stringTrue.contains(procesadoRobot)) {
+                    //Esta dentro de las fechas y fue procesado
                     val inicio = LocalDate.parse(fechaInicioStr, flexibleDateFormatter)
                     val fin = LocalDate.parse(fechaFinStr, flexibleDateFormatter)
                     // Verificamos si hoy está dentro del rango (inclusive)
-                    hoy >= inicio && hoy <= fin
-                } else {
+                    if(esAdmin == 1)
+                        hoy <= inicio
+                    else
+                        hoy >= inicio && hoy <= fin
+                }
+                else {
                     false
                 }
             } catch (e: Exception) {
@@ -940,10 +947,16 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             allRows
         }
     }
+    fun getIncidenciasEventosDesde(fechaDay: LocalDate = LocalDate.now()): List<List<Any>>{
+        val rows = getIncidenciasEventos()
+        return rows.filter{ LocalDate.parse(it[2].toString(),flexibleDateFormatter) >= fechaDay}
+    }
     fun getIncidenciasEventosTipo(Tipo: String, fechaDay: LocalDate = LocalDate.now()): List<List<Any>>{
         val rows = getIncidenciasEventos()
-        //val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-        val IncidenciaEvents = rows.filter { LocalDate.parse(it[2].toString(),flexibleDateTimeFormatter) == fechaDay && it[4].toString().uppercase() == Tipo.uppercase() }
+        //val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+        val IncidenciaEvents = rows.filter {
+            LocalDate.parse(it[2].toString(),flexibleDateFormatter) == fechaDay
+                    && it[4].toString().uppercase() == Tipo.uppercase() }
         return IncidenciaEvents ?: emptyList()
 
     }

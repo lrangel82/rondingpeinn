@@ -1905,6 +1905,15 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
         val builder = LatLngBounds.Builder()
         checkPoints.forEach { builder.include(LatLng(it.latitud,it.longitud)) }
+        dataRaw?.getParkingSlots()?.forEach {
+            try{
+                val lat = it[0].toString().toDoubleOrNull() ?: 0.0
+                val lon = it[1].toString().toDoubleOrNull() ?: 0.0
+                builder.include(LatLng(lat,lon))
+            }catch (e: Exception) {
+                null
+            }
+        }
         val bounds = builder.build()
         val padding = 100 // offset from edges of the map in pixels
         val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, padding)
@@ -1923,6 +1932,94 @@ class  VehicleSearchActivity : AppCompatActivity() {
 //
 //        }
     }
+    suspend fun obtenerMapaRondinAllTAGS(minutosTotales: Long = 0): Uri? {
+
+        // Movemos la cámara primero
+        moveCameraToShowAllTAGS()
+
+        // Esperamos a que el mapa esté en reposo (Idle)
+        // Usamos esta pequeña función auxiliar para esperar el evento Idle
+        esperarCamaraIdle()
+
+        // AGREGAMOS EL DELAY: Damos 500ms extras para que los iconos de los tags se pinten
+        delay(1000)
+
+        // Ahora sí, disparamos el snapshot y esperamos el resultado
+        return capturarSnapshotConTexto(minutosTotales)
+    }
+    private suspend fun esperarCamaraIdle() = suspendCancellableCoroutine<Unit> { cont ->
+        googleMap?.setOnCameraIdleListener {
+            googleMap?.setOnCameraIdleListener(null)
+            if (cont.isActive) cont.resume(Unit,null)
+        }
+    }
+    suspend fun capturarSnapshotConTexto(minutosTotales: Long = 0): Uri? = suspendCancellableCoroutine { continuation ->
+        googleMap?.snapshot { bitmap ->
+            if (bitmap == null) {
+                continuation.resume(null,null)
+                return@snapshot
+            }
+
+            try {
+                val tPBarParkingSlots: TextView = findViewById<TextView>(R.id.txtPBar_ParkingSlots)
+                val msgMapa = "GpeINN Rondin: ${
+                    LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm"))
+                }"
+                val msg2Mapa = "Tiempo: ${minutosTotales} min"
+                val msg3Mapa = tPBarParkingSlots.text.toString()
+                // 1. Copy of bitmap
+                var bitmaptext = bitmap!!.copy(Bitmap.Config.ARGB_8888, true)
+                // 2. Create a Canvas to draw on the Bitmap
+                val canvas = Canvas(bitmaptext)
+
+                // 3. Define the Paint object for the text
+                val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+                paint.color = Color.GREEN // Set text color
+                paint.textSize = 50f // Set text size in pixels
+                paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+                paint.setShadowLayer(2f, 1f, 1f, Color.BLACK) // Add a slight shadow
+
+                // 4. Calculate the text position
+                val textBounds = Rect()
+                paint.getTextBounds(msgMapa, 0, msgMapa.length, textBounds)
+                val textBounds3 = Rect()
+                paint.getTextBounds(msg3Mapa, 0, msg3Mapa.length, textBounds3)
+
+                // Position the text at the bottom center of the image
+                val x = (bitmaptext.width - textBounds.width()) / 2f
+                val y =
+                    (bitmaptext.height + textBounds.height()) - 100f // 20f for padding from bottom
+
+                // 5. Draw the text onto the canvas
+                canvas.drawText(msgMapa, x, y, paint)
+                canvas.drawText(msg2Mapa, 5F, 55F, paint)
+                canvas.drawText(msg3Mapa, bitmaptext.width - textBounds3.width() - 5f, 55f, paint)
+
+                //########### Save the photo
+                val imageFile =
+                    File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "map_snapshot.png")
+                FileOutputStream(imageFile).use { out ->
+                    bitmaptext.compress(Bitmap.CompressFormat.PNG, 100, out)
+                }
+                //############ Send de message
+                // Creating intent with action send
+                val imageUri: Uri? = try {
+                    FileProvider.getUriForFile(
+                        applicationContext,
+                        "${packageName}.fileprovider", // Replace with your actual provider authority
+                        imageFile
+                    )
+                } catch (e: IllegalArgumentException) {
+                    // Handle the case where the file is not found or the FileProvider is not configured correctly
+                    null
+                }
+                continuation.resume(imageUri, null)
+            }catch (e: Exception) {
+                continuation.resume(null,null)
+            }
+
+        } // end google map snapshot
+    }
     fun enviarFinRondintoWhatsapp(){
         val checkPoints = mySettings?.getListCheckPoint("LIST_CHECKPOINT")!!.toMutableList()
         val tPBarParkingSlots: TextView = findViewById<TextView>(R.id.txtPBar_ParkingSlots)
@@ -1938,56 +2035,11 @@ class  VehicleSearchActivity : AppCompatActivity() {
             minutosTotales = 0
         }
         message+="END TIME:"+LocalDateTime.now().toString()+"\n"
-        moveCameraToShowAllTAGS()
-        googleMap?.snapshot { bitmap ->
-            val msgMapa = "GpeINN Rondin: ${LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm"))}"
-            val msg2Mapa = "Tiempo: ${minutosTotales} min"
-            val msg3Mapa = tPBarParkingSlots.text.toString()
-            // 1. Copy of bitmap
-            var bitmaptext = bitmap!!.copy(Bitmap.Config.ARGB_8888, true)
-            // 2. Create a Canvas to draw on the Bitmap
-            val canvas = Canvas(bitmaptext)
 
-            // 3. Define the Paint object for the text
-            val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-            paint.color = Color.GREEN // Set text color
-            paint.textSize = 50f // Set text size in pixels
-            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-            paint.setShadowLayer(2f, 1f, 1f, Color.BLACK) // Add a slight shadow
+        lifecycleScope.launch {
+            val imageUri = obtenerMapaRondinAllTAGS(minutosTotales)
 
-            // 4. Calculate the text position
-            val textBounds = Rect()
-            paint.getTextBounds(msgMapa, 0, msgMapa.length, textBounds)
-            val textBounds3 = Rect()
-            paint.getTextBounds(msg3Mapa,0,msg3Mapa.length, textBounds3)
-
-            // Position the text at the bottom center of the image
-            val x = (bitmaptext.width - textBounds.width()) / 2f
-            val y = (bitmaptext.height + textBounds.height()) - 100f // 20f for padding from bottom
-
-            // 5. Draw the text onto the canvas
-            canvas.drawText(msgMapa, x, y, paint)
-            canvas.drawText(msg2Mapa, 5F, 55F, paint)
-            canvas.drawText(msg3Mapa, bitmaptext.width - textBounds3.width() - 5f, 55f,paint)
-
-            //########### Save the photo
-            val imageFile = File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "map_snapshot.png")
-            FileOutputStream(imageFile).use { out ->
-                bitmaptext.compress(Bitmap.CompressFormat.PNG, 100, out)
-            }
-            //############ Send de message
-            // Creating intent with action send
-            val imageUri: Uri? = try {
-                FileProvider.getUriForFile(
-                    applicationContext,
-                    "${packageName}.fileprovider", // Replace with your actual provider authority
-                    imageFile
-                )
-            } catch (e: IllegalArgumentException) {
-                // Handle the case where the file is not found or the FileProvider is not configured correctly
-                null
-            }
-
+            //ENVIAR Mensaje por whatsapp
             val sendIntent: Intent = Intent(Intent.ACTION_SEND).apply {
                 type = "image/*"
                 putExtra(Intent.EXTRA_TEXT, message)
@@ -2012,8 +2064,82 @@ class  VehicleSearchActivity : AppCompatActivity() {
             tPBarCheckPoints.visibility = View.GONE
             txtLog.setText("")
             //######## FIN Limpiar Memoria ##################################
-
-        } // end google map snapshot
+        }
+//        googleMap?.snapshot { bitmap ->
+//            val msgMapa = "GpeINN Rondin: ${LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm"))}"
+//            val msg2Mapa = "Tiempo: ${minutosTotales} min"
+//            val msg3Mapa = tPBarParkingSlots.text.toString()
+//            // 1. Copy of bitmap
+//            var bitmaptext = bitmap!!.copy(Bitmap.Config.ARGB_8888, true)
+//            // 2. Create a Canvas to draw on the Bitmap
+//            val canvas = Canvas(bitmaptext)
+//
+//            // 3. Define the Paint object for the text
+//            val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+//            paint.color = Color.GREEN // Set text color
+//            paint.textSize = 50f // Set text size in pixels
+//            paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+//            paint.setShadowLayer(2f, 1f, 1f, Color.BLACK) // Add a slight shadow
+//
+//            // 4. Calculate the text position
+//            val textBounds = Rect()
+//            paint.getTextBounds(msgMapa, 0, msgMapa.length, textBounds)
+//            val textBounds3 = Rect()
+//            paint.getTextBounds(msg3Mapa,0,msg3Mapa.length, textBounds3)
+//
+//            // Position the text at the bottom center of the image
+//            val x = (bitmaptext.width - textBounds.width()) / 2f
+//            val y = (bitmaptext.height + textBounds.height()) - 100f // 20f for padding from bottom
+//
+//            // 5. Draw the text onto the canvas
+//            canvas.drawText(msgMapa, x, y, paint)
+//            canvas.drawText(msg2Mapa, 5F, 55F, paint)
+//            canvas.drawText(msg3Mapa, bitmaptext.width - textBounds3.width() - 5f, 55f,paint)
+//
+//            //########### Save the photo
+//            val imageFile = File(getExternalFilesDir(Environment.DIRECTORY_PICTURES), "map_snapshot.png")
+//            FileOutputStream(imageFile).use { out ->
+//                bitmaptext.compress(Bitmap.CompressFormat.PNG, 100, out)
+//            }
+//            //############ Send de message
+//            // Creating intent with action send
+//            val imageUri: Uri? = try {
+//                FileProvider.getUriForFile(
+//                    applicationContext,
+//                    "${packageName}.fileprovider", // Replace with your actual provider authority
+//                    imageFile
+//                )
+//            } catch (e: IllegalArgumentException) {
+//                // Handle the case where the file is not found or the FileProvider is not configured correctly
+//                null
+//            }
+//
+//            val sendIntent: Intent = Intent(Intent.ACTION_SEND).apply {
+//                type = "image/*"
+//                putExtra(Intent.EXTRA_TEXT, message)
+//                putExtra(Intent.EXTRA_STREAM, imageUri)
+//                putExtra("android.intent.extra.TEXT", message)
+//                //type = "text/plain"
+//                //type = "*/*"
+//                //setPackage("com.whatsapp")
+//                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+//            }
+//            val shareIntent = Intent.createChooser(sendIntent, "Enviar rondin con...")
+//            startActivity(shareIntent)
+//
+//            //######## Limpiar Memoria #####################################
+//            mySettings?.saveListCheckPoint("LIST_CHECKPOINT",mutableListOf())
+//            stopNFC()
+//            //Ocultar barProgress
+//            val pBarCheckPoints: ProgressBar = findViewById<ProgressBar>(R.id.progressBar_CheckPoints)
+//            val tPBarCheckPoints: TextView = findViewById<TextView>(R.id.txtPBar_CheckPoints)
+//            val txtLog: TextView = findViewById<EditText>(R.id.resultText)
+//            pBarCheckPoints.visibility = View.GONE
+//            tPBarCheckPoints.visibility = View.GONE
+//            txtLog.setText("")
+//            //######## FIN Limpiar Memoria ##################################
+//
+//        } // end google map snapshot
 
     }// end SendMessage
     //##################### FIN RONDINERO ##############
