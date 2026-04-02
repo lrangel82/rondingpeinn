@@ -893,6 +893,45 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
 
         return true
     }
+    fun eliminarAutosEventoCache(row: List<String>): Boolean{
+        val state = tableStates[SheetTable.AUTOS_EVENTOS] ?: return false
+
+        var indexFind = -1
+        // 1. Aseguramos que la RAM tenga datos (Carga desde RAM -> Disco -> Red)
+        if (state.cache == null) runBlocking { getAutosEventos() }
+        val currentCache = state.cache?.toMutableList() ?: return false
+
+        // 2. Búsqueda por fecha de creacion
+        val pCreadp = LocalDateTime.parse(row[2].toString(), flexibleDateTimeFormatter)
+        currentCache.forEachIndexed { index, evento ->
+            val _fCreado = LocalDateTime.parse(evento[2].toString(), flexibleDateTimeFormatter)
+            if (evento.size >= 4 &&
+                pCreadp == _fCreado ) {
+                indexFind = index
+                return@forEachIndexed
+            }
+        }
+
+        if (indexFind >= 0) {
+            // 2. Eliminar de la RAM inmediatamente para que el usuario ya no lo vea
+            currentCache.removeAt(indexFind)
+            state.cache = currentCache
+
+            // 3. Actualizar el caché de disco (MySettings) para persistir el cambio visual
+            mySettings.saveList("${SheetTable.AUTOS_EVENTOS.cacheKey}_CACHE", currentCache as List<List<String>>)
+            mySettings.saveLong(SheetTable.AUTOS_EVENTOS.timestampKey, System.currentTimeMillis())
+
+            /**
+             * 4. Disparar el borrado en la Nube.
+             * Usamos indexFind + 1 (si no hay encabezado) o + 2 (si hay encabezado).
+             */
+            sync(SheetTable.AUTOS_EVENTOS, Operation.DELETE, index = indexFind + 2)
+
+            return true
+        }
+
+        return false // No se encontró el registro
+    }
 
     //IncidenciasEventos
     fun getIncidenciasConfig(forceLoad: Boolean = false): List<List<Any>> = runBlocking {

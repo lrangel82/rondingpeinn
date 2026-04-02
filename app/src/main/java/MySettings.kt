@@ -104,26 +104,31 @@ class MySettings(context: Context) {
             putString("WS_MULTAS_GENERADAS", WS_MULTAS_GENERADAS)
             putString("WS_DOMICILIO_WARNINGS", WS_DOMICILIO_WARNINGS)
 
-            //CLEAN TIME CACHE
-            putLong("PERMISOS_CACHE_TIMESTAMP",0)
-            putLong("VEHICLE_CACHE_TIMESTAMP",0)
-            putLong("TAGS_CACHE_TIMESTAMP",0)
-            putLong("DIRECTIONS_CACHE_TIMESTAMP",0)
-            putLong("PORREVISAR_CACHE_TIMESTAMP",0)
-            putLong("PARKINGSLOTS_CACHE_TIMESTAMP",0)
-            putLong("EVENTOS_CACHE_TIMESTAMP",0)
-            putLong("INCIDENCIACONFIG_CACHE_TIMESTAMP",0)
-            putLong("INCIDENCIAEVENTOS_CACHE_TIMESTAMP",0)
-            putLong("MULTAS_CACHE_TIMESTAMP",0)
-            putLong("DOMICILIOWARNINGS_CACHE_TIMESTAMP",0)
+            //CLEAN CACHE TIME
+            SheetTable.values().forEach{table ->
+                putLong(table.timestampKey,0)
+            }
+//            putLong("PERMISOS_CACHE_TIMESTAMP",0)
+//            putLong("VEHICLE_CACHE_TIMESTAMP",0)
+//            putLong("TAGS_CACHE_TIMESTAMP",0)
+//            putLong("DIRECTIONS_CACHE_TIMESTAMP",0)
+//            putLong("PORREVISAR_CACHE_TIMESTAMP",0)
+//            putLong("PARKINGSLOTS_CACHE_TIMESTAMP",0)
+//            putLong("EVENTOS_CACHE_TIMESTAMP",0)
+//            putLong("INCIDENCIACONFIG_CACHE_TIMESTAMP",0)
+//            putLong("INCIDENCIAEVENTOS_CACHE_TIMESTAMP",0)
+//            putLong("MULTAS_CACHE_TIMESTAMP",0)
+//            putLong("DOMICILIOWARNINGS_CACHE_TIMESTAMP",0)
 
             //Validar ADMIN para PERMISOS
-            val sheet_permisos_id = getSimpleList("PERMISOS_SPREADSHEET_ID")[0].toString()
-            val pwdPermisos = getString("PASSWORD_PERMISOS","").toString()
-            if (pwdPermisos.length > 0 && sheet_permisos_id.startsWith(pwdPermisos))
-                putInt("ESADMIN",1)
-            else
-                putInt("ESADMIN",0)
+            val jsondata = Json.decodeFromString<List<String>>(PERMISOS_SPREADSHEET_ID)
+            putInt("ESADMIN", 0)
+            if (jsondata.size >= 1) {
+                val sheet_permisos_id = jsondata[0].toString()
+                val pwdPermisos = getString("PASSWORD_PERMISOS", "").toString()
+                if (pwdPermisos.length > 0 && sheet_permisos_id.startsWith(pwdPermisos))
+                    putInt("ESADMIN", 1)
+            }
             apply()
         }
     }
@@ -145,31 +150,39 @@ class MySettings(context: Context) {
             putString("WS_MULTAS_GENERADAS", "")
             putString("WS_DOMICILIO_WARNINGS", "")
 
-            //CLEAN TIME CACHE
-            putLong("PERMISOS_CACHE_TIMESTAMP",0)
-            putLong("VEHICLE_CACHE_TIMESTAMP",0)
-            putLong("TAGS_CACHE_TIMESTAMP",0)
-            putLong("DIRECTIONS_CACHE_TIMESTAMP",0)
-            putLong("PORREVISAR_CACHE_TIMESTAMP",0)
-            putLong("PARKINGSLOTS_CACHE_TIMESTAMP",0)
-            putLong("EVENTOS_CACHE_TIMESTAMP",0)
-            putLong("INCIDENCIACONFIG_CACHE_TIMESTAMP",0)
-            putLong("INCIDENCIAEVENTOS_CACHE_TIMESTAMP",0)
-            putLong("MULTAS_CACHE_TIMESTAMP",0)
-            putLong("DOMICILIOWARNINGS_CACHE_TIMESTAMP",0)
-
-            //CLEAN DATA CACHE
-            putString("PERMISOS_CACHE","[]")
-            putString("VEHICLE_CACHE","[]")
-            putString("TAGS_CACHE","[]")
-            putString("DIRECTIONS_CACHE","[]")
-            putString("PORREVISAR_CACHE","[]")
-            putString("PARKINGSLOTS_CACHE","[]")
-            putString("EVENTOS_CACHE","[]")
-            putString("INCIDENCIACONFIG_CACHE","[]")
-            putString("INCIDENCIAEVENTOS_CACHE","[]")
-            putString("MULTAS_CACHE","[]")
-            putString("DOMICILIOWARNINGS_CACHE","[]")
+            //CLEAN CACHE
+            SheetTable.values().forEach{table ->
+                putLong(table.timestampKey,0)
+                saveList(table.saveKey, listOf<List<String>>())
+                saveList(table.updateKey, listOf<List<String>>())
+                saveList(table.updateIdxKey, listOf<List<String>>())
+                saveList(table.deleteIdxKey, listOf<List<String>>())
+                saveList("${table.cacheKey}_CACHE", listOf<List<String>>())
+            }
+//            putLong("PERMISOS_CACHE_TIMESTAMP",0)
+//            putLong("VEHICLE_CACHE_TIMESTAMP",0)
+//            putLong("TAGS_CACHE_TIMESTAMP",0)
+//            putLong("DIRECTIONS_CACHE_TIMESTAMP",0)
+//            putLong("PORREVISAR_CACHE_TIMESTAMP",0)
+//            putLong("PARKINGSLOTS_CACHE_TIMESTAMP",0)
+//            putLong("EVENTOS_CACHE_TIMESTAMP",0)
+//            putLong("INCIDENCIACONFIG_CACHE_TIMESTAMP",0)
+//            putLong("INCIDENCIAEVENTOS_CACHE_TIMESTAMP",0)
+//            putLong("MULTAS_CACHE_TIMESTAMP",0)
+//            putLong("DOMICILIOWARNINGS_CACHE_TIMESTAMP",0)
+//
+//            //CLEAN DATA CACHE
+//            putString("PERMISOS_CACHE","[]")
+//            putString("VEHICLE_CACHE","[]")
+//            putString("TAGS_CACHE","[]")
+//            putString("DIRECTIONS_CACHE","[]")
+//            putString("PORREVISAR_CACHE","[]")
+//            putString("PARKINGSLOTS_CACHE","[]")
+//            putString("EVENTOS_CACHE","[]")
+//            putString("INCIDENCIACONFIG_CACHE","[]")
+//            putString("INCIDENCIAEVENTOS_CACHE","[]")
+//            putString("MULTAS_CACHE","[]")
+//            putString("DOMICILIOWARNINGS_CACHE","[]")
             apply()
         }
     }

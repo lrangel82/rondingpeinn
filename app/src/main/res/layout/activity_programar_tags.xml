@@ -9,7 +9,7 @@
 
     <LinearLayout
         android:layout_width="fill_parent"
-        android:layout_height="547dp"
+        android:layout_height="match_parent"
         android:layout_marginTop="58dp"
         android:orientation="vertical"
         app:layout_constraintTop_toTopOf="parent"
@@ -77,32 +77,69 @@
         <TextView
             android:id="@+id/txtlog2"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" />
+            android:layout_height="70dp" />
 
-    </LinearLayout>
 
-    <LinearLayout
-        android:id="@+id/linearLayout3"
-        android:layout_width="match_parent"
-        android:layout_height="80dp"
-        android:orientation="horizontal"
-        app:layout_constraintBottom_toBottomOf="parent"
-        tools:layout_editor_absoluteX="23dp">
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="1">
 
-        <ImageButton
-            android:id="@+id/btnSettings"
-            android:layout_width="100dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            app:srcCompat="@android:drawable/ic_dialog_info" />
+            <fragment
+                android:id="@+id/map_fragment_programarTags"
+                class="com.google.android.gms.maps.SupportMapFragment"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                app:mapId="839c8b86b29f05fd"
+                app:uiZoomControls="true" />
 
-        <Button
-            android:id="@+id/btn_cerrar"
-            style="@style/Widget.AppCompat.Button"
-            android:layout_width="180dp"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            android:text="Cerrar" />
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center"
+                android:translationY="-20dp"
+                android:src="@android:drawable/ic_menu_myplaces"
+                android:contentDescription="Puntero central"
+                app:tint="@color/design_default_color_primary" />
+
+            <ImageButton
+                android:id="@+id/btn_recuperar_gps"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_gravity="top|end"
+                android:layout_margin="16dp"
+                android:background="@android:color/white"
+                android:elevation="4dp"
+                android:padding="8dp"
+                android:scaleType="fitCenter"
+                android:contentDescription="Mi Posicion"
+                app:srcCompat="@android:drawable/ic_menu_mylocation"
+                app:tint="@color/design_default_color_primary" />
+
+        </FrameLayout>
+
+        <LinearLayout
+            android:id="@+id/linearLayout3"
+            android:layout_width="match_parent"
+            android:layout_height="80dp"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnSettings"
+                android:layout_width="100dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:contentDescription="Licencia"
+                app:srcCompat="@android:drawable/ic_dialog_info" />
+
+            <Button
+                android:id="@+id/btn_cerrar"
+                style="@style/Widget.AppCompat.Button"
+                android:layout_width="180dp"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:text="Cerrar" />
+        </LinearLayout>
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -26,7 +26,6 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
-import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
@@ -37,12 +36,22 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.larangel.rondingpeinn.VehicleSearchActivity
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import java.nio.charset.Charset
 
+import com.google.android.gms.maps.CameraUpdateFactory
+import com.google.android.gms.maps.GoogleMap
+import com.google.android.gms.maps.OnMapReadyCallback
+import com.google.android.gms.maps.SupportMapFragment
+import com.google.android.gms.maps.model.LatLng
+
 class ProgramarTags : AppCompatActivity() {
+    private var googleMap: GoogleMap? = null
+    private var isManualMode = false // Controla si mandamos nosotros o el GPS
+    private var lastGpsLocation: LatLng? = null
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+
     private var nfcAdapter: NfcAdapter? = null
     private var pendingNFCIntent: PendingIntent? = null
     private var intentNFCFiltersArray: Array<IntentFilter>? = null
@@ -55,56 +64,70 @@ class ProgramarTags : AppCompatActivity() {
     private var isScanning: Boolean? = false
 
 
-        @SuppressLint("MissingInflatedId")
-        override fun onCreate(savedInstanceState: Bundle?) {
-            super.onCreate(savedInstanceState)
-            enableEdgeToEdge()
-            setContentView(R.layout.activity_programar_tags)
+    @SuppressLint("MissingInflatedId")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        setContentView(R.layout.activity_programar_tags)
 
-            //######### Setup all for READING tags NFC and write
-            nfcAdapter =  NfcAdapter.getDefaultAdapter(this)
-            //Setting Pending intent
-            pendingNFCIntent = PendingIntent.getActivity(
-                this, 0, Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
-                PendingIntent.FLAG_MUTABLE
-            )
-            // Setup an intent filter for all MIME based dispatches
-            val ndef = IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED).apply {
-                try {
-                    addDataType("*/*")
-                } catch (e: MalformedMimeTypeException) {
-                    throw RuntimeException("fail", e)
-                }
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        //######### Setup all for READING tags NFC and write
+        nfcAdapter =  NfcAdapter.getDefaultAdapter(this)
+        //Setting Pending intent
+        pendingNFCIntent = PendingIntent.getActivity(
+            this, 0, Intent(this, javaClass).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP),
+            PendingIntent.FLAG_MUTABLE
+        )
+        // Setup an intent filter for all MIME based dispatches
+        val ndef = IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED).apply {
+            try {
+                addDataType("*/*")
+            } catch (e: MalformedMimeTypeException) {
+                throw RuntimeException("fail", e)
             }
-            intentNFCFiltersArray = arrayOf(ndef, IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED), IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED))
-            // Setup a tech list for all Ndef tags
-            techNFCListsArray = arrayOf(
-                arrayOf(Ndef::class.java.name),
-                arrayOf(android.nfc.tech.NfcA::class.java.name),
-                arrayOf(android.nfc.tech.NfcB::class.java.name),
-                arrayOf(android.nfc.tech.IsoDep::class.java.name),
-                arrayOf(android.nfc.tech.MifareClassic::class.java.name),
-                arrayOf(android.nfc.tech.MifareUltralight::class.java.name)
-            )
-            InitNFC()
-            //######### FIN Setup NFC #########################
+        }
+        intentNFCFiltersArray = arrayOf(ndef, IntentFilter(NfcAdapter.ACTION_TECH_DISCOVERED), IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED))
+        // Setup a tech list for all Ndef tags
+        techNFCListsArray = arrayOf(
+            arrayOf(Ndef::class.java.name),
+            arrayOf(android.nfc.tech.NfcA::class.java.name),
+            arrayOf(android.nfc.tech.NfcB::class.java.name),
+            arrayOf(android.nfc.tech.IsoDep::class.java.name),
+            arrayOf(android.nfc.tech.MifareClassic::class.java.name),
+            arrayOf(android.nfc.tech.MifareUltralight::class.java.name)
+        )
+        InitNFC()
+        //######### FIN Setup NFC #########################
 
+        // Inicializar el Mapa
+        setupMap()
 
-            val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
-            btnProgramarTag.setOnClickListener{
-                clickProgramarTag()
+        // Botón para volver al GPS
+        val btnRecuperarGPS: ImageButton = findViewById(R.id.btn_recuperar_gps)
+        btnRecuperarGPS.setOnClickListener {
+            isManualMode = false
+            lastGpsLocation?.let { loc ->
+                googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 17f))
+                actualizarUI(loc.latitude, loc.longitude)
             }
+        }
 
-            val btncerrar: Button = findViewById<Button>(R.id.btn_cerrar)
-            btncerrar.setOnClickListener{
-                val intent: Intent = Intent(this, MainActivity::class.java )
-                startActivity(intent)
-            }
+        val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
+        btnProgramarTag.setOnClickListener{
+            clickProgramarTag()
+        }
 
-            val btnSettings: ImageButton = findViewById<ImageButton>(R.id.btnSettings)
-            btnSettings.setOnClickListener{
-                startActivity(Intent(this, SettingsActivity::class.java ))
-            }
+        val btncerrar: Button = findViewById<Button>(R.id.btn_cerrar)
+        btncerrar.setOnClickListener{
+            val intent: Intent = Intent(this, MainActivity::class.java )
+            startActivity(intent)
+        }
+
+        val btnSettings: ImageButton = findViewById<ImageButton>(R.id.btnSettings)
+        btnSettings.setOnClickListener{
+            startActivity(Intent(this, SettingsActivity::class.java ))
+        }
 
 
         //Request GPS Permissions
@@ -126,6 +149,49 @@ class ProgramarTags : AppCompatActivity() {
             insets
         }
     }
+    private fun setupMap() {
+        val mapFragment = supportFragmentManager.findFragmentById(R.id.map_fragment_programarTags) as SupportMapFragment
+        mapFragment.getMapAsync { gMap ->
+            googleMap = gMap
+            // Centrar en la ubicación actual si tienes permiso:
+            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                gMap.isMyLocationEnabled = true
+                fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
+                    if (loc != null) {
+                        val userLatLng = LatLng(loc.latitude, loc.longitude)
+                        gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 20f))
+                    }
+                }
+            }
+            // Listener cuando el mapa se mueve
+            googleMap?.setOnCameraMoveStartedListener { reason ->
+                // Si el usuario mueve el mapa con el dedo, activamos modo manual
+                if (reason == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE) {
+                    isManualMode = true
+                }
+            }
+
+            googleMap?.setOnCameraIdleListener {
+                if (isManualMode) {
+                    val centro = googleMap?.cameraPosition?.target
+                    centro?.let {
+                        actualizarUI(it.latitude, it.longitude)
+                    }
+                }
+            }
+        }
+    }
+
+    //########## MAPA
+    private fun actualizarUI(lat: Double, lon: Double) {
+        val txtLat: TextView = findViewById(R.id.txtLat)
+        val txtLon: TextView = findViewById(R.id.txtLon)
+        txtLat.text = String.format("%.8f", lat)
+        txtLon.text = String.format("%.8f", lon)
+        findViewById<Button>(R.id.btn_ProgramarTag).isEnabled = true
+    }
+    //##########END MAPA
+
 
     private fun isRunningOnEmulator(): Boolean {
         return (Build.FINGERPRINT.startsWith("generic")
@@ -176,12 +242,14 @@ class ProgramarTags : AppCompatActivity() {
             locationListener = object : LocationListener {
                 override fun onLocationChanged(location: Location) {
                     // Actualizar la ubicación del usuario
-                    val txtLat: TextView = findViewById<TextView>(R.id.txtLat)
-                    val txtLon: TextView = findViewById<TextView>(R.id.txtLon)
-                    val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
-                    txtLat.text = String.format("%.8f", location.latitude)
-                    txtLon.text = String.format("%.8f",location.longitude)
-                    btnProgramarTag.setEnabled(true)
+                    val currentLatLng = LatLng(location.latitude, location.longitude)
+                    lastGpsLocation = currentLatLng
+
+                    // SOLO actualizamos si NO estamos en modo manual (moviendo el mapa)
+                    if (!isManualMode) {
+                        actualizarUI(location.latitude, location.longitude)
+                        googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 20f))
+                    }
                 }
 
                 override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {

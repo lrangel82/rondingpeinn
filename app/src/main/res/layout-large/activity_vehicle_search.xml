@@ -175,6 +175,29 @@
                     android:layout_height="match_parent"
                      />
 
+                <ImageView
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_gravity="center"
+                    android:contentDescription="Puntero central"
+                    android:src="@android:drawable/ic_menu_myplaces"
+                    android:translationY="-20dp"
+                    map:tint="@color/design_default_color_primary" />
+
+                <ImageButton
+                    android:id="@+id/btn_recuperar_gps_vehiculo"
+                    android:layout_width="50dp"
+                    android:layout_height="50dp"
+                    android:layout_gravity="top|end"
+                    android:layout_margin="16dp"
+                    android:background="@android:color/white"
+                    android:contentDescription="Mi Posicion"
+                    android:elevation="4dp"
+                    android:padding="8dp"
+                    android:scaleType="fitCenter"
+                    map:srcCompat="@android:drawable/ic_menu_mylocation"
+                    map:tint="@color/design_default_color_primary" />
+
             </FrameLayout>
 
 

@@ -27,6 +27,8 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.MediaStore
 import android.location.Location
+import android.location.LocationListener
+import android.location.LocationManager
 import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
 import android.nfc.Tag
@@ -84,6 +86,8 @@ import android.widget.CompoundButton
 import android.widget.ProgressBar
 import android.widget.FrameLayout
 import android.widget.Switch
+import androidx.annotation.RequiresPermission
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.widget.doOnTextChanged
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -96,10 +100,12 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.switchmaterial.SwitchMaterial
+import com.larangel.rondingpeinn.ProgramarTags
 import com.larangel.rondingpeinn.StartRondinActivity
 import java.time.temporal.ChronoUnit
 import kotlin.String
 import kotlin.collections.List
+import kotlin.collections.mutableListOf
 
 class  VehicleSearchActivity : AppCompatActivity() {
     private var mySettings: MySettings? = null
@@ -127,13 +133,17 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private var vehicleSource: String? = null
     private var keySlotSeleccionado: String? = null
     private val porRevisarRecords = mutableListOf<PorRevisarRecord>()
+    private val porRevisarNotificado= mutableListOf<String>()
     //private var porRevisarSheetId: Int = 0
     //private var domicilioWarningsSheetId: Int = 0
     private val handler = Handler(Looper.getMainLooper())
-    private val checkRunnable = Runnable { checkPorRevisarLocations() }
+    //private val checkRunnable = Runnable { checkPorRevisarLocations() }
     private var loadingOverlay: View? = null
     private var progressBar: ProgressBar? = null
     private var googleMap: GoogleMap? = null
+    private var isManualMode = false // Controla si mandamos nosotros o el GPS
+    private var lastGpsLocation: LatLng? = null
+    private var locationListener: LocationListener? = null
 
     private var stopSearchVehicle: Boolean = false
 
@@ -241,6 +251,15 @@ class  VehicleSearchActivity : AppCompatActivity() {
         val parent = saveEventButton.parent as? LinearLayout
         parent?.addView(porRevisarButton)
 
+        // Botón para volver al GPS
+        val btnRecuperarGPS: ImageButton = findViewById(R.id.btn_recuperar_gps_vehiculo)
+        btnRecuperarGPS.setOnClickListener {
+            isManualMode = false
+            lastGpsLocation?.let { loc ->
+                googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(loc, 20f))
+            }
+        }
+
         // Carga el fragmento solo si aún no existe
         if (supportFragmentManager.findFragmentById(R.id.map_fragment_vehicle) == null) {
             val mapFragment = SupportMapFragment.newInstance()
@@ -315,10 +334,17 @@ class  VehicleSearchActivity : AppCompatActivity() {
                     }
                 }
             }
+            // Listener cuando el mapa se mueve
+            googleMap?.setOnCameraMoveStartedListener { reason ->
+                // Si el usuario mueve el mapa con el dedo, activamos modo manual
+                if (reason == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE) {
+                    isManualMode = true
+                }
+            }
         }
     }
 
-    private fun updateMapMarkers() {
+    private fun updateMapMarkers(conMarkersVehiculos: Boolean = true) {
         googleMap?.let { gMap ->
             gMap.clear()
             //**************** PARKING SLOTS ***************************
@@ -343,14 +369,15 @@ class  VehicleSearchActivity : AppCompatActivity() {
                         .strokeWidth(2f)
                 )
                 // Pon una etiqueta encima
-                gMap.addMarker(
-                    MarkerOptions()
-                        .position(LatLng(lat, lon))
-                        .title(key)
-                        .icon(BitmapDescriptorFactory.defaultMarker(if (!ocupado.isNullOrEmpty()) 120f else 0f)) // Cambia el color si quieres
-                        .snippet(if(!ocupado.isNullOrEmpty()) ocupado[0].toString() else "" )
+                if(conMarkersVehiculos)
+                    gMap.addMarker(
+                        MarkerOptions()
+                            .position(LatLng(lat, lon))
+                            .title(key)
+                            .icon(BitmapDescriptorFactory.defaultMarker(if (!ocupado.isNullOrEmpty()) 120f else 0f)) // Cambia el color si quieres
+                            .snippet(if(!ocupado.isNullOrEmpty()) ocupado[0].toString() else "" )
 
-                )
+                    )
             }
             //**************** FIN PARKING SLOTS **********************
 
@@ -391,6 +418,22 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 }
             }
             //**************** FIN PERMISOS ***************************
+
+            //**************** POR REVISAR ***************************
+            val rscImgRevisar: BitmapDescriptor = getResizedBitmapDescriptor(this,R.drawable.exclamacion,100,100)
+            porRevisarRecords.forEach { pRevisar ->
+                val titleText = "${pRevisar.street}:${pRevisar.number} carro en:${pRevisar.parkingSlotKey}"
+                val snipetText = "${pRevisar.time} - ${pRevisar.parkingSlotKey}"
+                gMap.addMarker(
+                    MarkerOptions()
+                        .position(LatLng(pRevisar.latitude, pRevisar.longitude))
+                        .title(titleText)
+                        .icon(rscImgRevisar)
+                        .snippet(snipetText)
+
+                )
+            }
+            //**************** FIN POR REVISAR ***********************
 
             //**************** TAGS Rondinero *************************
             val checkPoints = mySettings?.getListCheckPoint("LIST_CHECKPOINT")!!.toMutableList()
@@ -444,7 +487,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 AlertDialog.Builder(this)
                     .setTitle("Ya existe un registro")
                     .setMessage("¿Desea eliminar el evento anterior y registrar uno nuevo en el lugar $key?")
-                    .setPositiveButton("Sí") { _, _ -> procesarEventLugar(key, plate, true) }
+                    .setPositiveButton("Sí") { _, _ -> procesarEventLugar(key, plate, true,eventoPrevio) }
                     .setNegativeButton("No", null)
                     .show()
             } else if (plate.isEmpty()) {
@@ -487,9 +530,15 @@ class  VehicleSearchActivity : AppCompatActivity() {
         }
     }
 
-    private fun procesarEventLugar(key: String, plate: String, eliminarAnterior: Boolean) {
+    private fun procesarEventLugar(key: String, plate: String, eliminarAnterior: Boolean, autoEventoEliminar: List<Any> = listOf<Any>() ) {
         // Si eliminarAnterior, elimina el evento previo...
         // ... aquí tu código para borrar evento anterior en Google Sheets ...
+        if (eliminarAnterior && autoEventoEliminar.isNotEmpty()){
+            dataRaw?.eliminarAutosEventoCache(autoEventoEliminar as List<String>)
+        }
+
+        //Como este preoceso entra al hacer click en mapa, debemos asegurarnos de actualizar la calle y numero de esta placa
+        searchVehicle(plate)
 
         // Luego, toma/usa foto, y llama tu lógica normal de registro
         if (photoUri == null) {
@@ -749,8 +798,9 @@ class  VehicleSearchActivity : AppCompatActivity() {
         keySlotSeleccionado = null
     }
 
-    private fun searchVehicle(plate: String) {
+    private fun searchVehicle(_plate: String) {
         waitingOn()
+        val plate=_plate.filter { it.isLetterOrDigit() }.uppercase()
         vehicleStreet = null
         vehicleNumber = null
         vehicleSource = null
@@ -758,18 +808,18 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
         stopSearchVehicle = true
 
-        lifecycleScope.launch(Dispatchers.IO) {
+        //lifecycleScope.launch(Dispatchers.IO) {
             try {
                 //val vehicles = getCachedVehiclesData()
                 var match: List<Any>? = null
                 var similarMatches: MutableList<List<Any>> = mutableListOf()
 
+                //###### PUEDE SER TAG #########
                 if (plate.toIntOrNull() != null){
-                    //###### PUEDE SER TAG #########
                     val tags = dataRaw?.getTagsCache()
                     stopSearchVehicle = false
                     tags?.forEach { tag->
-                        if (stopSearchVehicle) return@launch
+                        if (stopSearchVehicle) return
                         if (tag.size >= 3 && tag[0].toString().equals(plate, ignoreCase = true)) {
                             match = tag
                             return@forEach
@@ -783,38 +833,38 @@ class  VehicleSearchActivity : AppCompatActivity() {
                         if (similarMatches.size >= 20)
                             return@forEach
                     }
-                }else {
-                    //########## ES PLACA ############
+                }
+                //########## ES PLACA ############
+                else {
                     // 1. Buscar coincidencia exacta
                     val vehicles = dataRaw?.getCachedVehiclesData()
-                    if (vehicles != null) {
+                    if (vehicles?.isNotEmpty() == true) {
                         stopSearchVehicle = false
                         for (row in vehicles) {
-                            if (stopSearchVehicle) return@launch
-                            if (row.size >= 3 && row[0].toString().equals(plate, ignoreCase = true)
-                            ) {
-                                match = row
-                                break
+                            if (stopSearchVehicle) return
+                            if (row.isEmpty() || row[0].toString().isEmpty())
+                                continue
+
+                            val rplate = row[0].toString().filter { it.isLetterOrDigit() }.uppercase()
+                            if (rplate.isNotEmpty()) {
+                                if (row.size >= 3 && rplate == plate) {
+                                    match = row
+                                    break
+                                }
+                                if (row.size >= 3 && oneCharDifference(rplate, plate)) {
+                                    similarMatches.add(row)
+                                }
+                                if (row.size >= 3 && rplate.startsWith(plate)) {
+                                    similarMatches.add(row)
+                                }
+                                if (similarMatches.size >= 20)
+                                    break
                             }
-                            if (row.size >= 3 && oneCharDifference(
-                                    row[0].toString().toUpperCase(),
-                                    plate.toUpperCase()
-                                )
-                            ) {
-                                similarMatches.add(row)
-                            }
-                            if (row.size >= 3 && row[0].toString()
-                                    .startsWith(plate, ignoreCase = true)
-                            ) {
-                                similarMatches.add(row)
-                            }
-                            if (similarMatches.size >= 20)
-                                break
                         }
                     }
                 }
 
-                withContext(Dispatchers.Main) {
+                //withContext(Dispatchers.Main) {
                     waitingOff()
                     if (match != null) {
                         vehicleStreet = match!![1].toString()
@@ -829,15 +879,15 @@ class  VehicleSearchActivity : AppCompatActivity() {
                         resultText.append("\nNo se encontro la placa en ningun registro: $plate")
                     }
                     showEventsPlate(plate)
-                }
+                //}
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
+               // withContext(Dispatchers.Main) {
                     waitingOff()
                     resultText.append("\nError searching plate: ${e.message}")
                     showEventsPlate(plate)
-                }
+               // }
             }
-        }
+        //}
     }
 
     private fun refreshContadorEventos(){
@@ -1103,59 +1153,58 @@ class  VehicleSearchActivity : AppCompatActivity() {
         if (KeySlot != "")
             saveEventPlateSlot(plate,KeySlot)
         else {
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
-                fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-                    if (location != null) {
-                        waitingOn()
-                        fetchClosestParkingSlots(
-                            location.latitude,
-                            location.longitude
-                        ) { closestSlots ->
-                            if (closestSlots.isEmpty()) {
-                                Toast.makeText(
-                                    this,
-                                    "No se encuentra lugares de estacionamiento cercanos",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                waitingOff()
-                                return@fetchClosestParkingSlots
-                            }
-                            val slotDescriptions = closestSlots.map {
-                                "${it.key} (${
-                                    String.format(
-                                        "%.2f",
-                                        it.distance
-                                    )
-                                } m)"
-                            }.toTypedArray()
-                            waitingOff()
-                            AlertDialog.Builder(this)
-                                .setTitle("Selecciona LUGAR de Estacionamiento")
-                                .setItems(slotDescriptions) { _, which ->
-                                    val selectedKey = closestSlots[which].key
-                                    keySlotSeleccionado = selectedKey
-                                    //Salvar Evento en cajon de estacionamiento
-                                    if (!saveEventPlateSlot(plate, selectedKey))
-                                        return@setItems
-                                }
-                                .setNegativeButton("Cancel") { _, _ -> }
-                                .show()
-                        }
-                    } else {
-                        Toast.makeText(this, "Unable to get location", Toast.LENGTH_SHORT).show()
-                    }
+            //Usar la ultima ubicacion para buscar
+            waitingOn()
+            fetchClosestParkingSlots(lastGpsLocation!!.latitude,lastGpsLocation!!.longitude) { closestSlots ->
+                if (closestSlots.isEmpty()) {
+                    Toast.makeText(this,"No se encuentra lugares de estacionamiento cercanos",Toast.LENGTH_SHORT).show()
+                    waitingOff()
+                    return@fetchClosestParkingSlots
                 }
-            } else {
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                    REQUEST_LOCATION_PERMISSION
-                )
+                val slotDescriptions = closestSlots.map {
+                    "${it.key} (${
+                        String.format(
+                            "%.2f",
+                            it.distance
+                        )
+                    } m)"
+                }.toTypedArray()
+                waitingOff()
+                AlertDialog.Builder(this)
+                    .setTitle("Selecciona LUGAR de Estacionamiento")
+                    .setItems(slotDescriptions) { _, which ->
+                        val selectedKey = closestSlots[which].key
+                        keySlotSeleccionado = selectedKey
+                        //Salvar Evento en cajon de estacionamiento
+                        if (!saveEventPlateSlot(plate, selectedKey))
+                            return@setItems
+                    }
+                    .setNegativeButton("Cancel") { _, _ -> }
+                    .show()
             }
+
+
+
+//            if (ActivityCompat.checkSelfPermission(
+//                    this,
+//                    Manifest.permission.ACCESS_FINE_LOCATION
+//                ) == PackageManager.PERMISSION_GRANTED
+//            ) {
+//                fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
+//                    if (location != null) {
+//                        waitingOn()
+//
+//                    } else {
+//                        Toast.makeText(this, "Unable to get location", Toast.LENGTH_SHORT).show()
+//                    }
+//                }
+//            } else {
+//                ActivityCompat.requestPermissions(
+//                    this,
+//                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+//                    REQUEST_LOCATION_PERMISSION
+//                )
+//            }
         }
     }
 
@@ -1443,17 +1492,14 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 // If vehicle street and number available, save or update in PorRevisar
                 if (vehicleStreet != null && vehicleNumber != null) {
                     // Fetch lat and lon from DomicilioUbicacion
-                    val domicilioRows =  dataRaw?.getDomiciliosUbicacion()  //domicilioResponse.getValues() ?: emptyList()
+                    val domicilioRows =  dataRaw?.getDomiciliosSimilares(vehicleStreet!!,
+                        vehicleNumber!!
+                    )  //domicilioResponse.getValues() ?: emptyList()
                     var lat: Double? = null
                     var lon: Double? = null
-                    if (domicilioRows != null) {
-                        for (row in domicilioRows) {
-                            if (row.size >= 4 && row[0].toString() == vehicleStreet && row[1].toString() == vehicleNumber) {
-                                lat = row[2].toString().toDoubleOrNull()
-                                lon = row[3].toString().toDoubleOrNull()
-                                break
-                            }
-                        }
+                    if (domicilioRows?.size == 1) {
+                        lat = domicilioRows[0][2].toString().toDoubleOrNull()
+                        lon = domicilioRows[0][3].toString().toDoubleOrNull()
                     }
                     if (lat == null || lon == null) {
                         // Skip if not found
@@ -1511,11 +1557,11 @@ class  VehicleSearchActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadPorRevisar() {
+    private fun loadPorRevisar(forceLoad: Boolean = false) {
         //val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val rows = dataRaw?.getPorRevisar_20horas()//response.getValues() ?: emptyList()
+                val rows = dataRaw?.getPorRevisar_20horas(forceLoad)//response.getValues() ?: emptyList()
                 withContext(Dispatchers.Main) {
                     porRevisarRecords.clear()
                     val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
@@ -1542,6 +1588,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
         }
     }
 
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     override fun onResume() {
         super.onResume()
         inicializaRondinSwitch()
@@ -1549,67 +1596,100 @@ class  VehicleSearchActivity : AppCompatActivity() {
         updateMapMarkers()
         refreshContadorEventos()
         loadPorRevisar()
-        handler.postDelayed(checkRunnable, 2000)
+        set_start_gps()
+        //handler.postDelayed(checkRunnable, 2000)
     }
 
     override fun onPause() {
         super.onPause()
         stopNFC()
-        handler.removeCallbacks(checkRunnable)
+        set_pause_gps()
+        //handler.removeCallbacks(checkRunnable)
     }
 
     private fun checkPorRevisarLocations() {
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            handler.postDelayed(checkRunnable, 2000)
-            return
+
+        porRevisarRecords.forEach { row ->
+            val distance = calculateDistance(lastGpsLocation!!.latitude, lastGpsLocation!!.longitude, row.latitude, row.longitude)
+            if (distance < 10.0) {
+                //Ya se notifico? saltarlo
+                if (porRevisarNotificado.contains("${row.street}:${row.number}")) return@forEach
+
+                val intent = Intent(this, PorRevisarListActivity::class.java).apply {
+                    putExtra("street", row.street)
+                    putExtra("number", row.number)
+                    putExtra("notification", "Domicilio por verificar en ${row.street} ${row.number}")
+                }
+                set_pause_gps()
+                porRevisarNotificado.add("${row.street}:${row.number}")
+                startActivity(intent)
+                return@forEach
+            }
         }
 
-        fusedLocationClient.lastLocation.addOnSuccessListener { location: Location? ->
-            if (location != null) {
-                val currentLat = location.latitude
-                val currentLon = location.longitude
-                val now = LocalDateTime.now()
-                val toDelete = mutableListOf<PorRevisarRecord>()
-                var nearbyRecord: List<Any>? = null
-                val pRevisarCache = dataRaw?.getPorRevisar_20horas()
+    }
 
-                pRevisarCache?.forEach { record ->
-                    if (record.size >= 7) {
-                        val lat = record[5].toString().toDoubleOrNull() ?: return@forEach
-                        val lon = record[6].toString().toDoubleOrNull() ?: return@forEach
-                        //val ageHours = Duration.between(record.time, now).toHours()
-                        //if (ageHours > 20) {
-                        //    toDelete.add(record)
-                        //} else {
-                        val distance = calculateDistance(currentLat, currentLon, lat, lon)
-                        if (distance < 10.0) {
-                            nearbyRecord = record
-                        }
-                        // }
+    fun set_pause_gps(){
+        val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+        locationManager.removeUpdates(locationListener as LocationListener)
+    }
+    @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
+    fun set_start_gps(){
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+            == PackageManager.PERMISSION_GRANTED) {
+            //GPS
+            val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
+            locationListener = object : LocationListener {
+                override fun onLocationChanged(location: Location) {
+                    // Actualizar la ubicación del usuario
+                    val currentLatLng = LatLng(location.latitude, location.longitude)
+                    lastGpsLocation = currentLatLng
+
+                    // SOLO actualizamos si NO estamos en modo manual (moviendo el mapa)
+                    if (!isManualMode) {
+                        googleMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 20f))
                     }
 
+                    //Por REVISAR
+                    checkPorRevisarLocations()
                 }
-                //toDelete.forEach { deletePorRevisarRecord(it) }
-                nearbyRecord?.let { record ->
-                    val street = record[0].toString()
-                    val number = record[1].toString()
-                    // Show verification alert for nearby record
-                    //showVerificationAlert(record)
-                    // Start PorRevisarListActivity with notification
-                    val intent = Intent(this, PorRevisarListActivity::class.java).apply {
-                        putExtra("street", street)
-                        putExtra("number", number)
-                        putExtra("notification", "Domicilio por verificar en ${street} ${number}")
+
+                override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) {
+                    // ...
+                    Toast.makeText(this@VehicleSearchActivity, "GPS status:${status}", Toast.LENGTH_LONG).show()
+                }
+
+                override fun onProviderEnabled(provider: String) {
+                    //..
+                    Toast.makeText(this@VehicleSearchActivity, "Buscando GPS ${provider}", Toast.LENGTH_LONG).show()
+                }
+
+                override fun onProviderDisabled(provider: String) {
+                    Toast.makeText(this@VehicleSearchActivity, "GPS Deshabilitado ${provider}", Toast.LENGTH_LONG).show()
+                }
+            }
+            // Request updates for GPS provider
+            if (locationManager.allProviders.contains(LocationManager.GPS_PROVIDER)) {
+                locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5000L, 1f, locationListener as LocationListener)
+            }
+            else {
+                // El dispositivo no tiene GPS físico, intenta con el de red o avisa al usuario
+                if (locationManager.allProviders.contains(LocationManager.NETWORK_PROVIDER)) {
+                    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 5000L, 1f, locationListener as LocationListener)
+                } else {
+
+                    val builder = AlertDialog.Builder(this@VehicleSearchActivity)
+                    builder.setMessage("Este dispositivo no tiene GPS.")
+                    builder.setPositiveButton("Enterado") { _, _ ->
                     }
-                    startActivity(intent)
+                    val myDialog = builder.create()
+                    myDialog.setCanceledOnTouchOutside(false)
+                    myDialog.show()
                 }
-                handler.postDelayed(checkRunnable, 10000)
             }
 
-        }.addOnFailureListener {
-
-            handler.postDelayed(checkRunnable, 2000)
         }
+
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -1619,14 +1699,14 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     captureImage()
                 } else {
-                    Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "Camara permiso denegado", Toast.LENGTH_SHORT).show()
                 }
             }
             REQUEST_LOCATION_PERMISSION -> {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     saveNewEvent()
                 } else {
-                    Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, "GPS permiso denegado", Toast.LENGTH_SHORT).show()
                 }
             }
             REQUEST_STORAGE_PERMISSION -> {
@@ -1919,21 +1999,13 @@ class  VehicleSearchActivity : AppCompatActivity() {
         val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, padding)
         googleMap?.moveCamera(cameraUpdate)
 
-//        val mapFragment = supportFragmentManager.findFragmentById(
-//            R.id.map_fragment
-//        ) as? SupportMapFragment
-//        mapFragment?.getMapAsync { googleMap ->
-//            val builder = LatLngBounds.Builder()
-//            dataList.forEach { builder.include(LatLng(it.latitud,it.longitud)) }
-//            val bounds = builder.build()
-//            val padding = 100 // offset from edges of the map in pixels
-//            val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, padding)
-//            googleMap.moveCamera(cameraUpdate)
-//
-//        }
+
     }
     suspend fun obtenerMapaRondinAllTAGS(minutosTotales: Long = 0): Uri? {
+        //Repintamos sin tags en parkingSlots
+        updateMapMarkers(false)
 
+        delay(1000)
         // Movemos la cámara primero
         moveCameraToShowAllTAGS()
 
