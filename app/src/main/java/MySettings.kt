@@ -108,6 +108,9 @@ class MySettings(context: Context) {
             SheetTable.values().forEach{table ->
                 putLong(table.timestampKey,0)
             }
+
+            //IMAGENES
+            putString("IMAGEN_LOGO_PNG",props.getProperty("imagen_logo_png"))
 //            putLong("PERMISOS_CACHE_TIMESTAMP",0)
 //            putLong("VEHICLE_CACHE_TIMESTAMP",0)
 //            putLong("TAGS_CACHE_TIMESTAMP",0)
@@ -159,6 +162,10 @@ class MySettings(context: Context) {
                 saveList(table.deleteIdxKey, listOf<List<String>>())
                 saveList("${table.cacheKey}_CACHE", listOf<List<String>>())
             }
+
+            //IMAGENES
+            putString("IMAGEN_LOGO_PNG","")
+
 //            putLong("PERMISOS_CACHE_TIMESTAMP",0)
 //            putLong("VEHICLE_CACHE_TIMESTAMP",0)
 //            putLong("TAGS_CACHE_TIMESTAMP",0)

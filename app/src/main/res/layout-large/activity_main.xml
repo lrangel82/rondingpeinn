@@ -37,12 +37,12 @@
                 android:orientation="vertical">
 
                 <ImageView
-                    android:id="@+id/imageView"
+                    android:id="@+id/imageLogoMain"
                     android:layout_width="396dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="435dp"
                     android:layout_gravity="center"
                     android:contentDescription="LOGO"
-                    app:srcCompat="@drawable/logo_gpeinn_2" />
+                    app:srcCompat="@drawable/logo" />
 
                 <TextView
                     android:id="@+id/txtCotoName"

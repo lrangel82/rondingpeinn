@@ -72,11 +72,11 @@
                     android:textSize="24sp" />
 
                 <ImageView
-                    android:id="@+id/imageView"
+                    android:id="@+id/imageLogoMain"
                     android:layout_width="wrap_content"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
-                    app:srcCompat="@drawable/logo_gpeinn_2" />
+                    app:srcCompat="@drawable/error_image" />
 
                 <Button
                     android:id="@+id/btn_permisos"

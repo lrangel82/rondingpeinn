@@ -2,6 +2,7 @@ package com.larangel.rondingpeinn
 
 import MySettings
 import DataRawRondin
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
@@ -10,6 +11,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.FrameLayout
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -24,6 +26,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
+import coil.load
+import coil.transform.CircleCropTransformation
 
 class MainActivity : AppCompatActivity() {
 
@@ -86,6 +90,11 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
 
+        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayoutMain)
+        swipeRefreshLayout.setOnRefreshListener {
+            LoadingSheetDATA(true)
+        }
+
         mySettings = MySettings(this)
 
         val codigoActiviacion = mySettings?.getString("CODIGO_ACTIVACION", "")!!
@@ -94,15 +103,11 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }else {
             dataRaw = DataRawRondin(this, CoroutineScope(Dispatchers.IO))
-            SheetTable.initializeAll(mySettings) //Inizializa el ENUM
-            //dataRaw?.checarPendientePorSalvarEnCACHE()
+            validaLicencia()
             LoadingSheetDATA()
         }
 
-        swipeRefreshLayout = findViewById(R.id.swipeRefreshLayoutMain)
-        swipeRefreshLayout.setOnRefreshListener {
-            LoadingSheetDATA(true)
-        }
+
 
     }
     override fun onResume() {
@@ -110,9 +115,91 @@ class MainActivity : AppCompatActivity() {
         updateTextoBotones()
     }
 
-    private fun LoadingSheetDATA(forceLoad: Boolean = false){
-        //waitingOn()
+    private fun validaLicencia(){
         val copyRAdmin: TextView = findViewById<TextView>(R.id.textCopyright)
+        swipeRefreshLayout.isRefreshing = true
+        Toast.makeText(this@MainActivity,"VALIDANDO LICENCIA....",Toast.LENGTH_SHORT).show()
+        if (isNetworkAvailable()){
+            //DESCARGAR CONFIGURACION Y VALIDAR
+            val bucketName = mySettings?.getString("BUCKET_NAME", "").toString()
+            val regionStr  = mySettings?.getString("REGION_STR", "").toString()
+            val codigoActiv= mySettings?.getString("CODIGO_ACTIVACION", "").toString()
+            lifecycleScope.launch(Dispatchers.IO) {
+                try {
+                    //Buscar y descargar nueva configuracion
+                    mySettings?.fetchAndProcessS3Config(bucketName, regionStr, codigoActiv)
+                    //Inizializa el ENUM con los valores correctos del nombre de sheets
+                    SheetTable.initializeAll(mySettings)
+                    val appActivada = mySettings?.getInt("APP_ACTIVADA", 0)
+                    withContext(Dispatchers.Main) {
+                        if (appActivada == 1) {
+                            copyRAdmin.text = "v1.0 develop by Luis Rangel"
+                        } else {
+                            copyRAdmin.text =
+                                "#### APP DESACTIVADA #### contactar luisrangel@gmail.com"
+                            abrirAlertDesactivada()
+                        }
+                        swipeRefreshLayout.isRefreshing = false
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        swipeRefreshLayout.isRefreshing = false
+                        e.printStackTrace()
+                        Toast.makeText(this@MainActivity,"Error al validar la LICENCIA, error: ${e.message}",Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+        else{
+            val appActivada = mySettings?.getInt("APP_ACTIVADA",0)
+            if (appActivada == 1) {
+                copyRAdmin.text = "(SIN INTERNET)       v1.0 develop by Luis Rangel"
+                //Mostrar cache
+                lifecycleScope.launch(Dispatchers.IO) {
+                    val vehiculosData = dataRaw?.getCachedVehiclesData()
+                    val tagsData = dataRaw?.getTagsCache()
+                    val domiciliosUbicacion = dataRaw?.getDomiciliosUbicacion()
+                    val porRevisar = dataRaw?.getPorRevisar_20horas()
+                    val parkingSlots = dataRaw?.getParkingSlots()
+                    val multas = dataRaw?.getMultas()
+                    val domiciliosWarnings = dataRaw?.getDomicilioWarnings()
+                    val permisosData = dataRaw?.getPermisosCache_DeHoy()
+                    val incidenciasData = dataRaw?.getIncidenciasEventos()
+                    withContext(Dispatchers.Main) {
+                        AlertDialog.Builder(this@MainActivity)
+                            .setTitle("Datos en cache!!")
+                            .setMessage(
+                                "Multas: ${multas?.count()}\n" +
+                                        "Advertencias: ${domiciliosWarnings?.count()}\n" +
+                                        "Cajones Visita: ${parkingSlots?.count()}\n" +
+                                        "Por Revisar: ${porRevisar?.count()}\n" +
+                                        "Domicilios: ${domiciliosUbicacion?.count()}\n" +
+                                        "Permisos: ${permisosData?.count()}\n" +
+                                        "Vehiculos: ${vehiculosData?.count()}\n" +
+                                        "Tags: ${tagsData?.count()}\n" +
+                                        "Incidencias: ${incidenciasData?.count()}"
+                            )
+                            .setPositiveButton("OK", null)
+                            .show()
+                    }
+                }
+
+            }
+            else {
+                copyRAdmin.text = "#### APP DESACTIVADA #### contactar luisrangel@gmail.com"
+                abrirAlertDesactivada()
+            }
+            Toast.makeText(
+                this@MainActivity,
+                "No hay conexion a INTERNET, usando CACHE",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+        swipeRefreshLayout.isRefreshing = false
+    }
+
+    @SuppressLint("SuspiciousIndentation")
+    private fun LoadingSheetDATA(forceLoad: Boolean = false){
 
         //Load all the data in thread
         lifecycleScope.launch(Dispatchers.IO) {
@@ -131,91 +218,27 @@ class MainActivity : AppCompatActivity() {
             val incidenciasData = dataRaw?.getIncidenciasEventos(forceLoad)
 
             withContext(Dispatchers.Main) {
-                //Una ves finalizado enviar la info a la UI
-                if (isNetworkAvailable()){
-                    val bucketName = mySettings?.getString("BUCKET_NAME", "").toString()
-                    val regionStr  = mySettings?.getString("REGION_STR", "").toString()
-                    val codigoActiv= mySettings?.getString("CODIGO_ACTIVACION", "").toString()
-                    //Ejecutar la lectura del CONFIG
-                    lifecycleScope.launch(Dispatchers.IO) {
-                        try {
-                            mySettings?.fetchAndProcessS3Config(bucketName,regionStr,codigoActiv)
-                            val appActivada = mySettings?.getInt("APP_ACTIVADA",0)
-                            withContext(Dispatchers.Main) {
-                                if (appActivada == 1) {
-                                    copyRAdmin.text = "v1.0 develop by Luis Rangel"
-                                } else {
-                                    copyRAdmin.text = "#### APP DESACTIVADA #### contactar luisrangel@gmail.com"
-                                    abrirAlertDesactivada()
-                                }
-                                println("LARANGEL total autos: ${autosEventos?.size}")
-                                //waitingOff()
-                                if (::swipeRefreshLayout.isInitialized)
-                                    swipeRefreshLayout.isRefreshing = false
-                            }
-                        }catch (e: Exception) {
-                            withContext(Dispatchers.Main) {
-                                //waitingOff()
-                                if (::swipeRefreshLayout.isInitialized)
-                                    swipeRefreshLayout.isRefreshing = false
-                                println("LARANGEL exception Loading Sheet DATA error:${e}")
-                                e.printStackTrace()
-                                Toast.makeText(
-                                    this@MainActivity,
-                                    "Error al cargar INFORMACION, no hay conexion a INTERNET: ${e.message}",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
-                    }
-                }
-                else{
-                //Indicar que no hay INTERNET
-                    //waitingOff()
-                    if (::swipeRefreshLayout.isInitialized)
-                        swipeRefreshLayout.isRefreshing = false
-                    val appActivada = mySettings?.getInt("APP_ACTIVADA",0)
-                    if (appActivada == 1) {
-                        copyRAdmin.text = "(SIN INTERNET)       v1.0 develop by Luis Rangel"
-                        //Mostrar cache
-                        AlertDialog.Builder(this@MainActivity)
-                            .setTitle("Datos en cache!!")
-                            .setMessage(
-                                "Multas: ${multas?.count()}\n" +
-                                        "Advertencias: ${domiciliosWarnings?.count()}\n" +
-                                        "Cajones Visita: ${parkingSlots?.count()}\n" +
-                                        "Por Revisar: ${porRevisar?.count()}\n" +
-                                        "Domicilios: ${domiciliosUbicacion?.count()}\n" +
-                                        "Permisos: ${permisosData?.count()}\n" +
-                                        "Vehiculos: ${vehiculosData?.count()}\n" +
-                                        "Tags: ${tagsData?.count()}\n" +
-                                        "Incidencias: ${incidenciasData?.count()}"
-                            )
-                            .setPositiveButton("OK", null)
-                            .show()
-                    }
-                    else {
-                        copyRAdmin.text = "#### APP DESACTIVADA #### contactar luisrangel@gmail.com"
-                        abrirAlertDesactivada()
-                    }
-                    Toast.makeText(
-                        this@MainActivity,
-                        "No hay conexion a INTERNET, usando CACHE",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
+                swipeRefreshLayout.isRefreshing = false
                 //Init textos
                 updateTextoBotones()
+                //LOGO
+                //  Prompt: "High-quality 512x512 app icon, PNG with transparency. Features a friendly security guard for condominiums wearing a green and orange safety vest and a blue cap. A large green map location pin with a white checkmark is positioned above him. In the background, stylized blue condominium buildings and an orange road leading towards them. The text 'Rondy' is integrated into the bottom of the icon in a bold, modern sans-serif font. Color palette: Green, Blue, Orange, and Black. Flat vector style, clean lines, professional and friendly aesthetic, optimized for mobile UI."
+                val logoimg = findViewById<ImageView>(R.id.imageLogoMain)
+                val urlLogo = mySettings?.getString("IMAGEN_LOGO_PNG","")
+                cargarImagenConfigurada(logoimg,urlLogo,R.drawable.logo)
 
+                val totalCargados = autosEventos!!.count() + vehiculosData!!.count() + tagsData!!.count()
+                                + domiciliosUbicacion!!.count() + porRevisar!!.count() + parkingSlots!!.count()
+                                + multas!!.count() + domiciliosWarnings!!.count() + permisosData!!.count()
+                                + incidenciasData!!.count()
                 Toast.makeText(
                     this@MainActivity,
-                    "Iniciando...",
+                    "Iniciando...${totalCargados} registrosDB",
                     Toast.LENGTH_LONG
                 ).show()
             }
 
-        }
-
+        } // fun coroutine
 
     }
 
@@ -254,6 +277,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun cargarImagenConfigurada(imageView: ImageView, urlDesdeRed: String?, recursoDefault: Int) {
+        // Si urlDesdeRed es null o vacío, Coil usará el 'error' o 'placeholder'
+        imageView.load(urlDesdeRed) {
+            // Imagen que se muestra mientras descarga
+            placeholder(recursoDefault)
+
+            // Imagen que se muestra si la URL falla o es inválida
+            error(recursoDefault)
+
+            // Opcional: puedes añadir transformaciones
+            crossfade(true)
+            transformations(CircleCropTransformation())
+        }
+    }
+
     private fun abrirAlertDesactivada(){
         AlertDialog.Builder(this@MainActivity)
             .setTitle("Utilizando Cache, sin conexion a DB")
@@ -275,56 +313,6 @@ class MainActivity : AppCompatActivity() {
         val network = cm.activeNetworkInfo
         return network?.isConnected == true
     }
-//    private fun initializeGoogleServices() {
-//        val serviceAccountStream =
-//            applicationContext.resources.openRawResource(R.raw.json_google_service_account)
-//        val credential = GoogleCredential.fromStream(serviceAccountStream)
-//            .createScoped(
-//                listOf(
-//                    "https://www.googleapis.com/auth/drive",
-//                    "https://www.googleapis.com/auth/spreadsheets"
-//                )
-//            )
-//        sheetsService =
-//            Sheets.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance(), credential)
-//                .setApplicationName("My First Project")
-//                .build()
-//        println("LARANGEL sheetsService:${sheetsService}")
-//    }
-    private fun waitingOn() {
-        if (loadingOverlay == null) {
-            val rootView = findViewById<ViewGroup>(android.R.id.content)
-            loadingOverlay = View(this).apply {
-                setBackgroundColor(Color.parseColor("#80000000")) // Semi-transparent black
-                layoutParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.MATCH_PARENT,
-                    FrameLayout.LayoutParams.MATCH_PARENT
-                )
-                isClickable = true
-                isFocusable = true
-            }
 
-            progressBar = ProgressBar(this).apply {
-                layoutParams = FrameLayout.LayoutParams(
-                    FrameLayout.LayoutParams.WRAP_CONTENT,
-                    FrameLayout.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    gravity = android.view.Gravity.CENTER
-                }
-            }
-
-            rootView.addView(loadingOverlay)
-            rootView.addView(progressBar)
-        }
-    }
-    private fun waitingOff() {
-        loadingOverlay?.let { overlay ->
-            val rootView = findViewById<ViewGroup>(android.R.id.content)
-            rootView.removeView(overlay)
-            rootView.removeView(progressBar)
-            loadingOverlay = null
-            progressBar = null
-        }
-    }
 
 }

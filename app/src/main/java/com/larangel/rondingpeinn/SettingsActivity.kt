@@ -104,11 +104,16 @@ class SettingsActivity : AppCompatActivity() {
                         Toast.LENGTH_SHORT
                     ).show()
                 }
+                //Limpiar si o si la cache
+                mySettings?.clearAllPreferences()
+                //Buscar y descargar nueva configuracion
                 mySettings?.fetchAndProcessS3Config(
                     txtBucketName.text.toString(),
                     txtRegionStr.text.toString(),
                     txtCodigoActivation.text.toString()
                 )
+                //Inizializa el ENUM con los valores correctos del nombre de sheets
+                SheetTable.initializeAll(mySettings)
             }else {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
