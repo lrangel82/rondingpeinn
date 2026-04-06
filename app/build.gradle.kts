@@ -7,15 +7,16 @@ plugins {
 }
 
 android {
-    namespace = "com.larangel.rondingpeinn"
+    namespace = "com.larangel.rondy"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.larangel.rondingpeinn"
+        applicationId = "com.larangel.rondy"
         minSdk = 29
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "Argos"
+        //Argos,Heimdall,Anubis,Cerbero,Garam,Jano,Talos,Ladon,Grifo,Sleipnit
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -56,6 +57,7 @@ android {
 
 dependencies {
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
+    implementation("com.getkeepsafe.taptargetview:taptargetview:1.13.3")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)

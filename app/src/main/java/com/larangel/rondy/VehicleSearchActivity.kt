@@ -1,4 +1,4 @@
-package com.larangel.rondingpeinn
+package com.larangel.rondy
 
 import CheckPoint
 import MySettings
@@ -37,6 +37,8 @@ import android.os.Build
 import android.os.Environment
 import android.provider.Settings
 import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -100,8 +102,8 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.switchmaterial.SwitchMaterial
-import com.larangel.rondingpeinn.ProgramarTags
-import com.larangel.rondingpeinn.StartRondinActivity
+import com.larangel.rondy.ProgramarTags
+import com.larangel.rondy.StartRondinActivity
 import java.time.temporal.ChronoUnit
 import kotlin.String
 import kotlin.collections.List
@@ -169,8 +171,8 @@ class  VehicleSearchActivity : AppCompatActivity() {
         photoThumbnail = findViewById(R.id.photoThumbnail)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        mySettings = MySettings(this)
-        dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
+        mySettings = MySettings(applicationContext)
+        dataRaw = DataRawRondin(applicationContext,CoroutineScope(Dispatchers.IO))
 
 //        // Initialize Google services (requires Google Sign-In setup)
 //        initializeGoogleServices()
@@ -277,6 +279,49 @@ class  VehicleSearchActivity : AppCompatActivity() {
         updatePorRevisarButton()
 
     }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.bottom_nav_menu, menu)
+        return true
+    }
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.navigation_home -> {
+                startActivity(Intent(this, MainActivity::class.java))
+                this.finish()
+                true
+            }
+            R.id.navigation_mapa -> {
+                true
+            }
+            R.id.navigation_incidencias -> {
+                startActivity(Intent(this, ListadoIncidenciasActivity::class.java))
+                this.finish()
+                true
+            }
+            R.id.navigation_permisos -> {
+                startActivity(Intent(this, PermisosActivity::class.java))
+                this.finish()
+                true
+            }
+            R.id.navigation_notifications -> {
+                startActivity(Intent(this, PorRevisarListActivity::class.java))
+                this.finish()
+                true
+            }
+            R.id.navigation_settings -> {
+                startActivity(Intent(this, SettingsActivity::class.java))
+                this.finish()
+                true
+            }
+            R.id.navigation_acercade -> {
+                startActivity(Intent(this, AcercadeActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
 
     private fun waitingOn() {
         if (loadingOverlay == null) {

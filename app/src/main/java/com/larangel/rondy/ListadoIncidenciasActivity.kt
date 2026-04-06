@@ -1,4 +1,4 @@
-package com.larangel.rondingpeinn
+package com.larangel.rondy
 
 import DataRawRondin
 import IncidenciaAdapter
@@ -31,8 +31,8 @@ class ListadoIncidenciasActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_listado_incidencias)
 
-        mySettings = MySettings(this)
-        dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
+        mySettings = MySettings(applicationContext)
+        dataRaw = DataRawRondin(applicationContext,CoroutineScope(Dispatchers.IO))
 
         val tipo = intent.getStringExtra("TIPO") ?: "Desconocido"
         val FechaIncidencias = LocalDate.parse( intent.getStringExtra("FECHA")) ?: LocalDate.now()

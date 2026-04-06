@@ -1,7 +1,9 @@
-package com.larangel.rondingpeinn
+package com.larangel.rondy
 
 import CheckPoint
 import CheckPointAdapter
+import DataRawRondin
+import MySettings
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.PendingIntent
@@ -45,6 +47,8 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 
 class ProgramarTags : AppCompatActivity() {
     private var googleMap: GoogleMap? = null
@@ -57,6 +61,8 @@ class ProgramarTags : AppCompatActivity() {
     private var intentNFCFiltersArray: Array<IntentFilter>? = null
     private var techNFCListsArray: Array<Array<String>>? = null//        }
 
+    private var mySettings: MySettings? = null
+    private var dataRaw: DataRawRondin? = null
 
     private var wichCheckpointToSave: CheckPoint? = null
     private var locationListener: LocationListener? = null
@@ -69,6 +75,10 @@ class ProgramarTags : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_programar_tags)
+
+
+        mySettings=MySettings(applicationContext)
+        dataRaw = DataRawRondin(applicationContext,CoroutineScope(Dispatchers.IO))
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
@@ -120,13 +130,16 @@ class ProgramarTags : AppCompatActivity() {
 
         val btncerrar: Button = findViewById<Button>(R.id.btn_cerrar)
         btncerrar.setOnClickListener{
-            val intent: Intent = Intent(this, MainActivity::class.java )
-            startActivity(intent)
+//            val intent: Intent = Intent(this, MainActivity::class.java )
+//            startActivity(intent)
+            finish()
+
         }
 
         val btnSettings: ImageButton = findViewById<ImageButton>(R.id.btnSettings)
         btnSettings.setOnClickListener{
             startActivity(Intent(this, SettingsActivity::class.java ))
+            finish()
         }
 
 
@@ -231,7 +244,8 @@ class ProgramarTags : AppCompatActivity() {
 
     fun set_pause_gps(){
         val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
-        locationManager.removeUpdates(locationListener as LocationListener)
+        if (locationListener != null)
+            locationManager.removeUpdates(locationListener as LocationListener)
     }
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     fun get_gps_location_lister(){
@@ -423,7 +437,7 @@ class ProgramarTags : AppCompatActivity() {
                 txtLog.append("NFC TAG:" + tagFromIntent?.id + "\n")
 
                 val outRecord = NdefRecord.createMime(
-                    "application/rondingpeinn",
+                    "application/rondy",
                     txtdata.toByteArray(Charset.forName("US-ASCII"))
                 )
 
@@ -438,6 +452,10 @@ class ProgramarTags : AppCompatActivity() {
                     nfc?.close()
                     txtLog.text = "EXITOSO!!!: ${txtdata}\n"
                     txtDesc.setText("")
+                    //Incrementar en 1 el contador de tags
+                    val numTags = mySettings?.getInt("rondin_num_tags",0)
+                    mySettings?.saveInt("rondin_num_tags", numTags?.plus(1) ?: 0)
+
                     val btnProgramarTag: Button = findViewById(R.id.btn_ProgramarTag)
                     btnProgramarTag.text = "Programar TAG nuevo"
                     isScanning = false

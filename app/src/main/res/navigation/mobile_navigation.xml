@@ -7,29 +7,35 @@
 
     <fragment
         android:id="@+id/navigation_home"
-        android:name="com.larangel.rondingpeinn.ui.home.HomeFragment"
+        android:name="com.larangel.rondy.ui.home.HomeFragment"
         android:label="@string/title_home"
-        tools:layout="@layout/fragment_home" />
+        tools:layout="@layout/activity_main" />
 
     <fragment
-        android:id="@+id/navigation_dashboard"
-        android:name="com.larangel.rondingpeinn.ui.dashboard.DashboardFragment"
-        android:label="@string/title_dashboard"
-        tools:layout="@layout/fragment_dashboard" />
+        android:id="@+id/navigation_mapa"
+        android:name="com.larangel.rondy.ui.dashboard.DashboardFragment"
+        android:label="@string/title_mapa"
+        tools:layout="@layout/activity_vehicle_search" />
+
+    <fragment
+        android:id="@+id/navigation_incidencias"
+        android:name="com.larangel.rondy.ui.dashboard.DashboardFragment"
+        android:label="@string/title_incidencias"
+        tools:layout="@layout/activity_listado_incidencias" />
 
     <fragment
         android:id="@+id/navigation_notifications"
-        android:name="com.larangel.rondingpeinn.ui.notifications.NotificationsFragment"
+        android:name="com.larangel.rondy.ui.notifications.NotificationsFragment"
         android:label="@string/title_notifications"
         tools:layout="@layout/fragment_notifications" />
     <activity
         android:id="@+id/startRondinActivity"
-        android:name="com.larangel.rondingpeinn.StartRondinActivity"
+        android:name="com.larangel.rondy.StartRondinActivity"
         android:label="activity_start_rondin"
         tools:layout="@layout/activity_start_rondin" />
     <activity
         android:id="@+id/programarTags"
-        android:name="com.larangel.rondingpeinn.ProgramarTags"
+        android:name="com.larangel.rondy.ProgramarTags"
         android:label="activity_programar_tags"
         tools:layout="@layout/activity_programar_tags" />
 </navigation>

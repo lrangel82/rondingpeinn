@@ -1,4 +1,4 @@
-package com.larangel.rondingpeinn
+package com.larangel.rondy
 
 import CheckPoint
 import MySettings
@@ -65,8 +65,8 @@ import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
 import com.google.api.services.sheets.v4.Sheets
-import com.larangel.rondingpeinn.ProgramarTags
-import com.larangel.rondingpeinn.VehicleSearchActivity
+import com.larangel.rondy.ProgramarTags
+import com.larangel.rondy.VehicleSearchActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -100,8 +100,8 @@ class StartRondinActivity : AppCompatActivity() {
         setContentView(R.layout.activity_start_rondin)
         resultText = findViewById(R.id.txtRondinResult)
 
-        mySettings=MySettings(this)
-        dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
+        mySettings=MySettings(applicationContext)
+        dataRaw = DataRawRondin(applicationContext,CoroutineScope(Dispatchers.IO))
 
         CUANTOS_POR_ESCANEAR = mySettings?.getInt("rondin_num_tags",0)!!
 
@@ -326,7 +326,7 @@ class StartRondinActivity : AppCompatActivity() {
         // Setup an intent filter for all MIME based dispatches
         val ndef = IntentFilter(NfcAdapter.ACTION_NDEF_DISCOVERED).apply {
             try {
-                addDataType("application/rondingpeinn")
+                addDataType("application/rondy")
             } catch (e: MalformedMimeTypeException) {
                 throw RuntimeException("fail", e)
             }

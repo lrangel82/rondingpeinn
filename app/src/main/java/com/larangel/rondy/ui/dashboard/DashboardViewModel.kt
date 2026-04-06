@@ -1,4 +1,4 @@
-package com.larangel.rondingpeinn.ui.dashboard
+package com.larangel.rondy.ui.dashboard
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData

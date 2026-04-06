@@ -1,4 +1,4 @@
-package com.larangel.rondingpeinn
+package com.larangel.rondy
 
 import DataRawRondin
 import MySettings
@@ -46,7 +46,7 @@ import java.io.ByteArrayOutputStream
 import java.time.LocalDate
 import android.widget.ProgressBar
 import android.widget.FrameLayout
-import com.larangel.rondingpeinn.VehicleSearchActivity
+import com.larangel.rondy.VehicleSearchActivity
 import kotlinx.coroutines.CoroutineScope
 
 class PorRevisarListActivity : AppCompatActivity() {
@@ -75,8 +75,8 @@ class PorRevisarListActivity : AppCompatActivity() {
         backButton = findViewById(R.id.backButton)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        mySettings = MySettings(this)
-        dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
+        mySettings = MySettings(applicationContext)
+        dataRaw = DataRawRondin(applicationContext,CoroutineScope(Dispatchers.IO))
 
         //initializeGoogleServices()
 

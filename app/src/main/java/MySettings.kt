@@ -21,13 +21,19 @@ import java.io.StringReader
 
 import java.util.Properties
 import android.util.Log
+import java.time.LocalDate
 
 class MySettings(context: Context) {
 
-    private val sharedPreferences: SharedPreferences =
-        context.getSharedPreferences("larangel.rondingpeinn", Context.MODE_PRIVATE)
+    private val sharedPreferences: SharedPreferences by lazy {
+        context.getSharedPreferences("rondy_prefs_v2", Context.MODE_PRIVATE)
+    }
 
     suspend fun fetchAndProcessS3Config(bucketName: String, regionStr: String, targetHKey: String) {
+        //Verificar si ya procesamos esto hoy
+        val numDayValidado = getInt("DIA_VALIDADO_CODIGO",0)
+        if (numDayValidado == LocalDate.now().dayOfMonth) return
+
         val regex = Regex("configCasetaApp/config\\.ini_.*[0-9.]+")
         val bucketUrl = "https://$bucketName.s3.$regionStr.amazonaws.com"
         val client = OkHttpClient()
@@ -67,7 +73,9 @@ class MySettings(context: Context) {
                 }
             }
             if (founded == false)
-                cleanPreference()
+                cleanPreferenceS3Config()
+
+           saveInt("DIA_VALIDADO_CODIGO",LocalDate.now().dayOfMonth)
 
         } catch (e: Exception) {
             Log.e("ConfigS3", "Error: ${e.message}")
@@ -135,7 +143,7 @@ class MySettings(context: Context) {
             apply()
         }
     }
-    private fun cleanPreference(){
+    fun cleanPreferenceS3Config(){
         with(sharedPreferences.edit()) {
             putInt("APP_ACTIVADA", 0)
             putInt("ESADMIN",0)
@@ -166,30 +174,6 @@ class MySettings(context: Context) {
             //IMAGENES
             putString("IMAGEN_LOGO_PNG","")
 
-//            putLong("PERMISOS_CACHE_TIMESTAMP",0)
-//            putLong("VEHICLE_CACHE_TIMESTAMP",0)
-//            putLong("TAGS_CACHE_TIMESTAMP",0)
-//            putLong("DIRECTIONS_CACHE_TIMESTAMP",0)
-//            putLong("PORREVISAR_CACHE_TIMESTAMP",0)
-//            putLong("PARKINGSLOTS_CACHE_TIMESTAMP",0)
-//            putLong("EVENTOS_CACHE_TIMESTAMP",0)
-//            putLong("INCIDENCIACONFIG_CACHE_TIMESTAMP",0)
-//            putLong("INCIDENCIAEVENTOS_CACHE_TIMESTAMP",0)
-//            putLong("MULTAS_CACHE_TIMESTAMP",0)
-//            putLong("DOMICILIOWARNINGS_CACHE_TIMESTAMP",0)
-//
-//            //CLEAN DATA CACHE
-//            putString("PERMISOS_CACHE","[]")
-//            putString("VEHICLE_CACHE","[]")
-//            putString("TAGS_CACHE","[]")
-//            putString("DIRECTIONS_CACHE","[]")
-//            putString("PORREVISAR_CACHE","[]")
-//            putString("PARKINGSLOTS_CACHE","[]")
-//            putString("EVENTOS_CACHE","[]")
-//            putString("INCIDENCIACONFIG_CACHE","[]")
-//            putString("INCIDENCIAEVENTOS_CACHE","[]")
-//            putString("MULTAS_CACHE","[]")
-//            putString("DOMICILIOWARNINGS_CACHE","[]")
             apply()
         }
     }
@@ -251,7 +235,7 @@ class MySettings(context: Context) {
     }
 
     fun saveString(key: String, value: String) {
-        sharedPreferences.edit() { putString(key, value) }
+        sharedPreferences.edit(commit = true) { putString(key, value) }
     }
 
     fun getString(key: String, defaultValue: String): String {

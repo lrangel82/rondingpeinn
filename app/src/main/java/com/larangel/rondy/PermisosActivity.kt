@@ -1,4 +1,4 @@
-package com.larangel.rondingpeinn
+package com.larangel.rondy
 
 import DataRawRondin
 import MySettings
@@ -60,9 +60,9 @@ class PermisosActivity : AppCompatActivity() {
         // Set the new adapter
         sheetRecyclerView.adapter = permisosRVAdapter
 
-        mySettings=MySettings(this)
+        mySettings=MySettings(applicationContext)
 
-        dataRaw = DataRawRondin(this, CoroutineScope(Dispatchers.IO))
+        dataRaw = DataRawRondin(applicationContext, CoroutineScope(Dispatchers.IO))
 
         btnCerrar.setOnClickListener{
 //            val intent: Intent = Intent(this, MainActivity::class.java )

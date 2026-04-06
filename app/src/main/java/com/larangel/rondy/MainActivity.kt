@@ -1,11 +1,15 @@
-package com.larangel.rondingpeinn
+package com.larangel.rondy
 
 import MySettings
 import DataRawRondin
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
@@ -20,7 +24,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import com.larangel.rondingpeinn.databinding.ActivityMainBinding
+import com.larangel.rondy.databinding.ActivityMainBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -86,25 +90,32 @@ class MainActivity : AppCompatActivity() {
 
         val btnCnfTags: ImageButton = findViewById(R.id.btnConfigTag)
         btnCnfTags.setOnClickListener {
-            val intent: Intent = Intent(this, ProgramarTags::class.java )
+            val intent: Intent = Intent(this, SettingsActivity::class.java )
             startActivity(intent)
         }
 
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayoutMain)
         swipeRefreshLayout.setOnRefreshListener {
-            LoadingSheetDATA(true)
+            validaLicencia()
+            loadingSheetDATA(true)
         }
 
-        mySettings = MySettings(this)
+        mySettings = MySettings(applicationContext)
 
         val codigoActiviacion = mySettings?.getString("CODIGO_ACTIVACION", "")!!
+        val num_tags = mySettings?.getInt("rondin_num_tags", 0)!!
         if (codigoActiviacion.isEmpty()){
+            val intent: Intent = Intent(this, SettingsActivity::class.java )
+            startActivity(intent)
+        }
+        else if(num_tags <= 0){
             val intent: Intent = Intent(this, ProgramarTags::class.java )
             startActivity(intent)
-        }else {
-            dataRaw = DataRawRondin(this, CoroutineScope(Dispatchers.IO))
+        }
+        else {
+            dataRaw = DataRawRondin(applicationContext, CoroutineScope(Dispatchers.IO))
             validaLicencia()
-            LoadingSheetDATA()
+            loadingSheetDATA()
         }
 
 
@@ -115,10 +126,51 @@ class MainActivity : AppCompatActivity() {
         updateTextoBotones()
     }
 
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.bottom_nav_menu, menu)
+        return true
+    }
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.navigation_home -> {
+                true
+            }
+            R.id.navigation_mapa -> {
+                startActivity(Intent(this, VehicleSearchActivity::class.java))
+                true
+            }
+            R.id.navigation_incidencias -> {
+                startActivity(Intent(this, ListadoIncidenciasActivity::class.java))
+                true
+            }
+            R.id.navigation_permisos -> {
+                startActivity(Intent(this, PermisosActivity::class.java))
+                true
+            }
+            R.id.navigation_notifications -> {
+                startActivity(Intent(this, PorRevisarListActivity::class.java))
+                true
+            }
+            R.id.navigation_settings -> {
+                startActivity(Intent(this, SettingsActivity::class.java))
+                true
+            }
+            R.id.navigation_acercade -> {
+                startActivity(Intent(this, AcercadeActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
     private fun validaLicencia(){
         val copyRAdmin: TextView = findViewById<TextView>(R.id.textCopyright)
         swipeRefreshLayout.isRefreshing = true
         Toast.makeText(this@MainActivity,"VALIDANDO LICENCIA....",Toast.LENGTH_SHORT).show()
+
+        //VERSION
+        val versionName = getVersionApp()
+
         if (isNetworkAvailable()){
             //DESCARGAR CONFIGURACION Y VALIDAR
             val bucketName = mySettings?.getString("BUCKET_NAME", "").toString()
@@ -133,10 +185,10 @@ class MainActivity : AppCompatActivity() {
                     val appActivada = mySettings?.getInt("APP_ACTIVADA", 0)
                     withContext(Dispatchers.Main) {
                         if (appActivada == 1) {
-                            copyRAdmin.text = "v1.0 develop by Luis Rangel"
+                            copyRAdmin.text = "${versionName} develop by Luis Rangel"
                         } else {
                             copyRAdmin.text =
-                                "#### APP DESACTIVADA #### contactar luisrangel@gmail.com"
+                                "#### APP DESACTIVADA #### contactar luisrangel@gmail.com ${versionName}"
                             abrirAlertDesactivada()
                         }
                         swipeRefreshLayout.isRefreshing = false
@@ -153,7 +205,7 @@ class MainActivity : AppCompatActivity() {
         else{
             val appActivada = mySettings?.getInt("APP_ACTIVADA",0)
             if (appActivada == 1) {
-                copyRAdmin.text = "(SIN INTERNET)       v1.0 develop by Luis Rangel"
+                copyRAdmin.text = "(SIN INTERNET)       ${versionName} develop by Luis Rangel"
                 //Mostrar cache
                 lifecycleScope.launch(Dispatchers.IO) {
                     val vehiculosData = dataRaw?.getCachedVehiclesData()
@@ -186,7 +238,7 @@ class MainActivity : AppCompatActivity() {
 
             }
             else {
-                copyRAdmin.text = "#### APP DESACTIVADA #### contactar luisrangel@gmail.com"
+                copyRAdmin.text = "#### APP DESACTIVADA #### contactar luisrangel@gmail.com ${versionName}"
                 abrirAlertDesactivada()
             }
             Toast.makeText(
@@ -198,8 +250,35 @@ class MainActivity : AppCompatActivity() {
         swipeRefreshLayout.isRefreshing = false
     }
 
+    fun getVersionApp(): String {
+        try {
+            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // Para Android 13+
+                packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                // Para versiones anteriores
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(packageName, 0)
+            }
+
+            val versionName = packageInfo.versionName
+            val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                packageInfo.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                packageInfo.versionCode.toLong()
+            }
+
+            return "$versionName($versionCode)"
+
+        } catch (e: PackageManager.NameNotFoundException) {
+            e.printStackTrace()
+            return "sin Version"
+        }
+    }
+
     @SuppressLint("SuspiciousIndentation")
-    private fun LoadingSheetDATA(forceLoad: Boolean = false){
+    private fun loadingSheetDATA(forceLoad: Boolean = false){
 
         //Load all the data in thread
         lifecycleScope.launch(Dispatchers.IO) {

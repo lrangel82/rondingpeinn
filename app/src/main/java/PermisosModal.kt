@@ -8,13 +8,13 @@ import android.widget.ImageView
 import android.widget.RelativeLayout
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.larangel.rondingpeinn.R
+import com.larangel.rondy.R
 import java.time.LocalDate
 import java.time.LocalDateTime
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import com.larangel.rondingpeinn.MainActivity
+import com.larangel.rondy.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 
@@ -62,20 +62,23 @@ class PermisosRVAdapter(
         val direccion: String = permisosModal.calle.substring(0,3) + permisosModal.numero
         val desc: String = "[${permisosModal.tipoAcceso}] -->" + permisosModal.descripcion + "\n Personas:\n" + permisosModal.nombrePersonas +"\n\n"+permisosModal.motivo_denegado
         holder.domicilioTV.text = direccion
-        holder.fecha_inicioTV.text = permisosModal.fechaInicio.toString()
-        holder.fecha_finTV.text = permisosModal.fechaFin.toString()
+        holder.fecha_inicioTV.text = "Del ${permisosModal.fechaInicio} al ${permisosModal.fechaFin}"
+        holder.fecha_finTV.text = "creado:${permisosModal.fechaCreado}"
         holder.descripcionTV.text = desc
         if (permisosModal.procesado == false) {
             holder.aprobadoTV.text = ">>NUEVO<< Por VALIDAR ADMIN"
             holder.aprobadoTV.setTextColor( Color.YELLOW )
+            holder.aprobadoTV.setBackgroundColor(Color.BLACK)
             holder.domicilioTV.setBackgroundColor(Color.YELLOW)
         } else if (permisosModal.aprobado) {
             holder.aprobadoTV.text = "Aprobado"
-            holder.aprobadoTV.setTextColor( Color.GREEN )
+            holder.aprobadoTV.setTextColor( Color.BLACK )
+            holder.aprobadoTV.setBackgroundColor(Color.GREEN)
             holder.domicilioTV.setBackgroundColor(Color.GREEN)
         }else{
             holder.aprobadoTV.text = "Denegado"
-            holder.aprobadoTV.setTextColor( Color.RED )
+            holder.aprobadoTV.setTextColor( Color.BLACK )
+            holder.aprobadoTV.setBackgroundColor(Color.RED)
             holder.domicilioTV.setBackgroundColor(Color.RED)
         }
         when (permisosModal.tipo){

@@ -130,6 +130,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:contentDescription="Licencia"
+                android:visibility="gone"
                 app:srcCompat="@android:drawable/ic_dialog_info" />
 
             <Button

@@ -1,4 +1,4 @@
-package com.larangel.rondingpeinn.ui.notifications
+package com.larangel.rondy.ui.notifications
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData

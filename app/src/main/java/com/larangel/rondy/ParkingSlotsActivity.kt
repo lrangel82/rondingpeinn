@@ -1,4 +1,4 @@
-package com.larangel.rondingpeinn
+package com.larangel.rondy
 
 import DataRawRondin
 import MySettings
@@ -28,7 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.lifecycle.lifecycleScope
-import com.larangel.rondingpeinn.VehicleSearchActivity
+import com.larangel.rondy.VehicleSearchActivity
 import kotlinx.coroutines.CoroutineScope
 
 class ParkingSlotsActivity : AppCompatActivity() {
@@ -52,8 +52,8 @@ class ParkingSlotsActivity : AppCompatActivity() {
         backButton = findViewById(R.id.backButton)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
-        mySettings = MySettings(this)
-        dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
+        mySettings = MySettings(applicationContext)
+        dataRaw = DataRawRondin(applicationContext,CoroutineScope(Dispatchers.IO))
 
         initializeGoogleServices()
 

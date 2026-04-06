@@ -4,7 +4,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.larangel.rondingpeinn.R
+import com.larangel.rondy.R
 
 data class ParkingSlot(
     val latitude: Double,

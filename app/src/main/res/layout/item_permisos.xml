@@ -60,7 +60,8 @@
                 android:text="FechaFinal"
                 android:textAlignment="textEnd"
                 android:textColor="@color/black"
-                android:textSize="15sp" />
+                android:textSize="12sp"
+                android:textStyle="italic" />
         </LinearLayout>
 
         <TextView

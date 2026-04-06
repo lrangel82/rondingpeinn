@@ -4,7 +4,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.larangel.rondingpeinn.R
+import com.larangel.rondy.R
 import java.time.LocalDate
 import java.time.LocalDateTime
 import com.bumptech.glide.Glide

@@ -5,7 +5,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.larangel.rondingpeinn.R
+import com.larangel.rondy.R
 import java.time.LocalDateTime
 
 data class PorRevisarRecord(val street: String, val number: String, var time: LocalDateTime, var parkingSlotKey: String, val validation: String, var latitude: Double, var longitude: Double) : Parcelable {

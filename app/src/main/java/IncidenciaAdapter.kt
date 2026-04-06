@@ -5,7 +5,7 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.larangel.rondingpeinn.R
+import com.larangel.rondy.R
 import java.io.File
 
 class IncidenciaAdapter(

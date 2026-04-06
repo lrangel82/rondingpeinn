@@ -1,4 +1,4 @@
-package com.larangel.rondingpeinn
+package com.larangel.rondy
 
 import DataRawRondin
 import MySettings
@@ -85,8 +85,8 @@ class IncidenciasMenu : AppCompatActivity() {
             insets
         }
 
-        mySettings = MySettings(this)
-        dataRaw = DataRawRondin(this,CoroutineScope(Dispatchers.IO))
+        mySettings = MySettings(applicationContext)
+        dataRaw = DataRawRondin(applicationContext,CoroutineScope(Dispatchers.IO))
 
         //Configuracion incidencia
         configuraIncidencias = dataRaw?.getIncidenciasConfig() as List<List<String>>?
