@@ -93,6 +93,9 @@ import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.widget.doOnTextChanged
+import androidx.fragment.app.Fragment
+import com.getkeepsafe.taptargetview.TapTarget
+import com.getkeepsafe.taptargetview.TapTargetSequence
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.SupportMapFragment
@@ -292,6 +295,16 @@ class  VehicleSearchActivity : AppCompatActivity() {
         setupMap()
         updatePorRevisarButton()
 
+        val yaVioAyuda = mySettings?.getBoolean("ayuda_mapa_activity", false)
+        val btnAyuda: ImageButton = findViewById(R.id.btnAyudaMapa)
+        if (yaVioAyuda == false) {
+            mostrarAyuda()
+            mySettings?.saveBoolean("ayuda_mapa_activity", true) // Lo marcamos como visto
+        }
+        btnAyuda.setOnClickListener {
+            mostrarAyuda()
+        }
+
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -309,18 +322,28 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 true
             }
             R.id.navigation_incidencias -> {
-                startActivity(Intent(this, ListadoIncidenciasActivity::class.java))
-                this.finish()
+                if (isActive) {
+                    startActivity(Intent(this, ListadoIncidenciasActivity::class.java))
+                    this.finish()
+                }else
+                    startActivity(Intent(this, AyudaActivity::class.java))
+
                 true
             }
             R.id.navigation_permisos -> {
-                startActivity(Intent(this, PermisosActivity::class.java))
-                this.finish()
+                if (isActive) {
+                    startActivity(Intent(this, PermisosActivity::class.java))
+                    this.finish()
+                }else
+                    startActivity(Intent(this, AyudaActivity::class.java))
                 true
             }
             R.id.navigation_notifications -> {
-                startActivity(Intent(this, PorRevisarListActivity::class.java))
-                this.finish()
+                if (isActive) {
+                    startActivity(Intent(this, PorRevisarListActivity::class.java))
+                    this.finish()
+                }else
+                    startActivity(Intent(this, AyudaActivity::class.java))
                 true
             }
             R.id.navigation_settings -> {
@@ -2276,6 +2299,95 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
     }// end SendMessage
     //##################### FIN RONDINERO ##############
+
+
+    //############ AYUDA ###############
+    fun mostrarAyuda() {
+        val txtVehiculos = findViewById<TextView>(R.id.txtPBar_ParkingSlots)
+        val swRondin = findViewById<Switch>(R.id.swRonding)
+        val txtPlate = findViewById<EditText>(R.id.plateInput)
+        val bMapa = findViewById<ImageView>(R.id.imgRondineroCentrado)
+
+        TapTargetSequence(this)
+            .targets(
+                TapTarget.forView(txtVehiculos, "¡Lugares de Visita!", "Aqui veras el numero de cajones de visita que se han escaneado, esto se resetea cada 6 hr y se debe volver hacer hacer rondin de placas en cajones de estacionamiento")
+                    // Personalización con los colores de Rondy
+                    .outerCircleColor(R.color.teal_700)      // El color de fondo del círculo grande
+                    .targetCircleColor(R.color.white)         // El color que rodea al botón
+                    .titleTextSize(24)                        // Tamaño del título
+                    .descriptionTextSize(16)                  // Tamaño de la descripción
+                    .textColor(R.color.white)                 // Color del texto
+                    .drawShadow(true)                         // Sombra para profundidad
+                    .cancelable(false)                        // No se cierra si tocan fuera
+                    .tintTarget(true),                        // Mantiene el color del botón original
+                    //.transparentTarget(false),                // El botón se ve sólido dentro del círculo
+                TapTarget.forView(swRondin, "¡RONDIN!", "Aqui inicias y finalizas el rondin, una ves finalizado los tags deberan ser enviados por whatsapp al grupo de administracion")
+                    // Personalización con los colores de Rondy
+                    .outerCircleColor(R.color.teal_700)      // El color de fondo del círculo grande
+                    .targetCircleColor(R.color.white)         // El color que rodea al botón
+                    .titleTextSize(24)                        // Tamaño del título
+                    .descriptionTextSize(16)                  // Tamaño de la descripción
+                    .textColor(R.color.white)                 // Color del texto
+                    .drawShadow(true)                         // Sombra para profundidad
+                    .cancelable(false)                        // No se cierra si tocan fuera
+                    .tintTarget(true)                         // Mantiene el color del botón original
+                    .transparentTarget(false),                // El botón se ve sólido dentro del círculo
+                TapTarget.forView(txtPlate, "PLACAS", "Ingresa las placas para saber el domicilio al que pertence, puedes tomar foto y se tratara de leer la placa desde la foto")
+                    // Personalización con los colores de Rondy
+                    .outerCircleColor(R.color.teal_700)      // El color de fondo del círculo grande
+                    .targetCircleColor(R.color.white)         // El color que rodea al botón
+                    .titleTextSize(24)                        // Tamaño del título
+                    .descriptionTextSize(16)                  // Tamaño de la descripción
+                    .textColor(R.color.white)                 // Color del texto
+                    .drawShadow(true)                         // Sombra para profundidad
+                    .cancelable(false)                        // No se cierra si tocan fuera
+                    .tintTarget(true)                         // Mantiene el color del botón original
+                    .transparentTarget(false),                // El botón se ve sólido dentro del círculo
+                TapTarget.forView(bMapa, "MAPA", "Aqui podras ver los lugares de visitas que no han sido validados, podras ver los permisos aprobados, y tambien los domicilios a los cuales se debe validar si sus cocheras estan vacias o ocupadas")
+                    // Personalización con los colores de Rondy
+                    .outerCircleColor(R.color.teal_700)      // El color de fondo del círculo grande
+                    .targetCircleColor(R.color.white)         // El color que rodea al botón
+                    .titleTextSize(24)                        // Tamaño del título
+                    .descriptionTextSize(16)                  // Tamaño de la descripción
+                    .textColor(R.color.white)                 // Color del texto
+                    .drawShadow(true)                         // Sombra para profundidad
+                    .cancelable(false)                        // No se cierra si tocan fuera
+                    .tintTarget(true)                         // Mantiene el color del botón original
+            )
+            .listener(object : TapTargetSequence.Listener {
+                override fun onSequenceFinish() {
+                    // Se ejecuta cuando el usuario termina todo el tour
+                }
+                override fun onSequenceStep(lastTarget: TapTarget?, targetClicked: Boolean) {
+                    // Se ejecuta cada que avanza un paso
+                }
+                override fun onSequenceCanceled(lastTarget: TapTarget?) {
+                    // Se ejecuta si el usuario cancela (si es cancelable)
+                }
+            })
+            .start()
+
+//        TapTargetView.showFor(this,
+//            TapTarget.forView(txtCodigoAct, "¡Activa tu aplicacion!", "Ingresa cualquier valor para no regresar a esta pantalla, si tienes un codigo de activacion proporcionado por el programador usalo aqui y podras usar todas las funciones.")
+//                // Personalización con los colores de Rondy
+//                .outerCircleColor(R.color.teal_700)      // El color de fondo del círculo grande
+//                .targetCircleColor(R.color.white)         // El color que rodea al botón
+//                .titleTextSize(24)                        // Tamaño del título
+//                .descriptionTextSize(16)                  // Tamaño de la descripción
+//                .textColor(R.color.white)                 // Color del texto
+//                .drawShadow(true)                         // Sombra para profundidad
+//                .cancelable(false)                        // No se cierra si tocan fuera
+//                .tintTarget(true)                         // Mantiene el color del botón original
+//                .transparentTarget(false),                // El botón se ve sólido dentro del círculo
+//            object : TapTargetView.Listener() {
+//                override fun onTargetClick(view: TapTargetView?) {
+//                    super.onTargetClick(view)
+//                    // Aquí puedes ejecutar la acción del botón o cerrar la guía
+//                }
+//            }
+//        )
+    }
+
 
     data class ParkingSlot(val latitude: Double, val longitude: Double, val key: String, val distance: Double)
 

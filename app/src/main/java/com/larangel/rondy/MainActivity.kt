@@ -2,6 +2,7 @@ package com.larangel.rondy
 
 import MySettings
 import DataRawRondin
+import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -20,8 +21,11 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.larangel.rondy.databinding.ActivityMainBinding
@@ -32,6 +36,7 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import coil.load
 import coil.transform.CircleCropTransformation
+import com.larangel.rondy.IncidenciasMenu
 
 class MainActivity : AppCompatActivity() {
 
@@ -44,6 +49,12 @@ class MainActivity : AppCompatActivity() {
     private var progressBar: ProgressBar? = null
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private var isActive: Boolean = false
+    //PERMISOS
+    private val REQUEST_CAMERA_PERMISSION = 100
+    private val REQUEST_LOCATION_PERMISSION = 101
+    private val REQUEST_IMAGE_CAPTURE = 102
+    private val REQUEST_IMAGE_PICK = 103
+    private val REQUEST_STORAGE_PERMISSION = 104
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -128,7 +139,7 @@ class MainActivity : AppCompatActivity() {
         }
         isActive= mySettings?.getInt( "APP_ACTIVADA",0) == 1
 
-
+        verificarPermisosRequeridos()
 
     }
     override fun onResume() {
@@ -136,6 +147,7 @@ class MainActivity : AppCompatActivity() {
         updateTextoBotones()
     }
 
+    //##### MENU ####
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.bottom_nav_menu, menu)
         return true
@@ -150,15 +162,24 @@ class MainActivity : AppCompatActivity() {
                 true
             }
             R.id.navigation_incidencias -> {
-                startActivity(Intent(this, ListadoIncidenciasActivity::class.java))
+                if (isActive)
+                    startActivity(Intent(this, ListadoIncidenciasActivity::class.java))
+                else
+                    startActivity(Intent(this, AyudaActivity::class.java))
                 true
             }
             R.id.navigation_permisos -> {
-                startActivity(Intent(this, PermisosActivity::class.java))
+                if (isActive)
+                    startActivity(Intent(this, PermisosActivity::class.java))
+                else
+                    startActivity(Intent(this, AyudaActivity::class.java))
                 true
             }
             R.id.navigation_notifications -> {
-                startActivity(Intent(this, PorRevisarListActivity::class.java))
+                if (isActive)
+                    startActivity(Intent(this, PorRevisarListActivity::class.java))
+                else
+                    startActivity(Intent(this, AyudaActivity::class.java))
                 true
             }
             R.id.navigation_settings -> {
@@ -259,7 +280,6 @@ class MainActivity : AppCompatActivity() {
         }
         swipeRefreshLayout.isRefreshing = false
     }
-
     fun getVersionApp(): String {
         try {
             val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -335,7 +355,6 @@ class MainActivity : AppCompatActivity() {
         } // fun coroutine
 
     }
-
     private fun updateTextoBotones(){
         val vehiculosData = dataRaw?.getCachedVehiclesData()
         val permisosData = dataRaw?.getPermisosCache_DeHoy()
@@ -370,7 +389,6 @@ class MainActivity : AppCompatActivity() {
             nombreCoto.text = str_coto
         }
     }
-
     private fun cargarImagenConfigurada(imageView: ImageView, urlDesdeRed: String?, recursoDefault: Int) {
         // Si urlDesdeRed es null o vacío, Coil usará el 'error' o 'placeholder'
         imageView.load(urlDesdeRed) {
@@ -408,5 +426,54 @@ class MainActivity : AppCompatActivity() {
         return network?.isConnected == true
     }
 
+    //Verificar los permisos de la aplicacion
+    private fun verificarPermisosRequeridos(){
+        if (isActive && (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
+            || ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED)) {
+
+            AlertDialog.Builder(this@MainActivity)
+                .setMessage("No se ha dado permiso para la camara y lectura de imagenes del dispositivo, debe ser activado para el correcto funcionamiento.")
+                .setPositiveButton("Activar permiso") { _, _ ->
+                    ActivityCompat.requestPermissions(this, arrayOf(
+                        android.Manifest.permission.CAMERA,
+                        android.Manifest.permission.READ_MEDIA_IMAGES
+                    ),REQUEST_CAMERA_PERMISSION)
+                }
+                .setCancelable(false)
+                .show()
+
+        }
+//        else if( isActive && (ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+//            || ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED)) {
+//
+//            AlertDialog.Builder(this@MainActivity)
+//                .setMessage("No se ha dado permiso para guardar imagenes, debe ser activado para el correcto funcionamiento.")
+//                .setPositiveButton("Activar permiso") { _, _ ->
+//                    ActivityCompat.requestPermissions(this, arrayOf(
+//                        android.Manifest.permission.WRITE_EXTERNAL_STORAGE,
+//                        android.Manifest.permission.READ_EXTERNAL_STORAGE
+//                    ),REQUEST_STORAGE_PERMISSION)
+//                }
+//                .setCancelable(false)
+//                .show()
+//        }
+    }
+    @RequiresPermission(allOf = [android.Manifest.permission.CAMERA, Manifest.permission.READ_MEDIA_IMAGES])
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            REQUEST_CAMERA_PERMISSION -> {
+                if (grantResults.isEmpty() || grantResults[0] != PackageManager.PERMISSION_GRANTED)
+                    Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show()
+            }
+            REQUEST_LOCATION_PERMISSION -> {
+                if (grantResults.isEmpty() && grantResults[0] != PackageManager.PERMISSION_GRANTED) {
+                   Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
 }

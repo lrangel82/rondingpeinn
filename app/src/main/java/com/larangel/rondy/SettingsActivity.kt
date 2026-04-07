@@ -152,7 +152,6 @@ class SettingsActivity : AppCompatActivity() {
         }
 
     }
-
     fun mostrarAyuda() {
         val txtCodigoAct = findViewById<EditText>(R.id.txtCodigoActivacion)
         val btnTags = findViewById<ImageButton>(R.id.btnAddTagsConf)
@@ -227,6 +226,7 @@ class SettingsActivity : AppCompatActivity() {
 //            }
 //        )
     }
+
 
 
 

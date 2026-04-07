@@ -24,6 +24,7 @@
                 android:id="@+id/tableRowVisistas"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:gravity="center_vertical"
                 android:paddingVertical="2pt">
 
                 <TextView
@@ -44,6 +45,14 @@
                     android:progress="10"
                     android:progressBackgroundTint="#E91E63"
                     android:progressTint="#4CAF50" />
+
+                <ImageButton
+                    android:id="@+id/btnAyudaMapa"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="right"
+                    android:contentDescription="Ayuda"
+                    map:srcCompat="@android:drawable/ic_menu_help" />
             </TableRow>
 
             <TableRow
@@ -203,6 +212,7 @@
                 map:uiZoomControls="true" />
 
             <ImageView
+                android:id="@+id/imgRondineroCentrado"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_gravity="center"

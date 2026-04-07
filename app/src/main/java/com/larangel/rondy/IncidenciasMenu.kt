@@ -25,9 +25,11 @@ import android.widget.LinearLayout
 import android.widget.RadioButton
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.core.graphics.scale
 import androidx.core.view.ViewCompat
@@ -38,6 +40,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.larangel.rondy.ProgramarTags
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -111,29 +114,9 @@ class IncidenciasMenu : AppCompatActivity() {
             loadIncidencias()
         }
 
-        //Agregar Botones
-//        val contenedor = findViewById<LinearLayout>(R.id.layoutBotonesIncidencias)
-//        configuraIncidencias?.forEachIndexed { index, rowIncidencia ->
-//            val nuevoBoton = MaterialButton(this, null, com.google.android.material.R.attr.materialButtonStyle)
-//            nuevoBoton.text = rowIncidencia[1].toString()
-//            nuevoBoton.id = index
-//            // Configura los parámetros de diseño (LayoutParams)
-//            val layoutParams = LinearLayout.LayoutParams(
-//                LinearLayout.LayoutParams.MATCH_PARENT, // Ancho
-//                LinearLayout.LayoutParams.WRAP_CONTENT // Alto
-//            )
-//            layoutParams.setMargins(16, 8, 16, 8) // Márgenes (izquierda, arriba, derecha, abajo)
-//            nuevoBoton.layoutParams = layoutParams
-//            nuevoBoton.setOnClickListener {
-//                indexBtnClicked = index
-//                showOpcionesDialog(rowIncidencia[0].toString())
-//            }
-//            // Agrega el botón al contenedor
-//            contenedor.addView(nuevoBoton)
-//            arrayBotonesIncidencias!!.add(nuevoBoton)
-//        }
-
         findViewById<Button>(R.id.btnBackIncidenciasMenu).setOnClickListener { finish() }
+
+        verificarPermisosRequeridos()
 
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayoutIncidencias)
         swipeRefreshLayout.setOnRefreshListener {
@@ -141,6 +124,56 @@ class IncidenciasMenu : AppCompatActivity() {
         }
 
         loadIncidencias()
+    }
+
+    private fun verificarPermisosRequeridos(){
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
+            || ContextCompat.checkSelfPermission(this, Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED) {
+
+            AlertDialog.Builder(this@IncidenciasMenu)
+                .setMessage("No se ha dado permiso para la camara y lectura de imagenes del dispositivo, debe ser activado para el correcto funcionamiento.")
+                .setPositiveButton("Activar permiso") { _, _ ->
+                    ActivityCompat.requestPermissions(this, arrayOf(
+                        Manifest.permission.CAMERA,
+                        Manifest.permission.READ_MEDIA_IMAGES
+                    ),REQUEST_CAMERA_PERMISSION)
+                }
+                .setCancelable(false)
+                .show()
+
+        }
+//        else if(ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED
+//            || ContextCompat.checkSelfPermission(this, Manifest.permission.READ_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+//            AlertDialog.Builder(this@IncidenciasMenu)
+//                .setMessage("No se ha dado permiso para guardar imagenes, debe ser activado para el correcto funcionamiento.")
+//                .setPositiveButton("Activar permiso") { _, _ ->
+//                    ActivityCompat.requestPermissions(this, arrayOf(
+//                        Manifest.permission.WRITE_EXTERNAL_STORAGE,
+//                        Manifest.permission.READ_EXTERNAL_STORAGE
+//                    ),REQUEST_STORAGE_PERMISSION)
+//                }
+//                .setCancelable(false)
+//                .show()
+//        }
+    }
+    //Una ves solicitado el permiso manejar la respuesta
+    @RequiresPermission(allOf = [Manifest.permission.CAMERA, Manifest.permission.READ_MEDIA_IMAGES])
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            REQUEST_CAMERA_PERMISSION -> {
+                if (grantResults.isEmpty() || grantResults[0] != PackageManager.PERMISSION_GRANTED)
+                    Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show()
+            }
+//            REQUEST_LOCATION_PERMISSION -> {
+//                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+//                    saveNewEvent()
+//                } else {
+//                    Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show()
+//                }
+//            }
+        }
+
     }
 
     private fun crearBotonesIncidenciaDinamicos(){
@@ -178,10 +211,9 @@ class IncidenciasMenu : AppCompatActivity() {
     }
 
     private fun loadIncidencias(forceLoad: Boolean = false) {
+        swipeRefreshLayout.isRefreshing = true
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                swipeRefreshLayout.isRefreshing = true
-
                 configuraIncidencias = dataRaw?.getIncidenciasConfig(forceLoad) as List<List<String>>?
                 val totalEventos = dataRaw?.getIncidenciasEventos(forceLoad)?.count() ?: 0
 
@@ -257,6 +289,11 @@ class IncidenciasMenu : AppCompatActivity() {
             .show()
     }
     fun tomarFoto() {
+        if(ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED){
+            //No tiene permiso
+            Toast.makeText(this, "No hay permiso para usar la camara", Toast.LENGTH_LONG).show()
+            return
+        }
         val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         val photoFile: File? = createImageFile()
         if (photoFile != null) {
@@ -657,52 +694,52 @@ class IncidenciasMenu : AppCompatActivity() {
 //        }
     }
 
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            REQUEST_CAMERA_PERMISSION -> {
-                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    tomarFoto()
-                } else {
-                    Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show()
-                }
-            }
-//            REQUEST_LOCATION_PERMISSION -> {
+//    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+//        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+//        when (requestCode) {
+//            REQUEST_CAMERA_PERMISSION -> {
 //                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-//                    saveNewEvent()
+//                    tomarFoto()
 //                } else {
-//                    Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show()
+//                    Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show()
 //                }
 //            }
-            REQUEST_STORAGE_PERMISSION -> {
-                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    pickFromGallery()
-                } else {
-                    println("Storage permission denied")
-                    val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        Manifest.permission.READ_MEDIA_IMAGES
-                    } else {
-                        Manifest.permission.READ_EXTERNAL_STORAGE
-                    }
-                    if (!ActivityCompat.shouldShowRequestPermissionRationale(this, permission)) {
-                        println("Storage permission permanently denied")
-                        AlertDialog.Builder(this)
-                            .setTitle("Permission Required")
-                            .setMessage("Storage permission is needed to select photos from the gallery. Please enable it in Settings.")
-                            .setPositiveButton("Go to Settings") { _, _ ->
-                                val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
-                                intent.data = Uri.parse("package:$packageName")
-                                startActivity(intent)
-                            }
-                            .setNegativeButton("Cancel") { _, _ -> }
-                            .show()
-                    } else {
-                        Toast.makeText(this, "Storage permission denied. Cannot access gallery.", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            }
-        }
-    }
+////            REQUEST_LOCATION_PERMISSION -> {
+////                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+////                    saveNewEvent()
+////                } else {
+////                    Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show()
+////                }
+////            }
+//            REQUEST_STORAGE_PERMISSION -> {
+//                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+//                    pickFromGallery()
+//                } else {
+//                    println("Storage permission denied")
+//                    val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+//                        Manifest.permission.READ_MEDIA_IMAGES
+//                    } else {
+//                        Manifest.permission.READ_EXTERNAL_STORAGE
+//                    }
+//                    if (!ActivityCompat.shouldShowRequestPermissionRationale(this, permission)) {
+//                        println("Storage permission permanently denied")
+//                        AlertDialog.Builder(this)
+//                            .setTitle("Permission Required")
+//                            .setMessage("Storage permission is needed to select photos from the gallery. Please enable it in Settings.")
+//                            .setPositiveButton("Go to Settings") { _, _ ->
+//                                val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+//                                intent.data = Uri.parse("package:$packageName")
+//                                startActivity(intent)
+//                            }
+//                            .setNegativeButton("Cancel") { _, _ -> }
+//                            .show()
+//                    } else {
+//                        Toast.makeText(this, "Storage permission denied. Cannot access gallery.", Toast.LENGTH_SHORT).show()
+//                    }
+//                }
+//            }
+//        }
+//    }
 
 
 
