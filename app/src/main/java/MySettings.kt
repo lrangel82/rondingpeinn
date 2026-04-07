@@ -69,7 +69,7 @@ class MySettings(context: Context) {
                     Log.d("ConfigS3", "Configuración guardada correctamente.")
                     return@forEach
                 } else {
-                    Log.e("ConfigS3", "HKey inválido: $hKeyVal")
+                    Log.e("ConfigS3", "HKey inválido: $targetHKey")
                 }
             }
             if (founded == false)

@@ -4,11 +4,16 @@
     <string name="title_mapa">Mapa</string>
     <string name="title_incidencias">Incidencias</string>
     <string name="title_permisos">Permisos</string>
-    <string name="title_notifications">Notifications</string>
-    <string name="title_settings">Configuracion</string>
+    <string name="title_notifications">Notificaciones</string>
+    <string name="title_settings">Configuracion de Rondy</string>
     <string name="title_acercade">Acerca de Rondy</string>
-    <string name="ayuda_settings">CODIGO DE ACTIVACION:
+    <string name="title_programarTags">Programar TAGS</string>
+    <string name="ayuda_settings_codigo">CODIGO DE ACTIVACION:
         Ingresa cualqiuer valor para activar la aplicacion en modo rondinero y no regresar a esta pantalla.</string>
+    <string name="ayuda_settings_tags">TAGS:
+        Programar nuevos tags los cuales seran leidos por el NFC al realizar un rondin.</string>
+    <string name="ayuda_settings_password">Permisos admin password:
+        Si tienes el password de permisos te permite APROBAR/DENEGAR/ELIMINAR los permisos, si no se proporciona el modo de permisos es el default solo visible los actuales y aprobados.</string>
     <string name="title_activity_splash">SplashActivity</string>
     <string name="splash_text">Cargando...</string>
 </resources>

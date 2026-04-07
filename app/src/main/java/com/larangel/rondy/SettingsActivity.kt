@@ -7,19 +7,19 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
-import com.larangel.rondy.MainActivity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.getkeepsafe.taptargetview.TapTarget
-import com.getkeepsafe.taptargetview.TapTargetView
+import com.getkeepsafe.taptargetview.TapTargetSequence
 
 class SettingsActivity : AppCompatActivity() {
     private var mySettings: MySettings? = null
@@ -40,6 +40,7 @@ class SettingsActivity : AppCompatActivity() {
         val btnGuardar: Button = findViewById(R.id.btnGuardarConf)
         val btnParkignSlots: Button = findViewById(R.id.btnParkingSlotsConf)
         val btnAddtags: ImageButton = findViewById(R.id.btnAddTagsConf)
+        val btnAyuda: ImageButton = findViewById(R.id.btnAyuda)
 
         btnParkignSlots.text = "Parking Slots: ${parkingSlots?.count()}"
 
@@ -66,6 +67,9 @@ class SettingsActivity : AppCompatActivity() {
             mostrarAyuda()
             mySettings?.saveBoolean("ayuda_settings_activity", true) // Lo marcamos como visto
         }
+        btnAyuda.setOnClickListener {
+            mostrarAyuda()
+        }
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -83,10 +87,10 @@ class SettingsActivity : AppCompatActivity() {
         val txtPwdPermisos: EditText = findViewById(R.id.txtPwdPermisos)
 
         //Config data
-        val _numTags            = mySettings?.getInt("rondin_num_tags",22).toString()
+        val _numTags            = mySettings?.getInt("rondin_num_tags",0).toString()
 //        val _bucketName         = mySettings?.getString("BUCKET_NAME","")
 //        val _regionStr          = mySettings?.getString("REGION_STR","")
-        val _codigoActivacion   = mySettings?.getString("CODIGO_ACTIVACION","")
+        val _codigoActivacion   = mySettings?.getString("CODIGO_ACTIVACION","gratis")
         val _pwdPermisos        = mySettings?.getString("PASSWORD_PERMISOS","")
 
         txtNumTags.setText( _numTags )
@@ -151,26 +155,77 @@ class SettingsActivity : AppCompatActivity() {
 
     fun mostrarAyuda() {
         val txtCodigoAct = findViewById<EditText>(R.id.txtCodigoActivacion)
+        val btnTags = findViewById<ImageButton>(R.id.btnAddTagsConf)
+        val txtPassword = findViewById<EditText>(R.id.txtPwdPermisos)
 
-        TapTargetView.showFor(this,
-            TapTarget.forView(txtCodigoAct, "¡Activa tu aplicacion!", "Ingresa cualquier valor para no regresar a esta pantalla, si tienes un codigo de activacion proporcionado por el programador usalo aqui y podras usar todas las funciones.")
-                // Personalización con los colores de Rondy
-                .outerCircleColor(R.color.teal_700)      // El color de fondo del círculo grande
-                .targetCircleColor(R.color.white)         // El color que rodea al botón
-                .titleTextSize(24)                        // Tamaño del título
-                .descriptionTextSize(16)                  // Tamaño de la descripción
-                .textColor(R.color.white)                 // Color del texto
-                .drawShadow(true)                         // Sombra para profundidad
-                .cancelable(false)                        // No se cierra si tocan fuera
-                .tintTarget(true)                         // Mantiene el color del botón original
-                .transparentTarget(false),                // El botón se ve sólido dentro del círculo
-            object : TapTargetView.Listener() {
-                override fun onTargetClick(view: TapTargetView?) {
-                    super.onTargetClick(view)
-                    // Aquí puedes ejecutar la acción del botón o cerrar la guía
+        TapTargetSequence(this)
+            .targets(
+                TapTarget.forView(btnTags, "¡Programa tu tags!", "Aqui programas los TAGS de NFC que colocaras fisicamente para que puedan ser escaneados por tu rondinero.")
+                    // Personalización con los colores de Rondy
+                    .outerCircleColor(R.color.teal_700)      // El color de fondo del círculo grande
+                    .targetCircleColor(R.color.white)         // El color que rodea al botón
+                    .titleTextSize(24)                        // Tamaño del título
+                    .descriptionTextSize(16)                  // Tamaño de la descripción
+                    .textColor(R.color.white)                 // Color del texto
+                    .drawShadow(true)                         // Sombra para profundidad
+                    .cancelable(false)                        // No se cierra si tocan fuera
+                    .tintTarget(true)                         // Mantiene el color del botón original
+                    .transparentTarget(false),                // El botón se ve sólido dentro del círculo
+                TapTarget.forView(txtCodigoAct, "¡Activa tu app!", "Ingresa tu codigo aqui para activar tu app, o ingresa cualquier valor para el modo gratis con la funcionalidad unica de rondinero.")
+                    // Personalización con los colores de Rondy
+                    .outerCircleColor(R.color.teal_700)      // El color de fondo del círculo grande
+                    .targetCircleColor(R.color.white)         // El color que rodea al botón
+                    .titleTextSize(24)                        // Tamaño del título
+                    .descriptionTextSize(16)                  // Tamaño de la descripción
+                    .textColor(R.color.white)                 // Color del texto
+                    .drawShadow(true)                         // Sombra para profundidad
+                    .cancelable(false)                        // No se cierra si tocan fuera
+                    .tintTarget(true)                         // Mantiene el color del botón original
+                    .transparentTarget(false),                // El botón se ve sólido dentro del círculo
+                TapTarget.forView(txtPassword, "Password para permisos", "Si tienes el password de permisos te permite APROBAR/DENEGAR/ELIMINAR los permisos, si no se proporciona el modo de permisos es el default solo visible los actuales y aprobados")
+                    // Personalización con los colores de Rondy
+                    .outerCircleColor(R.color.teal_700)      // El color de fondo del círculo grande
+                    .targetCircleColor(R.color.white)         // El color que rodea al botón
+                    .titleTextSize(24)                        // Tamaño del título
+                    .descriptionTextSize(16)                  // Tamaño de la descripción
+                    .textColor(R.color.white)                 // Color del texto
+                    .drawShadow(true)                         // Sombra para profundidad
+                    .cancelable(false)                        // No se cierra si tocan fuera
+                    .tintTarget(true)                         // Mantiene el color del botón original
+                    .transparentTarget(false)                // El botón se ve sólido dentro del círculo
+            )
+            .listener(object : TapTargetSequence.Listener {
+                override fun onSequenceFinish() {
+                    // Se ejecuta cuando el usuario termina todo el tour
                 }
-            }
-        )
+                override fun onSequenceStep(lastTarget: TapTarget?, targetClicked: Boolean) {
+                    // Se ejecuta cada que avanza un paso
+                }
+                override fun onSequenceCanceled(lastTarget: TapTarget?) {
+                    // Se ejecuta si el usuario cancela (si es cancelable)
+                }
+            })
+            .start()
+
+//        TapTargetView.showFor(this,
+//            TapTarget.forView(txtCodigoAct, "¡Activa tu aplicacion!", "Ingresa cualquier valor para no regresar a esta pantalla, si tienes un codigo de activacion proporcionado por el programador usalo aqui y podras usar todas las funciones.")
+//                // Personalización con los colores de Rondy
+//                .outerCircleColor(R.color.teal_700)      // El color de fondo del círculo grande
+//                .targetCircleColor(R.color.white)         // El color que rodea al botón
+//                .titleTextSize(24)                        // Tamaño del título
+//                .descriptionTextSize(16)                  // Tamaño de la descripción
+//                .textColor(R.color.white)                 // Color del texto
+//                .drawShadow(true)                         // Sombra para profundidad
+//                .cancelable(false)                        // No se cierra si tocan fuera
+//                .tintTarget(true)                         // Mantiene el color del botón original
+//                .transparentTarget(false),                // El botón se ve sólido dentro del círculo
+//            object : TapTargetView.Listener() {
+//                override fun onTargetClick(view: TapTargetView?) {
+//                    super.onTargetClick(view)
+//                    // Aquí puedes ejecutar la acción del botón o cerrar la guía
+//                }
+//            }
+//        )
     }
 
 

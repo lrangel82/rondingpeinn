@@ -30,6 +30,9 @@
         android:theme="@style/Theme.Rondy"
         tools:targetApi="31">
         <activity
+            android:name=".AyudaActivity"
+            android:exported="false" />
+        <activity
             android:name=".AcercadeActivity"
             android:exported="false" />
         <activity
@@ -50,10 +53,7 @@
             android:exported="false" />
         <activity
             android:name=".MainActivity"
-            android:exported="false" /> <!-- <intent-filter> -->
-        <!-- <action android:name="android.intent.action.MAIN" /> -->
-        <!-- <category android:name="android.intent.category.LAUNCHER" /> -->
-        <!-- </intent-filter> -->
+            android:exported="false" />
         <activity
             android:name=".VehicleSearchActivity"
             android:exported="true">
@@ -70,13 +70,16 @@
             android:exported="false" />
         <activity
             android:name=".PermisosActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:label="@string/title_permisos" />
         <activity
             android:name=".SettingsActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:label="@string/title_settings" />
         <activity
             android:name=".PorRevisarListActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:label="@string/title_notifications" />
 
         <meta-data
             android:name="com.google.android.geo.API_KEY"
@@ -84,7 +87,8 @@
 
         <activity
             android:name=".ProgramarTags"
-            android:exported="false" />
+            android:exported="false"
+            android:label="@string/title_programarTags" />
         <activity
             android:name=".StartRondinActivity"
             android:exported="false"

@@ -10,8 +10,8 @@
     <LinearLayout
         android:layout_width="fill_parent"
         android:layout_height="match_parent"
-        android:layout_marginTop="58dp"
         android:orientation="vertical"
+        android:paddingTop="?attr/actionBarSize"
         app:layout_constraintTop_toTopOf="parent"
         tools:ignore="MissingConstraints"
         tools:layout_editor_absoluteX="0dp">
@@ -36,6 +36,7 @@
                 android:id="@+id/txtDescripcion"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
+                android:contentDescription="Descripcion del tag"
                 android:ems="10"
                 android:inputType="text"
                 android:tooltipText="Indicar la descripcion del tag" />
@@ -97,9 +98,9 @@
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_gravity="center"
-                android:translationY="-20dp"
-                android:src="@android:drawable/ic_menu_myplaces"
                 android:contentDescription="Puntero central"
+                android:src="@android:drawable/ic_menu_myplaces"
+                android:translationY="-20dp"
                 app:tint="@color/design_default_color_primary" />
 
             <ImageButton
@@ -109,10 +110,10 @@
                 android:layout_gravity="top|end"
                 android:layout_margin="16dp"
                 android:background="@android:color/white"
+                android:contentDescription="Mi Posicion"
                 android:elevation="4dp"
                 android:padding="8dp"
                 android:scaleType="fitCenter"
-                android:contentDescription="Mi Posicion"
                 app:srcCompat="@android:drawable/ic_menu_mylocation"
                 app:tint="@color/design_default_color_primary" />
 

@@ -88,6 +88,7 @@ import android.widget.CompoundButton
 import android.widget.ProgressBar
 import android.widget.FrameLayout
 import android.widget.Switch
+import android.widget.TableRow
 import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
@@ -148,6 +149,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private var locationListener: LocationListener? = null
 
     private var stopSearchVehicle: Boolean = false
+    private var isActive: Boolean = false
 
     //RONDIN NFC
     private var nfcAdapter: NfcAdapter? = null
@@ -174,8 +176,18 @@ class  VehicleSearchActivity : AppCompatActivity() {
         mySettings = MySettings(applicationContext)
         dataRaw = DataRawRondin(applicationContext,CoroutineScope(Dispatchers.IO))
 
-//        // Initialize Google services (requires Google Sign-In setup)
-//        initializeGoogleServices()
+        isActive= mySettings?.getInt( "APP_ACTIVADA",0) == 1
+
+        if (!isActive){
+            //Ocultar lo que no es de rondin
+            eventsRecyclerView.visibility = View.GONE
+            searchButton.visibility = View.GONE
+            plateInput.visibility = View.GONE
+            cleanButton.visibility = View.GONE
+            cameraButton.visibility = View.GONE
+            saveEventButton.visibility = View.GONE
+            findViewById<TableRow>(R.id.tableRowVisistas).visibility = View.GONE
+        }
 
         // Setup RecyclerView
         eventsRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -245,13 +257,15 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
 
         // Add Por Revisar button
-        porRevisarButton = Button(this)
-        porRevisarButton.setOnClickListener {
-            val intent = Intent(this, PorRevisarListActivity::class.java)
-            startActivity(intent)
+        if(isActive) {
+            porRevisarButton = Button(this)
+            porRevisarButton.setOnClickListener {
+                val intent = Intent(this, PorRevisarListActivity::class.java)
+                startActivity(intent)
+            }
+            val parent = saveEventButton.parent as? LinearLayout
+            parent?.addView(porRevisarButton)
         }
-        val parent = saveEventButton.parent as? LinearLayout
-        parent?.addView(porRevisarButton)
 
         // Botón para volver al GPS
         val btnRecuperarGPS: ImageButton = findViewById(R.id.btn_recuperar_gps_vehiculo)
@@ -597,6 +611,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
 
     private fun updatePorRevisarButton() {
+        if (!isActive) return
         porRevisarButton.text = "Por Revisar (${porRevisarRecords.size})"
         porRevisarButton.setBackgroundColor(if (porRevisarRecords.size > 0) Color.RED else Color.GRAY)
         porRevisarButton.tooltipText = porRevisarRecords.size.toString()
@@ -1603,6 +1618,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
     }
 
     private fun loadPorRevisar(forceLoad: Boolean = false) {
+        if (!isActive) return
         //val yourEventsSpreadSheetID = mySettings?.getString("PARKING_SPREADSHEET_ID", "")!!
         lifecycleScope.launch(Dispatchers.IO) {
             try {

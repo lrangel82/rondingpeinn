@@ -13,6 +13,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import android.content.Intent
 import android.net.Uri
+import android.widget.LinearLayout
 import android.widget.Toast
 import com.larangel.rondy.MainActivity
 import kotlinx.coroutines.CoroutineScope
@@ -124,7 +125,8 @@ class PermisosRVAdapter(
         val aprobadoTV: TextView = itemView.findViewById(R.id.idTVAprobado)
         val descripcionTV: TextView = itemView.findViewById(R.id.idTVDescripcion)
         val tipoIV: ImageView = itemView.findViewById(R.id.idIVTipo)
-        val itemPermiso: RelativeLayout = itemView.findViewById(R.id.itemPermiso)
+        //val itemPermiso: RelativeLayout = itemView.findViewById(R.id.itemPermiso)
+        val itemPermiso: LinearLayout = itemView.findViewById(R.id.itemPermiso)
     }
 
     private fun mostrarDialogoDecision(context: Context, permiso: PermisosModal, position: Int) {

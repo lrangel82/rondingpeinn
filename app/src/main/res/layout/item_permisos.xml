@@ -7,12 +7,14 @@
     app:cardCornerRadius="16dp">
 
 
-    <RelativeLayout
+    <LinearLayout
         android:id="@+id/itemPermiso"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="match_parent"
         android:layout_margin="2dp"
-        android:background="@color/white">
+        android:background="@drawable/borderpermiso_background"
+        android:orientation="horizontal"
+        android:padding="5dp">
 
         <ImageView
             android:id="@+id/idIVTipo"
@@ -20,34 +22,28 @@
             android:layout_height="100dp"
             android:layout_margin="10dp" />
 
-        <TextView
-            android:id="@+id/idIVDomicilio"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:layout_toEndOf="@id/idIVTipo"
-            android:layout_toRightOf="@id/idIVTipo"
-            android:text="Domicilio"
-            android:textAlignment="center"
-            android:textColor="@color/black"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
         <LinearLayout
-            android:id="@+id/idFechas"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_below="@id/idIVDomicilio"
-            android:layout_marginTop="10dp"
-            android:layout_toEndOf="@id/idIVTipo"
-            android:layout_toRightOf="@id/idIVTipo"
-            android:orientation="horizontal">
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/idIVDomicilio"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Domicilio"
+                android:textAlignment="center"
+                android:textColor="@color/black"
+                android:textSize="20sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/idTVFechaInicio"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Fecha Inicio"
+                android:text="Del 2026-04-07 al 2026-04-08"
                 android:textColor="@color/black"
                 android:textSize="15sp" />
 
@@ -57,37 +53,111 @@
                 android:layout_height="wrap_content"
                 android:layout_marginLeft="10dp"
                 android:layout_marginRight="10dp"
-                android:text="FechaFinal"
+                android:text="creado: 2026-04-06T17:34:41"
                 android:textAlignment="textEnd"
                 android:textColor="@color/black"
                 android:textSize="12sp"
                 android:textStyle="italic" />
+
+            <TextView
+                android:id="@+id/idTVAprobado"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Aprobado"
+                android:textColor="@android:color/holo_green_dark"
+                android:textSize="15sp" />
+
+            <TextView
+                android:id="@+id/idTVDescripcion"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Descripcion"
+                android:textColor="@color/black"
+                android:textSize="15sp" />
+
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/idTVAprobado"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@+id/idFechas"
-            android:layout_marginTop="10dp"
-            android:layout_toEndOf="@id/idIVTipo"
-            android:layout_toRightOf="@id/idIVTipo"
-            android:text="Aprobado"
-            android:textColor="@android:color/holo_green_dark"
-            android:textSize="15sp" />
+    </LinearLayout>
 
-        <TextView
-            android:id="@+id/idTVDescripcion"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/idTVAprobado"
-            android:layout_marginTop="10dp"
-            android:layout_toEndOf="@id/idIVTipo"
-            android:layout_toRightOf="@id/idIVTipo"
-            android:text="Descripcion"
-            android:textColor="@color/black"
-            android:textSize="15sp" />
+<!--    <RelativeLayout-->
+<!--        android:id="@+id/itemPermisoAntes"-->
+<!--        android:layout_width="match_parent"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:layout_margin="2dp"-->
+<!--        android:background="@color/white">-->
 
-    </RelativeLayout>
+<!--        -->
+
+<!--&lt;!&ndash;        <TextView&ndash;&gt;-->
+<!--&lt;!&ndash;            android:id="@+id/idIVDomicilio"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_width="match_parent"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_height="wrap_content"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_marginTop="10dp"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_toEndOf="@id/idIVTipo"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_toRightOf="@id/idIVTipo"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:text="Domicilio"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:textAlignment="center"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:textColor="@color/black"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:textSize="20sp"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:textStyle="bold" />&ndash;&gt;-->
+
+<!--        <LinearLayout-->
+<!--            android:id="@+id/idFechas"-->
+<!--            android:layout_width="match_parent"-->
+<!--            android:layout_height="wrap_content"-->
+<!--            android:layout_below="@id/idIVDomicilio"-->
+<!--            android:layout_marginTop="10dp"-->
+<!--            android:layout_toEndOf="@id/idIVTipo"-->
+<!--            android:layout_toRightOf="@id/idIVTipo"-->
+<!--            android:orientation="horizontal">-->
+
+<!--&lt;!&ndash;            <TextView&ndash;&gt;-->
+<!--&lt;!&ndash;                android:id="@+id/idTVFechaInicio"&ndash;&gt;-->
+<!--&lt;!&ndash;                android:layout_width="wrap_content"&ndash;&gt;-->
+<!--&lt;!&ndash;                android:layout_height="wrap_content"&ndash;&gt;-->
+<!--&lt;!&ndash;                android:text="Del 2026-04-07 al 2026-04-08"&ndash;&gt;-->
+<!--&lt;!&ndash;                android:textColor="@color/black"&ndash;&gt;-->
+<!--&lt;!&ndash;                android:textSize="15sp" />&ndash;&gt;-->
+
+<!--&lt;!&ndash;            <TextView&ndash;&gt;-->
+<!--&lt;!&ndash;                android:id="@+id/idTVFechaFinal"&ndash;&gt;-->
+<!--&lt;!&ndash;                android:layout_width="match_parent"&ndash;&gt;-->
+<!--&lt;!&ndash;                android:layout_height="wrap_content"&ndash;&gt;-->
+<!--&lt;!&ndash;                android:layout_marginLeft="10dp"&ndash;&gt;-->
+<!--&lt;!&ndash;                android:layout_marginRight="10dp"&ndash;&gt;-->
+<!--&lt;!&ndash;                android:text="creado: 2026-04-06T17:34:41"&ndash;&gt;-->
+<!--&lt;!&ndash;                android:textAlignment="textEnd"&ndash;&gt;-->
+<!--&lt;!&ndash;                android:textColor="@color/black"&ndash;&gt;-->
+<!--&lt;!&ndash;                android:textSize="12sp"&ndash;&gt;-->
+<!--&lt;!&ndash;                android:textStyle="italic" />&ndash;&gt;-->
+<!--        </LinearLayout>-->
+
+<!--&lt;!&ndash;        <TextView&ndash;&gt;-->
+<!--&lt;!&ndash;            android:id="@+id/idTVAprobado"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_width="match_parent"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_height="wrap_content"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_below="@+id/idFechas"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_marginTop="10dp"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_toEndOf="@id/idIVTipo"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_toRightOf="@id/idIVTipo"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:text="Aprobado"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:textColor="@android:color/holo_green_dark"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:textSize="15sp" />&ndash;&gt;-->
+
+<!--&lt;!&ndash;        <TextView&ndash;&gt;-->
+<!--&lt;!&ndash;            android:id="@+id/idTVDescripcion"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_width="match_parent"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_height="wrap_content"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_below="@id/idTVAprobado"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_marginTop="10dp"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_toEndOf="@id/idIVTipo"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:layout_toRightOf="@id/idIVTipo"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:text="Descripcion"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:textColor="@color/black"&ndash;&gt;-->
+<!--&lt;!&ndash;            android:textSize="15sp" />&ndash;&gt;-->
+
+<!--    </RelativeLayout>-->
 
 </androidx.cardview.widget.CardView>

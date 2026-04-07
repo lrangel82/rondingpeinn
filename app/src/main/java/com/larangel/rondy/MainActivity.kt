@@ -43,6 +43,7 @@ class MainActivity : AppCompatActivity() {
     private var loadingOverlay: View? = null
     private var progressBar: ProgressBar? = null
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
+    private var isActive: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,8 +60,12 @@ class MainActivity : AppCompatActivity() {
         }
         val btnPermisos: Button = findViewById(R.id.btn_permisos)
         btnPermisos.setOnClickListener{
-            val intent: Intent = Intent(this, PermisosActivity::class.java )
-            startActivity(intent)
+            if (isActive) {
+                val intent: Intent = Intent(this, PermisosActivity::class.java)
+                startActivity(intent)
+            }else{
+                startActivity( Intent(this, AyudaActivity::class.java) )
+            }
         }
         val btn_vehiculos: Button = findViewById(R.id.btn_vehiculos)
         btn_vehiculos.setOnClickListener{
@@ -69,8 +74,12 @@ class MainActivity : AppCompatActivity() {
         }
         val btn_incidencias: Button = findViewById(R.id.btnIncidenciasMain)
         btn_incidencias.setOnClickListener {
-            val intent: Intent = Intent(this, IncidenciasMenu::class.java )
-            startActivity(intent)
+            if (isActive) {
+                val intent: Intent = Intent(this, IncidenciasMenu::class.java )
+                startActivity(intent)
+            }else{
+                startActivity( Intent(this, AyudaActivity::class.java) )
+            }
         }
 
         val copyRAdmin: TextView = findViewById<TextView>(R.id.textCopyright)
@@ -117,6 +126,7 @@ class MainActivity : AppCompatActivity() {
             validaLicencia()
             loadingSheetDATA()
         }
+        isActive= mySettings?.getInt( "APP_ACTIVADA",0) == 1
 
 
 
@@ -182,9 +192,9 @@ class MainActivity : AppCompatActivity() {
                     mySettings?.fetchAndProcessS3Config(bucketName, regionStr, codigoActiv)
                     //Inizializa el ENUM con los valores correctos del nombre de sheets
                     SheetTable.initializeAll(mySettings)
-                    val appActivada = mySettings?.getInt("APP_ACTIVADA", 0)
+                    isActive= mySettings?.getInt( "APP_ACTIVADA",0) == 1
                     withContext(Dispatchers.Main) {
-                        if (appActivada == 1) {
+                        if (isActive) {
                             copyRAdmin.text = "${versionName} develop by Luis Rangel"
                         } else {
                             copyRAdmin.text =
@@ -269,7 +279,7 @@ class MainActivity : AppCompatActivity() {
                 packageInfo.versionCode.toLong()
             }
 
-            return "$versionName($versionCode)"
+            return "$versionName(v.$versionCode)"
 
         } catch (e: PackageManager.NameNotFoundException) {
             e.printStackTrace()
@@ -305,16 +315,21 @@ class MainActivity : AppCompatActivity() {
                 val logoimg = findViewById<ImageView>(R.id.imageLogoMain)
                 val urlLogo = mySettings?.getString("IMAGEN_LOGO_PNG","")
                 cargarImagenConfigurada(logoimg,urlLogo,R.drawable.logo)
-
-                val totalCargados = autosEventos!!.count() + vehiculosData!!.count() + tagsData!!.count()
-                                + domiciliosUbicacion!!.count() + porRevisar!!.count() + parkingSlots!!.count()
-                                + multas!!.count() + domiciliosWarnings!!.count() + permisosData!!.count()
-                                + incidenciasData!!.count()
-                Toast.makeText(
-                    this@MainActivity,
-                    "Iniciando...${totalCargados} registrosDB",
-                    Toast.LENGTH_LONG
-                ).show()
+                try {
+                    val totalCargados =
+                        autosEventos!!.count() + vehiculosData!!.count() + tagsData!!.count()
+                    +domiciliosUbicacion!!.count() + porRevisar!!.count() + parkingSlots!!.count()
+                    +multas!!.count() + domiciliosWarnings!!.count() + permisosData!!.count()
+                    +incidenciasData!!.count()
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Iniciando...${totalCargados} registrosDB",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }catch (e: Exception) {
+                    e.printStackTrace()
+                    Toast.makeText(this@MainActivity,"Error cargar, error: ${e.message}",Toast.LENGTH_LONG).show()
+                }
             }
 
         } // fun coroutine
