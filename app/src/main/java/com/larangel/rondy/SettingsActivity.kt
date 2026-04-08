@@ -46,7 +46,7 @@ class SettingsActivity : AppCompatActivity() {
 
         btnGuardar.setOnClickListener{
             salvarConfig()
-            this.finish()
+            //this.finish()
             ///startActivity(Intent(this, ProgramarTags::class.java ))
         }
         btnCancel.setOnClickListener{
@@ -138,8 +138,11 @@ class SettingsActivity : AppCompatActivity() {
                     region,
                     txtCodigoActivation.text.toString()
                 )
-                //Inizializa el ENUM con los valores correctos del nombre de sheets
-                SheetTable.initializeAll(mySettings)
+                withContext(Dispatchers.Main) {
+                    //Inizializa el ENUM con los valores correctos del nombre de sheets
+                    SheetTable.initializeAll(mySettings)
+                    this@SettingsActivity.finish()
+                }
             }else {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(

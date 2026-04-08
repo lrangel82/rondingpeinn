@@ -86,12 +86,13 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     private val mySettings = MySettings(context)
     private lateinit var sheetsService: Sheets
     private val TAG = "package:com.larangel.rondy"
-    private val CACHE_DURATION_MS = 60000//60 * 60 * 1000 // 1 hora
+    private val CACHE_DURATION_MS = 60 * 60 * 1000 // 1 hora
 
     private val flexibleDateFormatter = DateTimeFormatterBuilder()
         .appendOptional(DateTimeFormatter.ofPattern("d/M/yyyy"))
         .appendOptional(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
         .appendOptional(DateTimeFormatter.ofPattern("d/M/yy"))
+        .appendOptional(DateTimeFormatter.ofPattern("d/M/yyyy"))
         .appendOptional(DateTimeFormatter.ofPattern("dd/MM/yy"))
         .appendOptional(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
         .toFormatter()
@@ -550,7 +551,7 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                     false
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Error al parsear fechas en fila: $row")
+                Log.e(TAG, "Error al parsear fechas en fila: $row e:${e.message}")
                 false
             }
         }.reversed() // Los más recientes primero

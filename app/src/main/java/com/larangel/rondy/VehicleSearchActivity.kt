@@ -305,6 +305,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
             mostrarAyuda()
         }
 
+
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -405,17 +406,23 @@ class  VehicleSearchActivity : AppCompatActivity() {
         val mapFragment = supportFragmentManager.findFragmentById(R.id.map_fragment_vehicle) as SupportMapFragment
         mapFragment.getMapAsync { gMap ->
             googleMap = gMap
-            updateMapMarkers()
-            // Centrar en la ubicación actual si tienes permiso:
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-                gMap.isMyLocationEnabled = true
-                fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
-                    if (loc != null) {
-                        val userLatLng = LatLng(loc.latitude, loc.longitude)
-                        gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 21f))
-                    }
-                }
+
+            // Este callback se ejecuta cuando el mapa terminó de cargar visualmente
+            googleMap?.setOnMapLoadedCallback {
+                updateMapMarkers()
+                moveCameraToShowAllTAGS()
+                isManualMode = true
             }
+//            // Centrar en la ubicación actual si tienes permiso:
+//            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+//                gMap.isMyLocationEnabled = true
+//                fusedLocationClient.lastLocation.addOnSuccessListener { loc ->
+//                    if (loc != null) {
+//                        val userLatLng = LatLng(loc.latitude, loc.longitude)
+//                        gMap.moveCamera(CameraUpdateFactory.newLatLngZoom(userLatLng, 21f))
+//                    }
+//                }
+//            }
             // Listener cuando el mapa se mueve
             googleMap?.setOnCameraMoveStartedListener { reason ->
                 // Si el usuario mueve el mapa con el dedo, activamos modo manual
@@ -2063,7 +2070,8 @@ class  VehicleSearchActivity : AppCompatActivity() {
     }
     fun moveCameraToShowAllTAGS(){
         val checkPoints = mySettings?.getListCheckPoint("LIST_CHECKPOINT")!!.toMutableList()
-        if (checkPoints.isEmpty()){
+        val pSlots = dataRaw?.getParkingSlots()
+        if (checkPoints.isEmpty() && pSlots!!.isEmpty()){
             return
         }
 

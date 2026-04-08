@@ -362,8 +362,8 @@ class MainActivity : AppCompatActivity() {
 
         //Nombre coto
         val nombreCoto: TextView = findViewById<TextView>(R.id.txtCotoName)
-        val str_coto = mySettings?.getString("COTO","Version Gratuita")
-        nombreCoto.text = mySettings?.getString("COTO","Version Gratuita")
+        val str_coto = mySettings?.getString("APP_NAME","Version Gratuita")
+        nombreCoto.text = mySettings?.getString("APP_NAME","Version Gratuita")
 
         //Vehiculos
         val btn_vehiculos: Button = findViewById(R.id.btn_vehiculos)

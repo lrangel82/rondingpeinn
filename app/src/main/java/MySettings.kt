@@ -84,20 +84,24 @@ class MySettings(context: Context) {
     private fun saveToPreferences(props: Properties) {
         saveInt("APP_ACTIVADA",1)
         with(sharedPreferences.edit()) {
+            val APP_NAME                        = if (props.getProperty("appname").length > 0 ) props.getProperty("appname") else "Version Gratuita"
+            val POSTFIX_SHEETNAME                = props.getProperty("postfix_sheetname") ?: ""
             val REGISTRO_CARROS_SPREADSHEET_ID  = props.getProperty("googlesheet_registro_carros_id") ?: ""
             val PARKING_SPREADSHEET_ID          = props.getProperty("googlesheet_parking_id") ?: ""
             val PERMISOS_SPREADSHEET_ID         = props.getProperty("googlesheet_permisos_ids") ?: "[]"
-            val COTO                            = if(props.getProperty("AppType") == "admon1") "coto1" else "coto2"
-            val WS_AUTOS_REGISTRADOS            = props.getProperty("worksheet_autos_registrados") + "_$COTO"
-            val WS_DOMICILIOS_UBICACION         = props.getProperty("worksheet_domicilios") + "_$COTO"
-            val WS_POR_REVISAR                  = props.getProperty("worksheet_porRevisar") + "_$COTO"
-            val WS_PARKING_SLOTS                = props.getProperty("worksheet_porkingSlots") + "_$COTO"
-            val WS_AUTOS_EVENTOS                = props.getProperty("worksheet_autos_eventos") + "_$COTO"
-            val WS_INCIDENCIAS_CONFIG           = props.getProperty("worksheet_incidencias_config") + "_$COTO"
-            val WS_INCIDENCIAS_EVENTOS          = props.getProperty("worksheet_incidencias_eventos") + "_$COTO"
-            val WS_MULTAS_GENERADAS             = props.getProperty("worksheet_multas") + "_$COTO"
-            val WS_DOMICILIO_WARNINGS           = props.getProperty("worksheet_domicilio_warnings") + "_$COTO"
+            val COTO                            = if(props.getProperty("apptype") == "admon1") "coto1" else "coto2"
+            val WS_AUTOS_REGISTRADOS            = props.getProperty("worksheet_autos_registrados") + "$POSTFIX_SHEETNAME"
+            val WS_DOMICILIOS_UBICACION         = props.getProperty("worksheet_domicilios") + "$POSTFIX_SHEETNAME"
+            val WS_POR_REVISAR                  = props.getProperty("worksheet_porrevisar") + "$POSTFIX_SHEETNAME"
+            val WS_PARKING_SLOTS                = props.getProperty("worksheet_porkingslots") + "$POSTFIX_SHEETNAME"
+            val WS_AUTOS_EVENTOS                = props.getProperty("worksheet_autos_eventos") + "$POSTFIX_SHEETNAME"
+            val WS_INCIDENCIAS_CONFIG           = props.getProperty("worksheet_incidencias_config") + "$POSTFIX_SHEETNAME"
+            val WS_INCIDENCIAS_EVENTOS          = props.getProperty("worksheet_incidencias_eventos") + "$POSTFIX_SHEETNAME"
+            val WS_MULTAS_GENERADAS             = props.getProperty("worksheet_multas") + "$POSTFIX_SHEETNAME"
+            val WS_DOMICILIO_WARNINGS           = props.getProperty("worksheet_domicilio_warnings") + "$POSTFIX_SHEETNAME"
 
+            putString("APP_NAME", APP_NAME)
+            putString("POSTFIX_SHEETNAME", POSTFIX_SHEETNAME)
             putString("REGISTRO_CARROS_SPREADSHEET_ID", REGISTRO_CARROS_SPREADSHEET_ID)
             putString("PARKING_SPREADSHEET_ID", PARKING_SPREADSHEET_ID)
             putString("PERMISOS_SPREADSHEET_ID", PERMISOS_SPREADSHEET_ID)
@@ -119,17 +123,7 @@ class MySettings(context: Context) {
 
             //IMAGENES
             putString("IMAGEN_LOGO_PNG",props.getProperty("imagen_logo_png"))
-//            putLong("PERMISOS_CACHE_TIMESTAMP",0)
-//            putLong("VEHICLE_CACHE_TIMESTAMP",0)
-//            putLong("TAGS_CACHE_TIMESTAMP",0)
-//            putLong("DIRECTIONS_CACHE_TIMESTAMP",0)
-//            putLong("PORREVISAR_CACHE_TIMESTAMP",0)
-//            putLong("PARKINGSLOTS_CACHE_TIMESTAMP",0)
-//            putLong("EVENTOS_CACHE_TIMESTAMP",0)
-//            putLong("INCIDENCIACONFIG_CACHE_TIMESTAMP",0)
-//            putLong("INCIDENCIAEVENTOS_CACHE_TIMESTAMP",0)
-//            putLong("MULTAS_CACHE_TIMESTAMP",0)
-//            putLong("DOMICILIOWARNINGS_CACHE_TIMESTAMP",0)
+
 
             //Validar ADMIN para PERMISOS
             val jsondata = Json.decodeFromString<List<String>>(PERMISOS_SPREADSHEET_ID)
