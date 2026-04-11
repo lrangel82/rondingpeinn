@@ -14,7 +14,7 @@ android {
         applicationId = "com.larangel.rondy"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
+        versionCode = 2
         versionName = "Argos"
         //Argos,Heimdall,Anubis,Cerbero,Garam,Jano,Talos,Ladon,Grifo,Sleipnit
 
@@ -51,6 +51,16 @@ android {
             excludes += "META-INF/DEPENDENCIES"
         }
         // pickFirst 'META-INF/INDEX.LIST'
+    }
+    buildTypes{
+        release {
+            //Enable code-related app oprimization
+            isMinifyEnabled = true
+            // Enables resource shrinking.
+            isShrinkResources = true
+
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
     }
 }
 

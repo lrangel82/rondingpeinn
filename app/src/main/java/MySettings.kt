@@ -21,6 +21,8 @@ import java.io.StringReader
 
 import java.util.Properties
 import android.util.Log
+import android.widget.Toast
+import com.larangel.rondy.SettingsActivity
 import java.time.LocalDate
 
 class MySettings(context: Context) {
@@ -65,6 +67,7 @@ class MySettings(context: Context) {
                 // 5. Validar y guardar
                 if (hKeyVal == targetHKey) {
                     founded = true
+                    cleanPreferenceS3Config()
                     saveToPreferences(properties)
                     Log.d("ConfigS3", "Configuración guardada correctamente.")
                     return@forEach
@@ -72,10 +75,8 @@ class MySettings(context: Context) {
                     Log.e("ConfigS3", "HKey inválido: $targetHKey")
                 }
             }
-            if (founded == false)
-                cleanPreferenceS3Config()
 
-           saveInt("DIA_VALIDADO_CODIGO",LocalDate.now().dayOfMonth)
+            saveInt("DIA_VALIDADO_CODIGO",LocalDate.now().dayOfMonth)
 
         } catch (e: Exception) {
             Log.e("ConfigS3", "Error: ${e.message}")
@@ -99,6 +100,7 @@ class MySettings(context: Context) {
             val WS_INCIDENCIAS_EVENTOS          = props.getProperty("worksheet_incidencias_eventos") + "$POSTFIX_SHEETNAME"
             val WS_MULTAS_GENERADAS             = props.getProperty("worksheet_multas") + "$POSTFIX_SHEETNAME"
             val WS_DOMICILIO_WARNINGS           = props.getProperty("worksheet_domicilio_warnings") + "$POSTFIX_SHEETNAME"
+            val WS_RESIDENTES_UNIDAD            = props.getProperty("worksheet_residentes") + "$POSTFIX_SHEETNAME"
 
             putString("APP_NAME", APP_NAME)
             putString("POSTFIX_SHEETNAME", POSTFIX_SHEETNAME)
@@ -115,6 +117,7 @@ class MySettings(context: Context) {
             putString("WS_INCIDENCIAS_EVENTOS", WS_INCIDENCIAS_EVENTOS)
             putString("WS_MULTAS_GENERADAS", WS_MULTAS_GENERADAS)
             putString("WS_DOMICILIO_WARNINGS", WS_DOMICILIO_WARNINGS)
+            putString("WS_RESIDENTES_UNIDAD", WS_RESIDENTES_UNIDAD)
 
             //CLEAN CACHE TIME
             SheetTable.values().forEach{table ->
@@ -131,8 +134,11 @@ class MySettings(context: Context) {
             if (jsondata.size >= 1) {
                 val sheet_permisos_id = jsondata[0].toString()
                 val pwdPermisos = getString("PASSWORD_PERMISOS", "").toString()
-                if (pwdPermisos.length > 0 && sheet_permisos_id.startsWith(pwdPermisos))
+                if (pwdPermisos.length > 3 && sheet_permisos_id.startsWith(pwdPermisos)) {
                     putInt("ESADMIN", 1)
+                }else {
+                    putString("PASSWORD_PERMISOS", " ") //limpar passwordd
+                }
             }
             apply()
         }
@@ -154,6 +160,7 @@ class MySettings(context: Context) {
             putString("WS_INCIDENCIAS_EVENTOS", "")
             putString("WS_MULTAS_GENERADAS", "")
             putString("WS_DOMICILIO_WARNINGS", "")
+            putString("WS_RESIDENTES_UNIDAD", "")
 
             //CLEAN CACHE
             SheetTable.values().forEach{table ->

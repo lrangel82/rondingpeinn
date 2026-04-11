@@ -152,11 +152,12 @@
                 <EditText
                     android:id="@+id/txtPwdPermisos"
                     android:layout_width="wrap_content"
-                    android:layout_height="50dp"
+                    android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:ems="10"
-                    android:inputType="text"
+                    android:inputType="textPassword"
                     android:text="Name" />
+
             </TableRow>
         </TableLayout>
 
@@ -167,26 +168,68 @@
             android:layout_margin="20dp"
             android:text="Guardar y Volver" />
 
-        <TextView
-            android:id="@+id/textView5"
+
+        <TableLayout
+            android:id="@+id/layoutConfigAdmin"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_margin="20dp"
-            android:text="@string/ayuda_settings_codigo" />
+            android:layout_height="match_parent"
+            android:gravity="center_vertical">
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <TextView
+                    android:id="@+id/textView6"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Catalogo Vehiculos"
+                    android:textAlignment="center"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/textView5"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Espacios Estacionamiento"
+                    android:textAlignment="center"
+                    android:textStyle="bold" />
+            </TableRow>
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <ImageButton
+                    android:id="@+id/btnCatalogoVehiculos"
+                    android:layout_width="100dp"
+                    android:layout_height="100dp"
+                    android:layout_margin="20dp"
+                    android:layout_weight="1"
+                    android:contentDescription="Catalogo Vehiculos"
+                    android:scaleType="fitCenter"
+                    android:tag="@string/title_CatalogoVehiculos"
+                    app:srcCompat="@drawable/placeholder_image" />
+
+                <ImageButton
+                    android:id="@+id/btnParkingSlots"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_margin="20dp"
+                    android:layout_weight="1"
+                    android:contentDescription="Catalogo Parking Slots"
+                    android:scaleType="fitCenter"
+                    app:srcCompat="@android:drawable/ic_dialog_map" />
+            </TableRow>
+
+        </TableLayout>
 
 
     </LinearLayout>
 
-    <Button
-        android:id="@+id/btnParkingSlotsConf"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
-        android:layout_marginBottom="20dp"
-        android:text="ParkingSlots"
-        android:visibility="invisible"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+
     <Button
         android:id="@+id/btnCancelarConf"
         android:layout_width="wrap_content"

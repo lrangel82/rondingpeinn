@@ -1722,7 +1722,8 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
     fun set_pause_gps(){
         val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
-        locationManager.removeUpdates(locationListener as LocationListener)
+        if (locationManager != null)
+            locationManager.removeUpdates(locationListener as LocationListener)
     }
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])
     fun set_start_gps(){

@@ -4,13 +4,16 @@ import DataRawRondin
 import MySettings
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.GridLayout
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
@@ -38,11 +41,10 @@ class SettingsActivity : AppCompatActivity() {
 
         val btnCancel: Button = findViewById(R.id.btnCancelarConf)
         val btnGuardar: Button = findViewById(R.id.btnGuardarConf)
-        val btnParkignSlots: Button = findViewById(R.id.btnParkingSlotsConf)
         val btnAddtags: ImageButton = findViewById(R.id.btnAddTagsConf)
         val btnAyuda: ImageButton = findViewById(R.id.btnAyuda)
-
-        btnParkignSlots.text = "Parking Slots: ${parkingSlots?.count()}"
+        val btnCtaVehiculos: ImageButton = findViewById(R.id.btnCatalogoVehiculos)
+        val btnParkignSlots: ImageButton = findViewById(R.id.btnParkingSlots)
 
         btnGuardar.setOnClickListener{
             salvarConfig()
@@ -51,6 +53,10 @@ class SettingsActivity : AppCompatActivity() {
         }
         btnCancel.setOnClickListener{
             //startActivity(Intent(this, ProgramarTags::class.java ))
+            this.finish()
+        }
+        btnCtaVehiculos.setOnClickListener {
+            startActivity(Intent(this, CatalgoVehiculosActivity::class.java ))
             this.finish()
         }
         btnParkignSlots.setOnClickListener{
@@ -69,6 +75,16 @@ class SettingsActivity : AppCompatActivity() {
         }
         btnAyuda.setOnClickListener {
             mostrarAyuda()
+        }
+
+        //Es ADMIN?
+        val esAdmin = mySettings?.getInt("ESADMIN",0)
+        val layOutConfigAdmin: GridLayout = findViewById(R.id.layoutConfigAdmin)
+        if (esAdmin == 1) {
+            layOutConfigAdmin.visibility = View.VISIBLE
+        }
+        else {
+            layOutConfigAdmin.visibility = View.GONE
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
@@ -104,16 +120,12 @@ class SettingsActivity : AppCompatActivity() {
     fun salvarConfig(){
         //UI objects
         val txtNumTags: EditText = findViewById(R.id.txtNumTags)
-//        val txtBucketName: EditText = findViewById(R.id.txtBucketName)
-//        val txtRegionStr: EditText = findViewById(R.id.txtRegionStr)
         val txtCodigoActivation: EditText = findViewById(R.id.txtCodigoActivacion)
         val txtPwdPermisos: EditText = findViewById(R.id.txtPwdPermisos)
         val bucketName ="luisrangelapps"
         val region="us-east-2"
 
         mySettings?.saveInt("rondin_num_tags",txtNumTags.text.toString().toInt())
-//        mySettings?.saveString("BUCKET_NAME", txtBucketName.text.toString())
-//        mySettings?.saveString("REGION_STR", txtRegionStr.text.toString())
         mySettings?.saveString("BUCKET_NAME", bucketName)
         mySettings?.saveString("REGION_STR", region)
         mySettings?.saveString("CODIGO_ACTIVACION", txtCodigoActivation.text.toString())
@@ -126,7 +138,7 @@ class SettingsActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
                         this@SettingsActivity,
-                        "Sync ACTIVACION",
+                        "Connectando al cloud..",
                         Toast.LENGTH_SHORT
                     ).show()
                 }
@@ -141,7 +153,30 @@ class SettingsActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     //Inizializa el ENUM con los valores correctos del nombre de sheets
                     SheetTable.initializeAll(mySettings)
-                    this@SettingsActivity.finish()
+
+                    //Verificarmos si es admin
+                    if (mySettings?.getInt("ESADMIN",0) == 1)
+                        Toast.makeText(
+                            this@SettingsActivity,
+                            "Modo ADMIN activado!",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    //Es activo?
+                    if (mySettings?.getInt("APP_ACTIVADA",0) == 0)
+                        Toast.makeText(
+                            this@SettingsActivity,
+                            "VALORES ERRONEOS (App Inactiva)",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    else {
+                        Toast.makeText(
+                            this@SettingsActivity,
+                            "Finalizada SYNC",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        this@SettingsActivity.finish()
+                    }
+
                 }
             }else {
                 withContext(Dispatchers.Main) {

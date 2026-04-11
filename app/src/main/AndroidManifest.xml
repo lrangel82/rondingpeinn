@@ -28,6 +28,10 @@
         android:theme="@style/Theme.Rondy"
         tools:targetApi="31">
         <activity
+            android:name=".CatalgoVehiculosActivity"
+            android:exported="false"
+            android:label="@string/title_CatalogoVehiculos"/>
+        <activity
             android:name=".AyudaActivity"
             android:exported="false" />
         <activity

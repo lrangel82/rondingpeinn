@@ -8,6 +8,7 @@
     <string name="title_settings">Configuracion de Rondy</string>
     <string name="title_acercade">Acerca de Rondy</string>
     <string name="title_programarTags">Programar TAGS</string>
+    <string name="title_CatalogoVehiculos">Catalogo Vehiculos</string>
     <string name="ayuda_settings_codigo">CODIGO DE ACTIVACION:
         Ingresa cualqiuer valor para activar la aplicacion en modo rondinero y no regresar a esta pantalla.</string>
     <string name="ayuda_settings_tags">TAGS:

@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".CatalgoVehiculosActivity">
+
+    <TextView
+        android:id="@+id/textAyudaCatalogoV"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:background="@color/teal_700"
+        android:padding="10dp"
+        android:text="Ingrese las Placas del vehiculo, o Escanee el TAG o la marca del vehiculo"
+        android:textAlignment="center"
+        android:textColor="@color/white"
+        android:textSize="20sp"
+        android:textStyle="bold|italic"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/searchContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layout_constraintTop_toBottomOf="@id/textAyudaCatalogoV">
+
+        <EditText
+            android:id="@+id/etSearch"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="Placa, Calle o Tag (mín. 3 carac.)"
+            android:inputType="textCapCharacters" />
+
+        <ImageButton
+            android:id="@+id/btnTakePhoto"
+            android:layout_width="48.dp"
+            android:layout_height="48.dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Tomar Foto"
+            android:src="@android:drawable/ic_menu_camera" />
+    </LinearLayout>
+
+    <!-- Contenedor de Resultados (RecyclerView) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvResults"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="8.dp"
+        android:visibility="visible"
+        app:layout_constraintBottom_toTopOf="@+id/notFoundActions"
+        app:layout_constraintTop_toBottomOf="@id/searchContainer"
+        tools:listitem="@android:layout/simple_list_item_1" />
+
+    <!-- Botones de Acción (Si no hay coincidencias) -->
+    <LinearLayout
+        android:id="@+id/notFoundActions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <Button
+            android:id="@+id/btnReportInexistente"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Reportar Inexistente"
+            android:textColor="@android:color/holo_red_dark" />
+
+        <Button
+            android:id="@+id/btnAddVehiculo"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Agregar Nuevo" />
+    </LinearLayout>
+
+    <!-- FORMULARIO DE EDICIÓN (Oculto inicialmente) -->
+    <ScrollView
+        android:id="@+id/layoutForm"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_margin="20dp"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/searchContainer"
+        tools:layout_editor_absoluteX="30dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@drawable/borderpermiso_background"
+            android:orientation="vertical"
+            android:padding="8.dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Placa"
+                    android:textStyle="bold" />
+
+                <EditText
+                    android:id="@+id/etFormPlaca"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1" />
+
+            </LinearLayout>
+
+            <TableLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <TableRow
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8.dp"
+                        android:text="Calle" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8.dp"
+                        android:text="Número" />
+                </TableRow>
+
+                <TableRow
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent">
+
+                    <Spinner
+                        android:id="@+id/spinnerCalle"
+                        android:layout_width="match_parent"
+                        android:layout_height="48.dp" />
+
+                    <Spinner
+                        android:id="@+id/spinnerNumero"
+                        android:layout_width="match_parent"
+                        android:layout_height="48.dp" />
+                </TableRow>
+
+            </TableLayout>
+
+            <EditText
+                android:id="@+id/etFormMarca"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Marca" />
+
+            <EditText
+                android:id="@+id/etFormModelo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Modelo" />
+
+            <EditText
+                android:id="@+id/etFormColor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Color" />
+
+            <EditText
+                android:id="@+id/etFormTag"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Tag ID" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16.dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btnCancel"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Cancelar" />
+
+                <Button
+                    android:id="@+id/btnUpdate"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Actualizar" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

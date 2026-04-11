@@ -315,6 +315,7 @@ class MainActivity : AppCompatActivity() {
             if (::swipeRefreshLayout.isInitialized)
                 swipeRefreshLayout.isRefreshing = true
 
+            val residentes = dataRaw?.getResidentes(forceLoad)
             val autosEventos = dataRaw?.getAutosEventos(forceLoad)
             val vehiculosData = dataRaw?.getCachedVehiclesData(forceLoad)
             val tagsData = dataRaw?.getTagsCache(forceLoad)
@@ -336,11 +337,11 @@ class MainActivity : AppCompatActivity() {
                 val urlLogo = mySettings?.getString("IMAGEN_LOGO_PNG","")
                 cargarImagenConfigurada(logoimg,urlLogo,R.drawable.logo)
                 try {
-                    val totalCargados =
-                        autosEventos!!.count() + vehiculosData!!.count() + tagsData!!.count()
-                    +domiciliosUbicacion!!.count() + porRevisar!!.count() + parkingSlots!!.count()
-                    +multas!!.count() + domiciliosWarnings!!.count() + permisosData!!.count()
-                    +incidenciasData!!.count()
+                    val totalCargados = residentes!!.count()
+                        + autosEventos!!.count() + vehiculosData!!.count() + tagsData!!.count()
+                        + domiciliosUbicacion!!.count() + porRevisar!!.count() + parkingSlots!!.count()
+                        + multas!!.count() + domiciliosWarnings!!.count() + permisosData!!.count()
+                        + incidenciasData!!.count()
                     Toast.makeText(
                         this@MainActivity,
                         "Iniciando...${totalCargados} registrosDB",

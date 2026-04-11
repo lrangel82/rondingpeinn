@@ -22,7 +22,12 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import kotlin.time.Duration.Companion.minutes
 import android.util.Log
+import com.larangel.rondy.utils.extraerColor
+import com.larangel.rondy.utils.extraerMarcaAuto
+import com.larangel.rondy.utils.extraerPlaca
+import com.larangel.rondy.utils.extraerTAG
 import java.security.Permission
+import java.time.LocalTime
 import java.time.format.DateTimeFormatterBuilder
 
 enum class SheetTable(
@@ -40,7 +45,9 @@ enum class SheetTable(
     VEHICULOS("AutosRegistrados", "VEHICLE", "A:C"),
     TAGS("AutosRegistrados", "TAGS", "A:H"),
     PERMISOS("", "PERMISOS", "A:N"),
-    DIRECCIONES("Direcciones", "directions", "A:D");  // calle, numero, latitud, longitud
+    DIRECCIONES("Direcciones", "directions", "A:D"),  // calle, numero, latitud, longitud
+    AUTOS_REGISTRADOS("AutosRegistrados", "autosRegistrados", "A:I"), //placa,calle,numero,marca,modelo,color,tag
+    RESIDENTES_UNIDAD("ResidentesUnidad", "residentesUnidad", "A:Q"); //userid,clave,calle,numero,tipo,nombre,telefono,email,celular,notas,ciudad,estado,fecha_updated_condovive,fecha_updated_app,es_nuevo,es_actualizado,es_eliminado
 
 
     // Generadores automáticos de llaves de caché
@@ -66,7 +73,9 @@ enum class SheetTable(
                 VEHICULOS to "WS_AUTOS_REGISTRADOS",
                 TAGS to "WS_AUTOS_REGISTRADOS",
                 //PERMISOS to "WS_PERMISOS", --
-                DIRECCIONES to "WS_DOMICILIOS_UBICACION"
+                DIRECCIONES to "WS_DOMICILIOS_UBICACION",
+                AUTOS_REGISTRADOS to "WS_AUTOS_REGISTRADOS",
+                RESIDENTES_UNIDAD to "WS_RESIDENTES_UNIDAD",
             )
 
             // Recorremos el mapa y actualizamos cada sheetName
@@ -413,20 +422,36 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
         getSmartCache(SheetTable.VEHICULOS,forceLoad) {
             val allRows = mutableListOf<List<Any>>()
 
-            // 1. Obtener Vehículos RESIDENTES
-            val residentsId = mySettings.getString("PARKING_SPREADSHEET_ID", "")!!
-            val residentsSheet = SheetTable.VEHICULOS.sheetName //mySettings.getString("WS_AUTOS_REGISTRADOS", "AutosRegistrados")!!
+            // 1. Obtener Vehículos de RESIDENTES
+            val stateResidentes = tableStates[SheetTable.RESIDENTES_UNIDAD]
 
-            if (residentsId.isEmpty()) throw IllegalArgumentException("No hay Sheet configurado")
+            // 2. Aseguramos que la RAM tenga datos (Carga desde RAM -> Disco -> Red)
+            if (stateResidentes?.cache == null) runBlocking { getResidentes() }
+            stateResidentes?.cache?.forEach { row ->
+                //tipo == automovil
+                if (row[4].toString().startsWith("auto",true)){
+                    val placa: String? = row.firstNotNullOfOrNull { it.toString().extraerPlaca() }
+                    if (placa != null ){
+                        val calle = row[2].toString()
+                        val numero= row[3].toString()
+                        allRows.add(listOf(placa,calle,numero))
+                    }
+                }
+            }
 
-            //try {
-                val response = sheetsService.spreadsheets().values()
-                    .get(residentsId, "$residentsSheet!A:C") // placa, calle, numero
-                    .execute()
-                response.getValues().drop(1)?.let { allRows.addAll(it) }
-            //} catch (e: Exception) {
-            //    Log.e(TAG, "Error leyendo Residentes: ${e.message}")
-            //}
+//            val residentsId = mySettings.getString("PARKING_SPREADSHEET_ID", "")!!
+//            val residentsSheet = SheetTable.VEHICULOS.sheetName //mySettings.getString("WS_AUTOS_REGISTRADOS", "AutosRegistrados")!!
+//
+//            if (residentsId.isEmpty()) throw IllegalArgumentException("No hay Sheet configurado")
+//
+//            //try {
+//                val response = sheetsService.spreadsheets().values()
+//                    .get(residentsId, "$residentsSheet!A:C") // placa, calle, numero
+//                    .execute()
+//                response.getValues().drop(1)?.let { allRows.addAll(it) }
+//            //} catch (e: Exception) {
+//            //    Log.e(TAG, "Error leyendo Residentes: ${e.message}")
+//            //}
 
             // 2. Obtener Vehículos VISITANTES (Hojas: ingreso y salida)
             val visitorsId = mySettings.getString("REGISTRO_CARROS_SPREADSHEET_ID", "")
@@ -455,37 +480,304 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             val allParsedTags = mutableListOf<List<Any>>()
             val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")!!
             val nameWS = SheetTable.TAGS.sheetName //mySettings.getString("WS_AUTOS_REGISTRADOS", "AutosRegistrados")!!
-
             if (spreadsheetId.isEmpty()) throw IllegalArgumentException("No hay Sheet configurado")
-            //try {
-            // Obtenemos el rango A:H (Placas, Calle, Numero, Marca, Modelo, Color, Tag1, Tag2, Tag3)
-            val response = sheetsService.spreadsheets().values()
-                .get(spreadsheetId, "$nameWS!A:I")
-                .execute()
 
-            // Omitimos el encabezado
-            val rows = response.getValues()?.drop(1) ?: emptyList()
+            // 1. Obtener Vehículos de RESIDENTES
+            val stateResidentes = tableStates[SheetTable.RESIDENTES_UNIDAD]
 
-            rows.forEach { row ->
-                // Índices: Calle(1), Numero(2), Tag1(6), Tag2(7), Tag3(8)
-                val calle = row.getOrNull(1)?.toString() ?: ""
-                val numero = row.getOrNull(2)?.toString() ?: ""
-
-                // Procesamos cada columna de Tag si existe y no está vacía
-                for (i in 6..8) {
-                    val tagValue = row.getOrNull(i)?.toString()
-                    if (!tagValue.isNullOrBlank()) {
-                        allParsedTags.add(listOf(tagValue, calle, numero))
+            // 2. Aseguramos que la RAM tenga datos (Carga desde RAM -> Disco -> Red)
+            if (stateResidentes?.cache == null) runBlocking { getResidentes() }
+            stateResidentes?.cache?.forEach { row ->
+                //tipo == automovil
+                if (row[4].toString().startsWith("auto",true)){
+                    val tagValue: String? = row.firstNotNullOfOrNull { it.toString().extraerTAG() }
+                    if (tagValue != null ){
+                        val calle = row[2].toString()
+                        val numero= row[3].toString()
+                        allParsedTags.add(listOf(tagValue,calle,numero))
                     }
                 }
             }
-            //} catch (e: Exception) {
-            //    Log.e(TAG, "Error procesando Tags desde Google Sheets: ${e.message}")
-            //}
 
-            // Retornamos la lista de [Tag, Calle, Numero]
+//            //try {
+//            // Obtenemos el rango A:H (Placas, Calle, Numero, Marca, Modelo, Color, Tag1, Tag2, userid)
+//            val response = sheetsService.spreadsheets().values()
+//                .get(spreadsheetId, "$nameWS!A:I")
+//                .execute()
+//
+//            // Omitimos el encabezado
+//            val rows = response.getValues()?.drop(1) ?: emptyList()
+//
+//            rows.forEach { row ->
+//                // Índices: Calle(1), Numero(2), Tag1(6), Tag2(7), userid(8)
+//                val calle = row.getOrNull(1)?.toString() ?: ""
+//                val numero = row.getOrNull(2)?.toString() ?: ""
+//
+//                // Procesamos cada columna de Tag si existe y no está vacía
+//                for (i in 6..7) {
+//                    val tagValue = row.getOrNull(i)?.toString()
+//                    if (!tagValue.isNullOrBlank()) {
+//                        allParsedTags.add(listOf(tagValue, calle, numero))
+//                    }
+//                }
+//            }
+//            //} catch (e: Exception) {
+//            //    Log.e(TAG, "Error procesando Tags desde Google Sheets: ${e.message}")
+//            //}
+//
+//            // Retornamos la lista de [Tag, Calle, Numero]
             allParsedTags
         }
+    }
+    fun getAutoRegistrados(forceLoad: Boolean = false): List<List<Any>> = runBlocking {
+        // Llamamos a la función genérica usando el Enum de VEHICULOS
+        getSmartCache(SheetTable.AUTOS_REGISTRADOS,forceLoad) {
+            val allRows = mutableListOf<List<Any>>()
+            val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")!!
+            if (spreadsheetId.isEmpty()) throw IllegalArgumentException("No hay Sheet configurado")
+
+            // 1. Obtener Vehículos de RESIDENTES
+            val stateResidentes = tableStates[SheetTable.RESIDENTES_UNIDAD]
+
+            // 2. Aseguramos que la RAM tenga datos (Carga desde RAM -> Disco -> Red)
+            if (stateResidentes?.cache == null) runBlocking { getResidentes() }
+            stateResidentes?.cache?.forEach { row ->
+                //tipo == automovil
+                if (row[4].toString().startsWith("auto",true)){
+                    val placa: String? = row.firstNotNullOfOrNull { it.toString().extraerPlaca() }
+                    val tag: String? = row.firstNotNullOfOrNull { it.toString().extraerTAG() }
+                    if (placa != null ){
+                        val userid= row[0].toString()
+                        val calle = row[2].toString()
+                        val numero= row[3].toString()
+                        val color = row.firstNotNullOfOrNull { it.toString().extraerColor() }
+                        val marca = row.firstNotNullOfOrNull { it.toString().extraerMarcaAuto() }
+                        allRows.add(listOf<Any>(
+                            placa,
+                            calle,
+                            numero,
+                            marca.toString(),
+                            "",
+                            color.toString(),
+                            tag.toString(),
+                            "",
+                            userid))
+                    }
+                }
+            }
+
+            allRows
+        }
+    }
+    private fun _get_strclave_unidad(calle: String, numero: String): String{
+        val abreviations = mapOf(
+            "casaclub" to "CA",
+            "acantilado" to "AC",
+            "cipres" to "CI",
+            "ciruelo" to "CR",
+            "durazno" to "DR",
+            "encino" to "EN",
+            "enramada" to "ER",
+            "eucalipto" to "EC",
+            "guadalupe" to "GP",
+            "naranjo" to "NR",
+            "manzano" to "MN",
+            "mezquite" to "MZ",
+            "olmo" to "OL",
+            "primavera" to "PR",
+            "roble" to "RB",
+            "administracion" to "AD",
+            "prueba" to "PB"
+        )
+
+        val calleNormalizada = calle.lowercase().trim()
+        val abrev = abreviations[calleNormalizada] ?: calleNormalizada.take(3).uppercase()
+        val numFormateado = numero.trim().padStart(3, '0')
+
+        return "$abrev$numFormateado"
+    }
+    fun addAutoRegistrados(row: List<String>): Boolean{
+        val table = SheetTable.AUTOS_REGISTRADOS
+        val state = tableStates[table] ?: return false
+        val userid = if(row[8].toIntOrNull() != null) row[8].toInt() else LocalTime.now().toSecondOfDay() * -1
+        //SET UserID
+        val _row = row.toMutableList()
+        _row[8] = userid.toString()
+
+        //### CACHE VIRTUAL DE AUTOS
+        // 1. Aseguramos que la RAM tenga datos (si estaba nulo, lo cargamos)
+        if (state.cache == null) {
+            runBlocking { getAutoRegistrados() }
+        }
+
+        // 2. Actualizar RAM (Optimistic UI: el usuario ve el cambio al instante)
+        val currentCache = state.cache?.toMutableList() ?: mutableListOf()
+        currentCache.add(_row)
+        state.cache = currentCache
+
+        // 3. Persistir el cambio visual en el caché de disco (MySettings)
+        mySettings.saveList("${table.cacheKey}_CACHE", currentCache as List<List<String>>)
+        mySettings.saveLong(table.timestampKey, System.currentTimeMillis())
+
+        // 4. Salvar async
+        mySettings.saveList("${table.cacheKey}_CACHE", currentCache as List<List<String>>)
+        sync(table, Operation.APPEND, data = _row)
+        //### FIN CACHE VIRTUAL DE AUTOS
+
+        //###### GUARDAR EN RESIDENTES ######
+        if (userid.toInt() != -987654321) {
+            val strNowTime =
+                LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            val rowResidente = listOf<Any>(
+                userid.toString(),
+                _get_strclave_unidad(row[1].toString(), row[2].toString()), //Clave
+                row[1].toString(),                                          //calle
+                row[2].toString(),                                          //numero
+                "Automóvil",                                                //Tipo
+                "${row[3]} ${row[4]} ${row[5]}",                            //nombre
+                row[0],                                                     //telefono (placa)
+                "",                                                         //email
+                row[6],                                                     //celular (tag)
+                "RondyApp[${strNowTime}]",                                  //notas
+                "",                                                         //ciudad
+                "",                                                         //estado
+                "2000-01-01 00:00:00",                                      //fecha_updated_condovive
+                strNowTime,                                                 //fecha_updated_app
+                "1",                                                        //es_nuevo
+                "0",                                                        //es_actualizado
+                "0"                                                         //es_eliminado
+            )
+            updateResidentes(rowResidente as List<String>)
+        }
+
+        return true
+    }
+    fun updateAutoRegistrados(newData: List<String>): Boolean{
+        val table = SheetTable.AUTOS_REGISTRADOS
+        val state = tableStates[table] ?: return false
+
+        // 1. Aseguramos que la RAM tenga datos (Carga desde RAM -> Disco -> Red)
+        if (state.cache == null) runBlocking { getAutoRegistrados() }
+
+        val currentCache = state.cache?.toMutableList() ?: mutableListOf()
+        var indexFind = -1
+
+        // 2. Búsqueda por userID
+        currentCache.forEachIndexed { index, autoR ->
+            if (autoR.size >= 4
+                && autoR[8] == newData[8] ){
+                indexFind = index
+                return@forEachIndexed
+            }
+        }
+
+        if (indexFind >= 0) {
+            // CASO A: ACTUALIZAR EXISTENTE
+            currentCache[indexFind] = newData
+            state.cache = currentCache
+
+            // Persistir en disco para acceso offline inmediato
+            mySettings.saveList("${table.cacheKey}_CACHE", currentCache as List<List<String>>)
+            mySettings.saveLong(table.timestampKey, System.currentTimeMillis())
+
+            // Sincronizar Update (index + 2 por el encabezado de Google Sheets)
+            sync(table, Operation.UPDATE, data = newData, index = indexFind + 2)
+
+            //UPDATE RESIDENTE
+            val strNowTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            val rowResidente = listOf<Any>(
+                newData[8],                                                 //userid
+                _get_strclave_unidad(newData[1].toString(), newData[2].toString()), //Clave
+                newData[1].toString(),                                      //calle
+                newData[2].toString(),                                      //numero
+                "Automóvil",                                                //Tipo
+                "${newData[3]} ${newData[4]} ${newData[5]}",                //nombre
+                newData[0],                                                 //telefono (placa)
+                "",                                                         //email
+                newData[6],                                                 //celular (tag)
+                "RondyApp[${strNowTime}]",                                  //notas
+                "",                                                         //ciudad
+                "",                                                         //estado
+                strNowTime,                                                 //fecha_updated_condovive
+                strNowTime,                                                 //fecha_updated_app
+                "0",                                                        //es_nuevo
+                "1",                                                        //es_actualizado
+                "0"                                                         //es_eliminado
+            )
+            updateResidentes(rowResidente as List<String>)
+
+        } else {
+            // CASO B: ES NUEVO (APPEND)
+            addAutoRegistrados(newData)
+        }
+
+        return true
+    }
+
+    //RESIDENTES
+    fun getResidentes(forceLoad: Boolean = false): List<List<Any>> = runBlocking {
+        //userid,clave,calle,numero,tipo,nombre,telefono,email,celular,notas,ciudad,estado,fecha_updated_condovive,fecha_updated_app,es_nuevo,es_actualizado,es_eliminado
+        // Usamos el Enum  el SmartCache genérico
+        getSmartCache(SheetTable.RESIDENTES_UNIDAD,forceLoad) {
+            val allRows = mutableListOf<List<Any>>()
+            val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")!!
+            if (spreadsheetId.isEmpty()) throw IllegalArgumentException("No hay Sheet configurado")
+
+            val nameWS = SheetTable.RESIDENTES_UNIDAD.sheetName
+
+            // Leemos el rango configurado (ej. A:C para Calle, Número, ID)
+            val response = sheetsService.spreadsheets().values()
+                .get(spreadsheetId, "$nameWS!${SheetTable.RESIDENTES_UNIDAD.range}")
+                .execute()
+
+            // Omitimos encabezados si es necesario con .drop(1)
+            val rows = response.getValues().drop(1) ?: emptyList()
+            allRows.addAll(rows)
+
+            // Retornamos la lista para que SmartCache la guarde en RAM y Disco
+            allRows
+        }
+    }
+    fun updateResidentes( rowData:List<String>): Boolean{
+        val table = SheetTable.RESIDENTES_UNIDAD
+        val state = tableStates[table] ?: return false
+
+        // 1. Aseguramos que la RAM tenga datos (Carga desde RAM -> Disco -> Red)
+        if (state.cache == null) runBlocking { getResidentes() }
+
+        val currentCache = state.cache?.toMutableList() ?: mutableListOf()
+        var indexFind = -1
+
+        // 2. Búsqueda por Calle(0), Número(1) y Tipo(3)
+        currentCache.forEachIndexed { index, resUni ->
+            if (resUni.size >= 4 &&
+                resUni[0].toString().toInt() == rowData[0].toString().toInt()) { //Validando el userid
+                indexFind = index
+                return@forEachIndexed
+            }
+        }
+
+        if (indexFind >= 0) {
+            // CASO A: ACTUALIZAR EXISTENTE
+            currentCache[indexFind] = rowData
+            state.cache = currentCache
+
+            // Persistir en disco para acceso offline inmediato
+            mySettings.saveList("${table.cacheKey}_CACHE", currentCache as List<List<String>>)
+            mySettings.saveLong(table.timestampKey, System.currentTimeMillis())
+
+            // Sincronizar Update (index + 2 por el encabezado de Google Sheets)
+            sync(table, Operation.UPDATE, data = rowData, index = indexFind + 2)
+        } else {
+            // CASO B: ES NUEVO (APPEND)
+            currentCache.add(rowData)
+            state.cache = currentCache
+
+            mySettings.saveList("${table.cacheKey}_CACHE", currentCache as List<List<String>>)
+            sync(table, Operation.APPEND, data = rowData)
+        }
+
+        return true
     }
 
     // Permisos
@@ -543,7 +835,7 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                     val fin = LocalDate.parse(fechaFinStr, flexibleDateFormatter)
                     // Verificamos si hoy está dentro del rango (inclusive)
                     if(esAdmin == 1)
-                        hoy <= inicio
+                        hoy <= fin
                     else
                         hoy >= inicio && hoy <= fin
                 }
