@@ -196,6 +196,7 @@
                     android:text="Espacios Estacionamiento"
                     android:textAlignment="center"
                     android:textStyle="bold" />
+
             </TableRow>
 
             <TableRow
@@ -222,6 +223,34 @@
                     android:contentDescription="Catalogo Parking Slots"
                     android:scaleType="fitCenter"
                     app:srcCompat="@android:drawable/ic_dialog_map" />
+
+            </TableRow>
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" >
+
+                <TextView
+                    android:id="@+id/textView9"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Alarmas"
+                    android:textAlignment="center"
+                    android:textStyle="bold" />
+            </TableRow>
+
+            <TableRow
+                android:layout_width="match_parent"
+                android:layout_height="match_parent" >
+
+                <ImageButton
+                    android:id="@+id/btnAlarmas"
+                    android:layout_width="match_parent"
+                    android:layout_height="100dp"
+                    android:layout_margin="20dp"
+                    android:contentDescription="Alarmas"
+                    android:scaleType="fitCenter"
+                    app:srcCompat="@android:drawable/ic_lock_idle_alarm" />
             </TableRow>
 
         </TableLayout>

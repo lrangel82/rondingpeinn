@@ -101,6 +101,7 @@ class MySettings(context: Context) {
             val WS_MULTAS_GENERADAS             = props.getProperty("worksheet_multas") + "$POSTFIX_SHEETNAME"
             val WS_DOMICILIO_WARNINGS           = props.getProperty("worksheet_domicilio_warnings") + "$POSTFIX_SHEETNAME"
             val WS_RESIDENTES_UNIDAD            = props.getProperty("worksheet_residentes") + "$POSTFIX_SHEETNAME"
+            val WS_ALARMAS_RONDIN               = props.getProperty("worksheet_alarmas_rondin") + "$POSTFIX_SHEETNAME"
 
             putString("APP_NAME", APP_NAME)
             putString("POSTFIX_SHEETNAME", POSTFIX_SHEETNAME)
@@ -118,6 +119,7 @@ class MySettings(context: Context) {
             putString("WS_MULTAS_GENERADAS", WS_MULTAS_GENERADAS)
             putString("WS_DOMICILIO_WARNINGS", WS_DOMICILIO_WARNINGS)
             putString("WS_RESIDENTES_UNIDAD", WS_RESIDENTES_UNIDAD)
+            putString("WS_ALARMAS_RONDIN", WS_ALARMAS_RONDIN)
 
             //CLEAN CACHE TIME
             SheetTable.values().forEach{table ->
@@ -161,6 +163,7 @@ class MySettings(context: Context) {
             putString("WS_MULTAS_GENERADAS", "")
             putString("WS_DOMICILIO_WARNINGS", "")
             putString("WS_RESIDENTES_UNIDAD", "")
+            putString("WS_ALARMAS_RONDIN", "")
 
             //CLEAN CACHE
             SheetTable.values().forEach{table ->

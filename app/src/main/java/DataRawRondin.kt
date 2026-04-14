@@ -47,7 +47,8 @@ enum class SheetTable(
     PERMISOS("", "PERMISOS", "A:N"),
     DIRECCIONES("Direcciones", "directions", "A:D"),  // calle, numero, latitud, longitud
     AUTOS_REGISTRADOS("AutosRegistrados", "autosRegistrados", "A:I"), //placa,calle,numero,marca,modelo,color,tag
-    RESIDENTES_UNIDAD("ResidentesUnidad", "residentesUnidad", "A:Q"); //userid,clave,calle,numero,tipo,nombre,telefono,email,celular,notas,ciudad,estado,fecha_updated_condovive,fecha_updated_app,es_nuevo,es_actualizado,es_eliminado
+    RESIDENTES_UNIDAD("ResidentesUnidad", "residentesUnidad", "A:Q"),
+    ALARMAS_RONDIN("AlarmasRondin","alarmasRondin","A:B"); //userid,clave,calle,numero,tipo,nombre,telefono,email,celular,notas,ciudad,estado,fecha_updated_condovive,fecha_updated_app,es_nuevo,es_actualizado,es_eliminado
 
 
     // Generadores automáticos de llaves de caché
@@ -76,6 +77,7 @@ enum class SheetTable(
                 DIRECCIONES to "WS_DOMICILIOS_UBICACION",
                 AUTOS_REGISTRADOS to "WS_AUTOS_REGISTRADOS",
                 RESIDENTES_UNIDAD to "WS_RESIDENTES_UNIDAD",
+                ALARMAS_RONDIN to "WS_ALARMAS_RONDIN",
             )
 
             // Recorremos el mapa y actualizamos cada sheetName
@@ -1528,6 +1530,108 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
         }
     }
 
+    //Alarmas
+    fun getAlarmas(forceLoad: Boolean = false): List<List<Any>> = runBlocking {
+        // Usamos el SmartCache genérico con el Enum correspondiente
+        getSmartCache(SheetTable.ALARMAS_RONDIN,forceLoad) {
+            val allSlots = mutableListOf<List<Any>>()
+            val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")
+            if (spreadsheetId.isEmpty()) throw IllegalArgumentException("No hay Sheet configurado")
 
+            // Buscamos el nombre de la hoja en settings o usamos el default "ParkingSlots"
+            val nameWS = SheetTable.ALARMAS_RONDIN.sheetName
 
+            // Consultamos el rango A:E de la hoja de Google Sheets
+            val response = sheetsService.spreadsheets().values()
+                .get(spreadsheetId, "$nameWS!${SheetTable.ALARMAS_RONDIN.range}")
+                .execute()
+
+            val rows = response.getValues().drop(1) ?: emptyList()
+            allSlots.addAll(rows)
+
+            // Retornamos la lista para que SmartCache la guarde en RAM y Disco local
+            allSlots
+        }
+    }
+    fun updateAlarma(oldData: List<String>, newData: List<String>): Boolean{
+        val table = SheetTable.ALARMAS_RONDIN
+        val state = tableStates[table] ?: return false
+
+        // 1. Aseguramos que la RAM tenga datos (Carga desde RAM -> Disco -> Red)
+        if (state.cache == null) runBlocking { getAlarmas() }
+
+        val currentCache = state.cache?.toMutableList() ?: mutableListOf()
+        var indexFind = -1
+
+        // 2. Búsqueda por Calle(0), Número(1) y Tipo(3)
+        currentCache.forEachIndexed { index, row ->
+            if (row.size == 2 &&
+                row[0].toString() == oldData[0].toString() &&
+                row[1].toString() == oldData[1].toString()) {
+                indexFind = index
+                return@forEachIndexed
+            }
+        }
+
+        if (indexFind >= 0) {
+            // CASO A: ACTUALIZAR EXISTENTE
+            currentCache[indexFind] = newData
+            state.cache = currentCache
+
+            // Persistir en disco para acceso offline inmediato
+            mySettings.saveList("${table.cacheKey}_CACHE", currentCache as List<List<String>>)
+            mySettings.saveLong(table.timestampKey, System.currentTimeMillis())
+
+            // Sincronizar Update (index + 2 por el encabezado de Google Sheets)
+            sync(table, Operation.UPDATE, data = newData, index = indexFind + 2)
+        } else {
+            // CASO B: ES NUEVO (APPEND)
+            currentCache.add(newData)
+            state.cache = currentCache
+
+            mySettings.saveList("${table.cacheKey}_CACHE", currentCache as List<List<String>>)
+            sync(table, Operation.APPEND, data = newData)
+        }
+
+        return true
+    }
+    fun eliminarAlarma(hora: String, nombre: String): Boolean{
+        val state = tableStates[SheetTable.ALARMAS_RONDIN] ?: return false
+
+        if (state.cache == null) runBlocking { getPorRevisar() }
+        val currentCache = state.cache?.toMutableList() ?: return false
+
+        var indexFind = -1
+
+        // 1. Buscar el índice en la lista actual (RAM)
+        currentCache.forEachIndexed { index, row ->
+            // Basado en tu estructura: Hora(0), Nomrbe(1)
+            if (row.size == 2 &&
+                row[0].toString() == hora &&
+                row[1].toString() == nombre ) {
+                indexFind = index
+                return@forEachIndexed
+            }
+        }
+
+        if (indexFind >= 0) {
+            // 2. Eliminar de la RAM inmediatamente para que el usuario ya no lo vea
+            currentCache.removeAt(indexFind)
+            state.cache = currentCache
+
+            // 3. Actualizar el caché de disco (MySettings) para persistir el cambio visual
+            mySettings.saveList("${SheetTable.ALARMAS_RONDIN.cacheKey}_CACHE", currentCache as List<List<String>>)
+            mySettings.saveLong(SheetTable.ALARMAS_RONDIN.timestampKey, System.currentTimeMillis())
+
+            /**
+             * 4. Disparar el borrado en la Nube.
+             * Usamos indexFind + 1 (si no hay encabezado) o + 2 (si hay encabezado).
+             */
+            sync(SheetTable.ALARMAS_RONDIN, Operation.DELETE, index = indexFind + 2)
+
+            return true
+        }
+
+        return false // No se encontró el registro
+    }
 }

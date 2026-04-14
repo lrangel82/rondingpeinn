@@ -10,6 +10,7 @@ import android.widget.EditText
 import android.widget.GridLayout
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
@@ -23,6 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.getkeepsafe.taptargetview.TapTarget
 import com.getkeepsafe.taptargetview.TapTargetSequence
+import com.larangel.rondy.ui.AlarmaActivity
 
 class SettingsActivity : AppCompatActivity() {
     private var mySettings: MySettings? = null
@@ -45,6 +47,7 @@ class SettingsActivity : AppCompatActivity() {
         val btnAyuda: ImageButton = findViewById(R.id.btnAyuda)
         val btnCtaVehiculos: ImageButton = findViewById(R.id.btnCatalogoVehiculos)
         val btnParkignSlots: ImageButton = findViewById(R.id.btnParkingSlots)
+        val btnAlarmas: ImageButton = findViewById(R.id.btnAlarmas)
 
         btnGuardar.setOnClickListener{
             salvarConfig()
@@ -67,6 +70,10 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(Intent(this, ProgramarTags::class.java ))
             //this.finish()
         }
+        btnAlarmas.setOnClickListener{
+            startActivity(Intent(this, CatalogoAlarmasActivity::class.java ))
+            //this.finish()
+        }
 
         val yaVioAyuda = mySettings?.getBoolean("ayuda_settings_activity", false)
         if (yaVioAyuda == false) {
@@ -79,7 +86,7 @@ class SettingsActivity : AppCompatActivity() {
 
         //Es ADMIN?
         val esAdmin = mySettings?.getInt("ESADMIN",0)
-        val layOutConfigAdmin: GridLayout = findViewById(R.id.layoutConfigAdmin)
+        val layOutConfigAdmin: LinearLayout = findViewById(R.id.layoutConfigAdmin)
         if (esAdmin == 1) {
             layOutConfigAdmin.visibility = View.VISIBLE
         }

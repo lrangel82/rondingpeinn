@@ -4,11 +4,18 @@ import MySettings
 import DataRawRondin
 import android.Manifest
 import android.annotation.SuppressLint
+import android.app.AlarmManager
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.icu.util.Calendar
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -21,6 +28,7 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresPermission
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -37,6 +45,7 @@ import java.time.LocalDate
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.larangel.rondy.IncidenciasMenu
+import com.larangel.rondy.utils.programarAlarma
 
 class MainActivity : AppCompatActivity() {
 
@@ -55,6 +64,19 @@ class MainActivity : AppCompatActivity() {
     private val REQUEST_IMAGE_CAPTURE = 102
     private val REQUEST_IMAGE_PICK = 103
     private val REQUEST_STORAGE_PERMISSION = 104
+    private val REQUEST_ALARM_PERMISSION = 105
+
+    private val requestPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted: Boolean ->
+        if (isGranted) {
+            // Permiso concedido: las alarmas funcionarán
+            Toast.makeText(this, "PERMISO CONCEDIDO", Toast.LENGTH_SHORT).show()
+        } else {
+            // Permiso denegado: explica al usuario que no recibirá alertas
+            Toast.makeText(this, "PERMISO Denegado las alarmas no se mostraran", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -315,6 +337,7 @@ class MainActivity : AppCompatActivity() {
             if (::swipeRefreshLayout.isInitialized)
                 swipeRefreshLayout.isRefreshing = true
 
+            val alarmas = dataRaw?.getAlarmas(forceLoad)
             val residentes = dataRaw?.getResidentes(forceLoad)
             val autosEventos = dataRaw?.getAutosEventos(forceLoad)
             val vehiculosData = dataRaw?.getCachedVehiclesData(forceLoad)
@@ -326,11 +349,18 @@ class MainActivity : AppCompatActivity() {
             val domiciliosWarnings = dataRaw?.getDomicilioWarnings(forceLoad)
             val permisosData = dataRaw?.getPermisosCache_DeHoy(forceLoad)
             val incidenciasData = dataRaw?.getIncidenciasEventos(forceLoad)
+            val incidenciasConfig = dataRaw?.getIncidenciasConfig(forceLoad)
 
             withContext(Dispatchers.Main) {
                 swipeRefreshLayout.isRefreshing = false
                 //Init textos
                 updateTextoBotones()
+
+                //SetUp Alarmas
+                alarmas?.forEach { row->
+                    programarAlarma(applicationContext, row[0].toString(),row[1].toString())
+                }
+
                 //LOGO
                 //  Prompt: "High-quality 512x512 app icon, PNG with transparency. Features a friendly security guard for condominiums wearing a green and orange safety vest and a blue cap. A large green map location pin with a white checkmark is positioned above him. In the background, stylized blue condominium buildings and an orange road leading towards them. The text 'Rondy' is integrated into the bottom of the icon in a bold, modern sans-serif font. Color palette: Green, Blue, Orange, and Black. Flat vector style, clean lines, professional and friendly aesthetic, optimized for mobile UI."
                 val logoimg = findViewById<ImageView>(R.id.imageLogoMain)
@@ -341,7 +371,7 @@ class MainActivity : AppCompatActivity() {
                         + autosEventos!!.count() + vehiculosData!!.count() + tagsData!!.count()
                         + domiciliosUbicacion!!.count() + porRevisar!!.count() + parkingSlots!!.count()
                         + multas!!.count() + domiciliosWarnings!!.count() + permisosData!!.count()
-                        + incidenciasData!!.count()
+                        + incidenciasData!!.count() + incidenciasConfig!!.count()
                     Toast.makeText(
                         this@MainActivity,
                         "Iniciando...${totalCargados} registrosDB",
@@ -427,8 +457,58 @@ class MainActivity : AppCompatActivity() {
         return network?.isConnected == true
     }
 
+    //programar alarmas
+//    fun programarAlarma(horaStr: String, nombre: String) {
+//        val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+//
+//        // Validar si tenemos permiso para alarmas exactas (Solo necesario en Android 12+)
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+//            if (!alarmManager.canScheduleExactAlarms()) {
+//                return // Detenemos la ejecución hasta que tengamos el permiso
+//            }
+//        }
+//
+//        val intent = Intent(applicationContext, AlarmReceiver::class.java).apply {
+//            putExtra("nombre", nombre)
+//            putExtra("hora", horaStr)
+//        }
+//
+//        // Convertir "HH:mm" a Calendar
+//        val partes = horaStr.split(":")
+//        val calendar = Calendar.getInstance().apply {
+//            set(Calendar.HOUR_OF_DAY, partes[0].toInt())
+//            set(Calendar.MINUTE, partes[1].toInt())
+//            set(Calendar.SECOND, partes.getOrNull(2)?.toInt() ?: 0 )
+//            if (before(Calendar.getInstance())) {
+//                add(Calendar.DATE, 1) // Si ya pasó la hora, programar para mañana
+//            }
+//        }
+//
+//        val pendingIntent = PendingIntent.getBroadcast(
+//            applicationContext,
+//            horaStr.hashCode(), // ID único basado en la hora
+//            intent,
+//            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+//        )
+//
+//        // Programar la alarma exacta
+//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+//            if (alarmManager.canScheduleExactAlarms()) {
+//                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+//            } else {
+//                // Fallback si no hay permiso de alarmas exactas
+//                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+//            }
+//        } else {
+//            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
+//        }
+//
+//    }
+
     //Verificar los permisos de la aplicacion
     private fun verificarPermisosRequeridos(){
+        val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
+
         if (isActive && (ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED
             || ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_MEDIA_IMAGES) != PackageManager.PERMISSION_GRANTED)) {
 
@@ -439,6 +519,57 @@ class MainActivity : AppCompatActivity() {
                         android.Manifest.permission.CAMERA,
                         android.Manifest.permission.READ_MEDIA_IMAGES
                     ),REQUEST_CAMERA_PERMISSION)
+                }
+                .setCancelable(false)
+                .show()
+
+        }
+        else if (isActive && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (!alarmManager.canScheduleExactAlarms()){
+                AlertDialog.Builder(this@MainActivity)
+                    .setMessage("No se ha dado permiso para las ALARMAS del dispositivo, debe ser activado para el correcto funcionamiento.")
+                    .setPositiveButton("Activar permiso") { _, _ ->
+//                    ActivityCompat.requestPermissions(this, arrayOf(
+//                        android.Manifest.permission.SCHEDULE_EXACT_ALARM,
+//                        android.Manifest.permission.WAKE_LOCK,
+//                        android.Manifest.permission.USE_FULL_SCREEN_INTENT
+//                    ),REQUEST_ALARM_PERMISSION)
+                        // No tenemos permiso: Abrir la configuración del sistema para que el usuario lo otorgue
+                        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                            data = Uri.fromParts("package", applicationContext.packageName, null)
+                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        }
+                        applicationContext.startActivity(intent)
+                    }
+                    .setCancelable(false)
+                    .show()
+            }
+        }
+        if (isActive && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val notificationManager = getSystemService(NotificationManager::class.java)
+            if (!notificationManager.canUseFullScreenIntent()) {
+                AlertDialog.Builder(this@MainActivity)
+                    .setMessage("No se ha dado permiso para ejecutar FULL SCREEN, debe ser activado para el correcto funcionamiento.")
+                    .setPositiveButton("Activar permiso") { _, _ ->
+                        val intent = Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT).apply {
+                            data = Uri.fromParts("package", applicationContext.packageName, null)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        applicationContext.startActivity(intent)
+                    }
+                    .setCancelable(false)
+                    .show()
+
+            }
+        }
+        if (isActive && ContextCompat.checkSelfPermission(this, android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            AlertDialog.Builder(this@MainActivity)
+                .setMessage("No se ha dado permiso para PostNotificaciones, debe ser activado para el correcto funcionamiento.")
+                .setPositiveButton("Activar permiso") { _, _ ->
+                    requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+//                    ActivityCompat.requestPermissions(this, arrayOf(
+//                        android.Manifest.permission.POST_NOTIFICATIONS
+//                    ),REQUEST_ALARM_PERMISSION)
                 }
                 .setCancelable(false)
                 .show()
@@ -473,6 +604,10 @@ class MainActivity : AppCompatActivity() {
                 } else {
                     Toast.makeText(this, "Location permission denied", Toast.LENGTH_SHORT).show()
                 }
+            }
+            REQUEST_ALARM_PERMISSION -> {
+                if (grantResults.isEmpty() || grantResults[0] != PackageManager.PERMISSION_GRANTED)
+                    Toast.makeText(this, "Alarma permission denied", Toast.LENGTH_SHORT).show()
             }
         }
     }

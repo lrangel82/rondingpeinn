@@ -1004,7 +1004,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
                     val tPBarCheckPoints: TextView = findViewById<TextView>(R.id.txtPBar_CheckPoints)
                     pBarCheckPoints.max = totalCheckPoints
                     pBarCheckPoints.progress = checkPoints?.size ?: 0
-                    tPBarCheckPoints.text = "Rondin TAGS ${(checkPoints?.size ?: 0)}/${totalCheckPoints}"
+                    tPBarCheckPoints.text = "TAGS ${(checkPoints?.size ?: 0)}/${totalCheckPoints}"
 
 
 //                    val tFaltantes: TextView = findViewById<TextView>(R.id.vehicleText_PSFaltantes)
