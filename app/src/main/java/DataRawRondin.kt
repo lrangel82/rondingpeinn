@@ -99,24 +99,75 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     private val TAG = "package:com.larangel.rondy"
     private val CACHE_DURATION_MS = 60 * 60 * 1000 // 1 hora
 
-    private val flexibleDateFormatter = DateTimeFormatterBuilder()
-        .appendOptional(DateTimeFormatter.ofPattern("d/M/yyyy"))
-        .appendOptional(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-        .appendOptional(DateTimeFormatter.ofPattern("d/M/yy"))
-        .appendOptional(DateTimeFormatter.ofPattern("d/M/yyyy"))
-        .appendOptional(DateTimeFormatter.ofPattern("dd/MM/yy"))
-        .appendOptional(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-        .toFormatter()
+//    private val flexibleDateFormatter = DateTimeFormatterBuilder()
+//        .appendOptional(DateTimeFormatter.ofPattern("d/M/yyyy"))
+//        .appendOptional(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
+//        .appendOptional(DateTimeFormatter.ofPattern("d/M/yy"))
+//        .appendOptional(DateTimeFormatter.ofPattern("d/M/yyyy"))
+//        .appendOptional(DateTimeFormatter.ofPattern("dd/MM/yy"))
+//        .appendOptional(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+//        .appendOptional(DateTimeFormatter.ofPattern("M/dd/yyyy"))
+//        .toFormatter()
 
-    private val flexibleDateTimeFormatter = DateTimeFormatterBuilder()
-        .appendOptional(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-        .appendOptional(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss"))
-        .appendOptional(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))
-        .appendOptional(DateTimeFormatter.ofPattern("d/MM/yyyy H:mm:ss"))
-        .appendOptional(DateTimeFormatter.ofPattern("d/M/yyyy HH:mm:ss"))
-        .appendOptional(DateTimeFormatter.ofPattern("d/M/yy HH:mm:ss"))
-        .appendOptional(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-        .toFormatter()
+//    private val flexibleDateTimeFormatter = DateTimeFormatterBuilder()
+//        .appendOptional(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+//        .appendOptional(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss"))
+//        .appendOptional(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))
+//        .appendOptional(DateTimeFormatter.ofPattern("d/MM/yyyy H:mm:ss"))
+//        .appendOptional(DateTimeFormatter.ofPattern("d/M/yyyy HH:mm:ss"))
+//        .appendOptional(DateTimeFormatter.ofPattern("d/M/yy HH:mm:ss"))
+//        .appendOptional(DateTimeFormatter.ofPattern("M/d/yyyy H:mm:ss"))
+//        .appendOptional(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+//        .toFormatter()
+
+    private fun parseLenientDateTime(dateTimeString: String): LocalDateTime {
+        val formats = listOf(
+            "d/MM/yyyy H:mm:ss",
+            "d/MM/yyyy HH:mm:ss",
+            "yyyy/MM/dd HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy/MM/dd HH:mm:ss",
+            "yyyy/MM/dd'T'HH:mm:ss",
+            "dd-MM-yyyy HH:mm:ss",
+            "dd/MM/yyyy HH:mm:ss",
+            "MM-dd-yyyy HH:mm:ss",
+            "MM/dd/yyyy HH:mm:ss",
+            "yyyyMMdd HHmmss",
+            "yyyyMMdd'T'HHmmss"
+        ).map { DateTimeFormatter.ofPattern(it) }
+
+        for (format in formats) {
+            try {
+                return LocalDateTime.parse(dateTimeString, format)
+            } catch (e: Exception) {
+                // Try the next format if parsing fails
+            }
+        }
+        return LocalDateTime.MIN // Return null if no format matches
+    }
+    private fun parseLenientDate(dateTimeString: String): LocalDate {
+        val formats = listOf(
+            "d/MM/yyyy",
+            "yyyy/MM/dd",
+            "yyyy-MM-dd",
+            "dd-MM-yyyy",
+            "dd/MM/yyyy",
+            "MM-dd-yyyy",
+            "MM/dd/yyyy",
+            "M/dd/yyyy",
+            "yyyyMMdd"
+        ).map { DateTimeFormatter.ofPattern(it) }
+
+        for (format in formats) {
+            try {
+                return LocalDate.parse(dateTimeString, format)
+            } catch (e: Exception) {
+                // Try the next format if parsing fails
+            }
+        }
+        return LocalDate.MIN // Return null if no format matches
+    }
 
 
     // Estado en Memoria
@@ -833,8 +884,8 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                 }
                 else if (fechaInicioStr.isNotBlank() && fechaFinStr.isNotBlank() && stringTrue.contains(procesadoRobot)) {
                     //Esta dentro de las fechas y fue procesado
-                    val inicio = LocalDate.parse(fechaInicioStr, flexibleDateFormatter)
-                    val fin = LocalDate.parse(fechaFinStr, flexibleDateFormatter)
+                    val inicio = parseLenientDate(fechaInicioStr)
+                    val fin = parseLenientDate(fechaFinStr)
                     // Verificamos si hoy está dentro del rango (inclusive)
                     if(esAdmin == 1)
                         hoy <= fin
@@ -862,9 +913,9 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
         var indexFind = -1
 
         // 2. Búsqueda por fecha de creacion
-        val pCreadp = LocalDateTime.parse(row[0].toString(), flexibleDateTimeFormatter)
+        val pCreadp = parseLenientDateTime(row[0].toString())
         currentCache.forEachIndexed { index, permiso ->
-            val _fCreado = LocalDateTime.parse(permiso[0].toString(), flexibleDateTimeFormatter)
+            val _fCreado = parseLenientDateTime(permiso[0].toString())
             if (permiso.size >= 4 &&
                 pCreadp == _fCreado ) {
                 indexFind = index
@@ -902,9 +953,9 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
         val currentCache = state.cache?.toMutableList() ?: return false
 
         // 2. Búsqueda por fecha de creacion
-        val pCreadp = LocalDateTime.parse(row[0].toString(), flexibleDateTimeFormatter)
+        val pCreadp = parseLenientDateTime(row[0].toString())
         currentCache.forEachIndexed { index, permiso ->
-            val _fCreado = LocalDateTime.parse(permiso[0].toString(), flexibleDateTimeFormatter)
+            val _fCreado = parseLenientDateTime(permiso[0].toString())
             if (permiso.size >= 4 &&
                 pCreadp == _fCreado ) {
                 indexFind = index
@@ -1019,7 +1070,7 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     fun getPorRevisar_20horas(forceLoad: Boolean = false): MutableList<List<Any>>?{
         val rows = getPorRevisar(forceLoad)
         val date20HoursAgo = LocalDateTime.now().minusHours(20)
-        val porRevisar = rows?.filter { LocalDateTime.parse(it[2].toString(),flexibleDateTimeFormatter) >= date20HoursAgo }
+        val porRevisar = rows?.filter { parseLenientDateTime(it[2].toString()) >= date20HoursAgo }
             ?.reversed()
         if (porRevisar!=null && porRevisar.isNotEmpty())
             return porRevisar as MutableList<List<Any>>?
@@ -1174,7 +1225,7 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
         val rows = getAutosEventos(forceLoad)
         val date6HoursAgo = LocalDateTime.now().minusHours(6)
         val plateEvents = rows.filter {
-            LocalDateTime.parse(it[2].toString(),flexibleDateTimeFormatter) >= date6HoursAgo
+            parseLenientDateTime(it[2].toString()) >= date6HoursAgo
         }
             .reversed()
         return plateEvents ?: emptyList()
@@ -1209,9 +1260,9 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
         val currentCache = state.cache?.toMutableList() ?: return false
 
         // 2. Búsqueda por fecha de creacion
-        val pCreadp = LocalDateTime.parse(row[2].toString(), flexibleDateTimeFormatter)
+        val pCreadp = parseLenientDateTime(row[2].toString())
         currentCache.forEachIndexed { index, evento ->
-            val _fCreado = LocalDateTime.parse(evento[2].toString(), flexibleDateTimeFormatter)
+            val _fCreado = parseLenientDateTime(evento[2].toString())
             if (evento.size >= 4 &&
                 pCreadp == _fCreado ) {
                 indexFind = index
@@ -1297,13 +1348,13 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     }
     fun getIncidenciasEventosDesde(fechaDay: LocalDate = LocalDate.now()): List<List<Any>>{
         val rows = getIncidenciasEventos()
-        return rows.filter{ LocalDate.parse(it[2].toString(),flexibleDateFormatter) >= fechaDay}
+        return rows.filter{ parseLenientDate(it[2].toString()) >= fechaDay}
     }
     fun getIncidenciasEventosTipo(Tipo: String, fechaDay: LocalDate = LocalDate.now()): List<List<Any>>{
         val rows = getIncidenciasEventos()
         //val timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
         val IncidenciaEvents = rows.filter {
-            LocalDate.parse(it[2].toString(),flexibleDateFormatter) == fechaDay
+            parseLenientDate(it[2].toString()) == fechaDay
                     && it[4].toString().uppercase() == Tipo.uppercase() }
         return IncidenciaEvents ?: emptyList()
 

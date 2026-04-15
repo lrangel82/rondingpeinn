@@ -124,15 +124,55 @@
                     android:layout_height="wrap_content"
                     android:text="Placa"
                     android:textColor="@color/black"
+                    android:textSize="20sp"
                     android:textStyle="bold" />
 
                 <EditText
                     android:id="@+id/etFormPlaca"
-                    android:layout_width="0dp"
+                    android:layout_width="50dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:hint="Placa"
                     android:textColor="@color/black" />
 
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal|center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_marginTop="8.dp"
+                    android:text="Calle"
+                    android:textColor="@color/black"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <Spinner
+                    android:id="@+id/spinnerCalle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48.dp"
+                    android:backgroundTint="#090909"
+                    android:textAlignment="center" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:layout_marginTop="8.dp"
+                    android:text="Número"
+                    android:textColor="@color/black"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <Spinner
+                    android:id="@+id/spinnerNumero"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48.dp"
+                    android:backgroundTint="#050505" />
             </LinearLayout>
 
             <TableLayout
@@ -144,17 +184,20 @@
                     android:layout_height="match_parent">
 
                     <TextView
+                        android:id="@+id/textView11"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8.dp"
-                        android:text="Calle"
-                        android:textColor="@color/black" />
+                        android:text="Marca"
+                        android:textColor="@color/black"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <EditText
+                        android:id="@+id/etFormMarca"
+                        android:layout_width="50dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8.dp"
-                        android:text="Número"
+                        android:layout_weight="1"
+                        android:hint="Marca"
                         android:textColor="@color/black" />
                 </TableRow>
 
@@ -162,49 +205,69 @@
                     android:layout_width="match_parent"
                     android:layout_height="match_parent">
 
-                    <Spinner
-                        android:id="@+id/spinnerCalle"
-                        android:layout_width="match_parent"
-                        android:layout_height="48.dp"
-                        android:backgroundTint="#090909"
-                        android:textAlignment="center" />
+                    <TextView
+                        android:id="@+id/textView12"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Modelo"
+                        android:textColor="@color/black"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
 
-                    <Spinner
-                        android:id="@+id/spinnerNumero"
-                        android:layout_width="match_parent"
-                        android:layout_height="48.dp"
-                        android:backgroundTint="#050505" />
+                    <EditText
+                        android:id="@+id/etFormModelo"
+                        android:layout_width="50dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="Modelo"
+                        android:textColor="@color/black" />
+                </TableRow>
+
+                <TableRow
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" >
+
+                    <TextView
+                        android:id="@+id/textView13"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Color"
+                        android:textColor="@color/black"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <EditText
+                        android:id="@+id/etFormColor"
+                        android:layout_width="50dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="Color"
+                        android:textColor="@color/black" />
+                </TableRow>
+
+                <TableRow
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent" >
+
+                    <TextView
+                        android:id="@+id/textView14"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Tag ID"
+                        android:textColor="@color/black"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <EditText
+                        android:id="@+id/etFormTag"
+                        android:layout_width="50dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="Tag ID"
+                        android:textColor="@color/black" />
                 </TableRow>
 
             </TableLayout>
-
-            <EditText
-                android:id="@+id/etFormMarca"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Marca"
-                android:textColor="@color/black" />
-
-            <EditText
-                android:id="@+id/etFormModelo"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Modelo"
-                android:textColor="@color/black" />
-
-            <EditText
-                android:id="@+id/etFormColor"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Color"
-                android:textColor="@color/black" />
-
-            <EditText
-                android:id="@+id/etFormTag"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Tag ID"
-                android:textColor="@color/black" />
 
             <LinearLayout
                 android:layout_width="match_parent"

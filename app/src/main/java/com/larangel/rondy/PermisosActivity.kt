@@ -87,6 +87,7 @@ class PermisosActivity : AppCompatActivity() {
 
     private fun parseLenientDateTime(dateTimeString: String): LocalDateTime {
         val formats = listOf(
+            "d/MM/yyyy H:mm:ss",
             "d/MM/yyyy HH:mm:ss",
             "yyyy/MM/dd HH:mm:ss",
             "yyyy-MM-dd HH:mm:ss",
@@ -119,6 +120,7 @@ class PermisosActivity : AppCompatActivity() {
             "dd/MM/yyyy",
             "MM-dd-yyyy",
             "MM/dd/yyyy",
+            "M/dd/yyyy",
             "yyyyMMdd"
         ).map { DateTimeFormatter.ofPattern(it) }
 
