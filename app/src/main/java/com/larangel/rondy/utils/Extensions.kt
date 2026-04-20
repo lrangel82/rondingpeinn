@@ -25,6 +25,17 @@ fun String.extraerTAG(): String? {
     val TagRegex = Regex("([1-9][0-9]{6,7})")
     return TagRegex.find(this.uppercase())?.value
 }
+fun String.extraerTAGHexToDec():String?{
+    val TagRegex = Regex("AABB([0-9A-F]{10})0{10}")
+    val hexadecimal = TagRegex.find(this.uppercase())?.groups?.get(1)?.value
+    return try {
+        // Convertimos de Hexadecimal (base 16) a Decimal
+        // Usamos toLong porque un hex de 10 dígitos puede superar el límite de un Int
+        hexadecimal?.toLong(16)?.toString()
+    } catch (e: Exception) {
+        null
+    }
+}
 
 /**
  * Busca un COLOR valido en el texto
@@ -99,7 +110,7 @@ fun buscarTagEnListaCache(tagsCache:List<List<Any>>, strLectorRFID: String): Lis
     stopSearchLoop = false
     for (line in allLines) {
         if (stopSearchLoop) return emptyList()
-        val tagValue = line.extraerTAG()
+        val tagValue = line.extraerTAGHexToDec()
         if (tagValue != null){
             var foundTag=false
             tagsCache?.forEach { tag ->

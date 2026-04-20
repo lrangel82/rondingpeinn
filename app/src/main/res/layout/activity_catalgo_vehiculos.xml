@@ -53,7 +53,7 @@
         android:layout_height="0dp"
         android:layout_marginTop="8.dp"
         android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/btnLimpiarCatV"
         app:layout_constraintTop_toBottomOf="@id/searchContainer"
         tools:listitem="@android:layout/simple_list_item_1" />
 
@@ -63,13 +63,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:visibility="visible"
+        app:layout_constraintBottom_toTopOf="@+id/btnLimpiarCatV"
         app:layout_constraintTop_toBottomOf="@+id/searchContainer"
         tools:layout_editor_absoluteX="20dp">
 
         <TextView
-            android:id="@+id/textView10"
+            android:id="@+id/txtNoRegistro"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -81,7 +81,7 @@
 
         <Button
             android:id="@+id/btnReportInexistente"
-            style="?android:attr/borderlessButtonStyle"
+            style="@android:style/Widget.Holo.Button.Borderless"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -102,10 +102,10 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_margin="20dp"
-        android:visibility="visible"
-        app:layout_constraintBottom_toBottomOf="parent"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@+id/btnLimpiarCatV"
         app:layout_constraintTop_toBottomOf="@id/searchContainer"
-        tools:layout_editor_absoluteX="30dp">
+        tools:layout_editor_absoluteX="20dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -225,7 +225,7 @@
 
                 <TableRow
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent" >
+                    android:layout_height="match_parent">
 
                     <TextView
                         android:id="@+id/textView13"
@@ -247,7 +247,7 @@
 
                 <TableRow
                     android:layout_width="match_parent"
-                    android:layout_height="match_parent" >
+                    android:layout_height="match_parent">
 
                     <TextView
                         android:id="@+id/textView14"
@@ -291,6 +291,17 @@
                     android:text="Actualizar" />
             </LinearLayout>
         </LinearLayout>
+
     </LinearLayout>
+
+    <Button
+        android:id="@+id/btnLimpiarCatV"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_margin="20dp"
+        android:layout_weight="1"
+        android:text="Limpiar"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:layout_editor_absoluteX="136dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -28,6 +28,8 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.larangel.rondy.utils.extraerPlaca
 import com.larangel.rondy.utils.extraerTAG
+import com.larangel.rondy.utils.extraerTAGHexToDec
+import com.larangel.rondy.utils.stopSearchLoop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -45,6 +47,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
     // UI Elements
     private lateinit var etSearch: EditText
     private lateinit var btnTakePhoto: Button
+    private lateinit var limparBtn: Button
     private lateinit var rvResults: RecyclerView
     private lateinit var layoutForm: View
     private lateinit var btnReport: Button
@@ -87,6 +90,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         etSearch = findViewById(R.id.etSearch)
         rvResults = findViewById(R.id.rvResults)
         layoutForm = findViewById(R.id.layoutForm)
+        limparBtn = findViewById(R.id.btnLimpiarCatV)
 
         // Configuración de Grilla en Landscape
         val spanCount = if (resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE) 3 else 1
@@ -94,12 +98,12 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
 
         etSearch.doOnTextChanged { text, start, before, count ->
             val query = text.toString()
-            if (query.isNotEmpty() ) {
-                val esLectorRFID = query.contains("\n")
+            if (query.isNotEmpty() && query.length > 2 ) {
+                stopSearchLoop=true
+               // val esLectorRFID = query.contains("\n")
+                val tagStr: String? = query.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
                 //Esta visible el FORM, y es un tag del lector... escribir en el TAGID de la edicion
-                if (layoutForm.visibility == View.VISIBLE && esLectorRFID) {
-                    val listaTags: List<String> = query.split("\n")
-                    val tagStr: String? = listaTags.firstNotNullOfOrNull { it.extraerTAG() }
+                if (layoutForm.visibility == View.VISIBLE && tagStr != null) {
                     val etTag = findViewById<EditText>(R.id.etFormTag)
                     etTag.setText(tagStr)
                     etSearch.setText("")
@@ -114,6 +118,10 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
 //            }else{
 //                rvResults.visibility = View.GONE
 //            }
+        }
+        limparBtn.setOnClickListener {
+            etSearch.setText("")
+            performSearch("")
         }
     }
     override fun onUserInteraction() {
@@ -130,15 +138,21 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
 
     private fun performSearch(query: String) {
         //Es lectura de lector RFID
-        val esLectorRFID = query.contains("\n")
+        stopSearchLoop = false
         val lines = query.split("\n")
         filteredList.clear()
         for (line in lines) {
-            val _query = if (esLectorRFID == true)  line.extraerTAG() else line
-            filteredList.addAll(fullVehicleList.filter { row ->
-                row.any { it.toString().contains(_query.toString(), ignoreCase = true) }
-            })
+            if (stopSearchLoop == true) return
+            var _query = line.extraerTAGHexToDec() //if (esLectorRFID == true)  line.extraerTAGHexToDec() else line
+            if (_query.isNullOrEmpty()) _query = line
+            if (_query.isNotEmpty()) {
+                filteredList.addAll(fullVehicleList.filter { row ->
+                    if (stopSearchLoop == true) false
+                    else row.any { it.toString().contains(_query.toString(), ignoreCase = true) }
+                })
+            }
         }
+        if (stopSearchLoop == true) return
 
         when {
             filteredList.isEmpty() && query.isNotEmpty() -> showNotFoundOptions()
@@ -173,15 +187,17 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         findViewById<View>(R.id.notFoundActions).visibility = View.VISIBLE
 
         val busquedaActual = etSearch.text.toString().trim()
+        val tagValido = busquedaActual.extraerTAGHexToDec()
         var strTag="NA"
         var strPlate="NA"
 
-        if (busquedaActual.all { it.isDigit() })
-            strTag = busquedaActual
+        if (tagValido != null)
+            strTag = tagValido
         else {
             // Contiene letras -> asumimos que es una PLACA
             strPlate = busquedaActual.extraerPlaca().toString()
         }
+        findViewById<TextView>(R.id.txtNoRegistro).setText("El registro [[${tagValido ?: strPlate}]] no existe en la base de datos, que desea hacer?")
 
         // 2. Configurar botón de Reportar (Inexistente)
         btnReport = findViewById<Button>(R.id.btnReportInexistente)
@@ -214,9 +230,9 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
             showForm(null) // Abrimos formulario vacío
 
             // Lógica de pre-llenado inteligente
-            if (busquedaActual.all { it.isDigit() }) {
+            if (tagValido != null) {
                 // Es puramente numérico -> asumimos que es un TAG
-                findViewById<EditText>(R.id.etFormTag).setText(busquedaActual)
+                findViewById<EditText>(R.id.etFormTag).setText(tagValido)
             } else {
                 // Contiene letras -> asumimos que es una PLACA
                 findViewById<EditText>(R.id.etFormPlaca).setText(strPlate ?: busquedaActual)

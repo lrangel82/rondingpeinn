@@ -106,10 +106,12 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.switchmaterial.SwitchMaterial
+import com.larangel.rondy.CatalgoVehiculosActivity
 import com.larangel.rondy.ProgramarTags
 import com.larangel.rondy.StartRondinActivity
 import com.larangel.rondy.utils.buscarPlacaEnListaCache
 import com.larangel.rondy.utils.buscarTagEnListaCache
+import com.larangel.rondy.utils.extraerTAGHexToDec
 import com.larangel.rondy.utils.stopSearchLoop
 import java.time.temporal.ChronoUnit
 import kotlin.String
@@ -130,6 +132,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private lateinit var photoThumbnail: ImageView
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     //private lateinit var sheetsService: Sheets
+    private var tagInexistente: String? = null
     private val events = ArrayList<EventModal>()
     private val REQUEST_CAMERA_PERMISSION = 100
     private val REQUEST_LOCATION_PERMISSION = 101
@@ -211,7 +214,9 @@ class  VehicleSearchActivity : AppCompatActivity() {
         plateInput.doOnTextChanged { text, start, before, count ->
             if (stopSearchVehicle == false) {
                 if (text.toString().length >= 3) {
-                    searchVehicle(text.toString())
+                    plateInput.postDelayed({
+                        searchVehicle(text.toString())
+                    }, 800) //Esperar un poco antes de mandar la busqueda
                 } else {
                     resultText.text = "" //Clean
                 }
@@ -233,7 +238,10 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
         // Save event button click listener
         saveEventButton.setOnClickListener {
-            saveNewEvent()
+            if (tagInexistente != null)
+                reportarTagInexistente()
+            else
+                saveNewEvent()
         }
 
         // ##### NFC #####  Inicializa Rondin SWTICH
@@ -309,6 +317,8 @@ class  VehicleSearchActivity : AppCompatActivity() {
         btnAyuda.setOnClickListener {
             mostrarAyuda()
         }
+
+        plateInput.requestFocus()
 
 
     }
@@ -892,8 +902,30 @@ class  VehicleSearchActivity : AppCompatActivity() {
         resultText.text = ""
         plateInput.setText("")
         keySlotSeleccionado = null
+        saveEventButton.visibility= View.GONE
     }
 
+    private fun reportarTagInexistente(){
+        lifecycleScope.launch(Dispatchers.IO) {
+            // Guardamos el valor que no se encontró para revisión del admin
+            val valuesNoVEHICULO = listOf(
+                "NA",
+                "NA",
+                "NA",
+                "NA",
+                "NA",
+                "NA",
+                tagInexistente,
+                "NA",
+                "-987654321"
+            )
+            dataRaw?.addAutoRegistrados(valuesNoVEHICULO as List<String>)
+            withContext(Dispatchers.Main) {
+                Toast.makeText(this@VehicleSearchActivity, "Reportado al administrador", Toast.LENGTH_SHORT).show()
+                cleanFrom()
+            }
+        }
+    }
     private fun searchVehicle(_plate:String){
         waitingOn()
         var matches: List<List<Any>> = emptyList()
@@ -905,7 +937,8 @@ class  VehicleSearchActivity : AppCompatActivity() {
         stopSearchLoop = true
         try {
             //########## TAG #################
-            if (_plate.contains("\n") || _plate.toIntOrNull() != null){
+            val tagStr: String? = _plate.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
+            if (tagStr != null){
                 //es Digito, o viene del lector de TAG RFID
                 val tags = dataRaw?.getTagsCache() ?: emptyList()
                 matches = buscarTagEnListaCache(tags,_plate)
@@ -924,15 +957,29 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
             //Se encontro?
             waitingOff()
+            saveEventButton.setText("Salvar Placa en CAJON VISITA")
+            saveEventButton.visibility= View.VISIBLE
+            tagInexistente = null
             if (matches.count() == 1) { //COINCIDENCIA EXACTA
                 val dataID = matches[0][0].toString()
                 vehicleStreet = matches[0][1].toString()
                 vehicleNumber = matches[0][2].toString()
-                resultText.append("ENCONTRADO: $dataID\nCalle: $vehicleStreet : $vehicleNumber")
-                stopSearchVehicle = true
-                plateInput.setText(dataID)
-                plateInput.setSelection(dataID.length)
-                stopSearchVehicle = false
+                if (vehicleNumber != "0") {
+                    resultText.append("ENCONTRADO: $dataID\nCalle: $vehicleStreet : $vehicleNumber")
+                    stopSearchVehicle = true
+                    stopSearchLoop = true
+                    plateInput.setText(dataID)
+                    plateInput.setSelection(dataID.length)
+                    stopSearchVehicle = false
+                }else {
+                    tagInexistente = dataID
+                    resultText.append("LectorTAGS ...\n${dataID}")
+                    saveEventButton.setText("Reportar TAG ${dataID} inexistente")
+                    stopSearchVehicle = true
+                    stopSearchLoop = true
+                    plateInput.setText("")
+                    stopSearchVehicle = false
+                }
             } else if (matches.isNotEmpty()) {
                 resultText.append("Coincidencias...\n")
                 matches.forEach { sm ->
@@ -941,12 +988,13 @@ class  VehicleSearchActivity : AppCompatActivity() {
             } else {
                 resultText.append("\nNo se encontro el valor en ningun registro: $_plate")
             }
-            showEventsPlate(_plate)
+            if (stopSearchLoop == false)
+                showEventsPlate(_plate)
 
         }catch (e: Exception) {
             waitingOff()
             resultText.append("\nError searching plate: ${e.message}")
-            showEventsPlate(_plate)
+            //showEventsPlate(_plate)
         }
     }
 //    private fun searchVehicle_old(_plate: String) {
