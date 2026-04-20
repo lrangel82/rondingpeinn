@@ -108,6 +108,9 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.switchmaterial.SwitchMaterial
 import com.larangel.rondy.ProgramarTags
 import com.larangel.rondy.StartRondinActivity
+import com.larangel.rondy.utils.buscarPlacaEnListaCache
+import com.larangel.rondy.utils.buscarTagEnListaCache
+import com.larangel.rondy.utils.stopSearchLoop
 import java.time.temporal.ChronoUnit
 import kotlin.String
 import kotlin.collections.List
@@ -206,10 +209,12 @@ class  VehicleSearchActivity : AppCompatActivity() {
             }
         }
         plateInput.doOnTextChanged { text, start, before, count ->
-            if (text.toString().length >= 3) {
-                searchVehicle(text.toString())
-            }else{
-                resultText.text = "" //Clean
+            if (stopSearchVehicle == false) {
+                if (text.toString().length >= 3) {
+                    searchVehicle(text.toString())
+                } else {
+                    resultText.text = "" //Clean
+                }
             }
         }
 
@@ -306,6 +311,18 @@ class  VehicleSearchActivity : AppCompatActivity() {
         }
 
 
+    }
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+
+        // Si el foco no está ya en el input, lo regresamos después de un pequeño delay
+        // para permitir que el botón presionado ejecute su acción primero.
+        if (!plateInput.isFocused) {
+            plateInput.postDelayed({
+                plateInput.requestFocus()
+            }, 800) // 800ms es suficiente para no interferir con el clic
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -869,17 +886,6 @@ class  VehicleSearchActivity : AppCompatActivity() {
         //}
     }
 
-    fun oneCharDifference(a: String, b: String): Boolean {
-        // Devuelve true si solo difiere en una letra/número
-        if (a.length != b.length) return false
-        var diff = 0
-        for (i in a.indices) {
-            if (a[i] != b[i]) diff++
-            if (diff > 1) return false
-        }
-        return diff == 1
-    }
-
     fun cleanFrom(){
         photoThumbnail.visibility = View.GONE // Reset thumbnail
         photoUri = null // Reset photoUri
@@ -888,97 +894,152 @@ class  VehicleSearchActivity : AppCompatActivity() {
         keySlotSeleccionado = null
     }
 
-    private fun searchVehicle(_plate: String) {
+    private fun searchVehicle(_plate:String){
         waitingOn()
-        val plate=_plate.filter { it.isLetterOrDigit() }.uppercase()
+        var matches: List<List<Any>> = emptyList()
         vehicleStreet = null
         vehicleNumber = null
         vehicleSource = null
         resultText.text = "" //Clean the text
 
-        stopSearchVehicle = true
-
-        //lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                //val vehicles = getCachedVehiclesData()
-                var match: List<Any>? = null
-                var similarMatches: MutableList<List<Any>> = mutableListOf()
-
-                //###### PUEDE SER TAG #########
-                if (plate.toIntOrNull() != null){
-                    val tags = dataRaw?.getTagsCache()
+        stopSearchLoop = true
+        try {
+            //########## TAG #################
+            if (_plate.contains("\n") || _plate.toIntOrNull() != null){
+                //es Digito, o viene del lector de TAG RFID
+                val tags = dataRaw?.getTagsCache() ?: emptyList()
+                matches = buscarTagEnListaCache(tags,_plate)
+                //si encontro mas de uno debo limpiar y fue lectura de escaner, limpiar el text
+                if (matches.count() > 1 && _plate.contains("\n")) {
+                    stopSearchVehicle = true
+                    plateInput.setText("")
                     stopSearchVehicle = false
-                    tags?.forEach { tag->
-                        if (stopSearchVehicle) return
-                        if (tag.size >= 3 && tag[0].toString().equals(plate, ignoreCase = true)) {
-                            match = tag
-                            return@forEach
-                        }
-                        if (tag.size >= 3 && tag[0].toString().startsWith(plate, ignoreCase = true)) {
-                            similarMatches.add(tag)
-                        }
-                        if (tag.size >= 8 && plate.startsWith(tag[0].toString())){
-                            similarMatches.add(tag)
-                        }
-                        if (similarMatches.size >= 20)
-                            return@forEach
-                    }
                 }
-                //########## ES PLACA ############
-                else {
-                    // 1. Buscar coincidencia exacta
-                    val vehicles = dataRaw?.getCachedVehiclesData()
-                    if (vehicles?.isNotEmpty() == true) {
-                        stopSearchVehicle = false
-                        for (row in vehicles) {
-                            if (stopSearchVehicle) return
-                            if (row.isEmpty() || row[0].toString().isEmpty())
-                                continue
-
-                            val rplate = row[0].toString().filter { it.isLetterOrDigit() }.uppercase()
-                            if (rplate.isNotEmpty()) {
-                                if (row.size >= 3 && rplate == plate) {
-                                    match = row
-                                    break
-                                }
-                                if (row.size >= 3 && oneCharDifference(rplate, plate)) {
-                                    similarMatches.add(row)
-                                }
-                                if (row.size >= 3 && rplate.startsWith(plate)) {
-                                    similarMatches.add(row)
-                                }
-                                if (similarMatches.size >= 20)
-                                    break
-                            }
-                        }
-                    }
-                }
-
-                //withContext(Dispatchers.Main) {
-                    waitingOff()
-                    if (match != null) {
-                        vehicleStreet = match!![1].toString()
-                        vehicleNumber = match!![2].toString()
-                        resultText.append("\nPlaca: $plate\nCalle: $vehicleStreet : $vehicleNumber")
-                    } else if (similarMatches.isNotEmpty()) {
-                        resultText.append("\nPlaca no encontrada, pero similar a:\n")
-                        similarMatches.forEach { sm ->
-                            resultText.append("Placa: ${sm[0]} Calle: ${sm[1]} : ${sm[2]}\n")
-                        }
-                    } else {
-                        resultText.append("\nNo se encontro la placa en ningun registro: $plate")
-                    }
-                    showEventsPlate(plate)
-                //}
-            } catch (e: Exception) {
-               // withContext(Dispatchers.Main) {
-                    waitingOff()
-                    resultText.append("\nError searching plate: ${e.message}")
-                    showEventsPlate(plate)
-               // }
             }
-        //}
+            //########## ES PLACA ############
+            else{
+                val vehicles = dataRaw?.getCachedVehiclesData() ?: emptyList()
+                matches = buscarPlacaEnListaCache(vehicles,_plate)
+            }
+
+            //Se encontro?
+            waitingOff()
+            if (matches.count() == 1) { //COINCIDENCIA EXACTA
+                val dataID = matches[0][0].toString()
+                vehicleStreet = matches[0][1].toString()
+                vehicleNumber = matches[0][2].toString()
+                resultText.append("ENCONTRADO: $dataID\nCalle: $vehicleStreet : $vehicleNumber")
+                stopSearchVehicle = true
+                plateInput.setText(dataID)
+                plateInput.setSelection(dataID.length)
+                stopSearchVehicle = false
+            } else if (matches.isNotEmpty()) {
+                resultText.append("Coincidencias...\n")
+                matches.forEach { sm ->
+                    resultText.append("${sm[0]} Calle: ${sm[1]} : ${sm[2]}\n")
+                }
+            } else {
+                resultText.append("\nNo se encontro el valor en ningun registro: $_plate")
+            }
+            showEventsPlate(_plate)
+
+        }catch (e: Exception) {
+            waitingOff()
+            resultText.append("\nError searching plate: ${e.message}")
+            showEventsPlate(_plate)
+        }
     }
+//    private fun searchVehicle_old(_plate: String) {
+//        waitingOn()
+//        val plate=_plate.filter { it.isLetterOrDigit() }.uppercase()
+//        vehicleStreet = null
+//        vehicleNumber = null
+//        vehicleSource = null
+//        resultText.text = "" //Clean the text
+//
+//        stopSearchVehicle = true
+//
+//        //lifecycleScope.launch(Dispatchers.IO) {
+//            try {
+//                //val vehicles = getCachedVehiclesData()
+//                var match: List<Any>? = null
+//                var similarMatches: MutableList<List<Any>> = mutableListOf()
+//
+//                //###### PUEDE SER TAG #########
+//                if (plate.toIntOrNull() != null){
+//                    val tags = dataRaw?.getTagsCache()
+//                    stopSearchVehicle = false
+//                    tags?.forEach { tag->
+//                        if (stopSearchVehicle) return
+//                        if (tag.size >= 3 && tag[0].toString().equals(plate, ignoreCase = true)) {
+//                            match = tag
+//                            return@forEach
+//                        }
+//                        if (tag.size >= 3 && tag[0].toString().startsWith(plate, ignoreCase = true)) {
+//                            similarMatches.add(tag)
+//                        }
+//                        if (tag.size >= 8 && plate.startsWith(tag[0].toString())){
+//                            similarMatches.add(tag)
+//                        }
+//                        if (similarMatches.size >= 20)
+//                            return@forEach
+//                    }
+//                }
+//                //########## ES PLACA ############
+//                else {
+//                    // 1. Buscar coincidencia exacta
+//                    val vehicles = dataRaw?.getCachedVehiclesData()
+//                    if (vehicles?.isNotEmpty() == true) {
+//                        stopSearchVehicle = false
+//                        for (row in vehicles) {
+//                            if (stopSearchVehicle) return
+//                            if (row.isEmpty() || row[0].toString().isEmpty())
+//                                continue
+//
+//                            val rplate = row[0].toString().filter { it.isLetterOrDigit() }.uppercase()
+//                            if (rplate.isNotEmpty()) {
+//                                if (row.size >= 3 && rplate == plate) {
+//                                    match = row
+//                                    break
+//                                }
+//                                if (row.size >= 3 && oneCharDifference(rplate, plate)) {
+//                                    similarMatches.add(row)
+//                                }
+//                                if (row.size >= 3 && rplate.startsWith(plate)) {
+//                                    similarMatches.add(row)
+//                                }
+//                                if (similarMatches.size >= 20)
+//                                    break
+//                            }
+//                        }
+//                    }
+//                }
+//
+//                //withContext(Dispatchers.Main) {
+//                    waitingOff()
+//                    if (match != null) {
+//                        vehicleStreet = match!![1].toString()
+//                        vehicleNumber = match!![2].toString()
+//                        resultText.append("\nPlaca: $plate\nCalle: $vehicleStreet : $vehicleNumber")
+//                    } else if (similarMatches.isNotEmpty()) {
+//                        resultText.append("\nPlaca no encontrada, pero similar a:\n")
+//                        similarMatches.forEach { sm ->
+//                            resultText.append("Placa: ${sm[0]} Calle: ${sm[1]} : ${sm[2]}\n")
+//                        }
+//                    } else {
+//                        resultText.append("\nNo se encontro la placa en ningun registro: $plate")
+//                    }
+//                    showEventsPlate(plate)
+//                //}
+//            } catch (e: Exception) {
+//               // withContext(Dispatchers.Main) {
+//                    waitingOff()
+//                    resultText.append("\nError searching plate: ${e.message}")
+//                    showEventsPlate(plate)
+//               // }
+//            }
+//        //}
+//    }
 
     private fun refreshContadorEventos(){
         waitingOn()

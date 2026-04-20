@@ -22,7 +22,7 @@ fun String.extraerPlaca(): String? {
  * Busca un TAG valido en el texto
  */
 fun String.extraerTAG(): String? {
-    val TagRegex = Regex("([0-9]{8}|[0-9]{7})")
+    val TagRegex = Regex("([1-9][0-9]{6,7})")
     return TagRegex.find(this.uppercase())?.value
 }
 
@@ -89,4 +89,91 @@ fun programarAlarma(context:Context, horaStr: String, nombre: String) {
         alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
     }
 
+}
+
+//*** Buscar TAGS/PLACAS validos
+var stopSearchLoop = false
+fun buscarTagEnListaCache(tagsCache:List<List<Any>>, strLectorRFID: String): List<List<Any>>{
+    val allLines = strLectorRFID.split("\n")
+    var matches: MutableList<List<Any>> = mutableListOf()
+    stopSearchLoop = false
+    for (line in allLines) {
+        if (stopSearchLoop) return emptyList()
+        val tagValue = line.extraerTAG()
+        if (tagValue != null){
+            var foundTag=false
+            tagsCache?.forEach { tag ->
+                if (stopSearchLoop) return@forEach
+                val tagId = tag[0].toString()
+
+                // 1. Coincidencia Exacta (Prioridad máxima)
+                if (tagId.equals(tagValue, ignoreCase = true)) {
+                    foundTag=true
+                    matches.clear()
+                    matches.add( tag )
+                    stopSearchLoop = true
+                    return matches
+                }
+
+                // 2. Similares (Sugerencias)
+                if (tagId.startsWith(tagValue, true) || tagValue.startsWith(tagId)) {
+                    foundTag=true
+                    matches.add(tag)
+                }
+            }
+            if (foundTag == false) { //No se encontro ninguno
+                matches.add(listOf(tagValue,"No registrado","0")) //Tag, calle, numero
+            }
+        }
+    }
+    return matches
+}
+fun buscarPlacaEnListaCache(placasCache:List<List<Any>>, strPlaca:String):List<List<Any>>{
+    var matches: MutableList<List<Any>> = mutableListOf()
+    stopSearchLoop = false
+    val placaValue = strPlaca.extraerPlaca()
+    if (placaValue != null){
+        var foundTag=false
+        for (row in placasCache) {
+            if (stopSearchLoop) return emptyList()
+            val placaID = row[0].toString()
+            if (placaID.isEmpty()) continue
+
+            // 1. Coincidencia Exacta (Prioridad máxima)
+            if (placaID.equals(placaValue, ignoreCase = true)) {
+                foundTag=true
+                matches.clear()
+                matches.add( row )
+                stopSearchLoop = true
+                return matches
+            }
+
+            // 2. Similares (Sugerencias)
+            else if (placaID.startsWith(placaValue, true) ) {
+                foundTag=true
+                matches.add(row)
+            }
+
+            // 3. Una letra de diferncia
+            else if( oneCharDifference(placaID, placaValue)) {
+                foundTag=true
+                matches.add(row)
+            }
+        }
+        if (foundTag == false) { //No se encontro ninguno
+            matches.add(listOf(placaValue,"No registrado","0")) //Tag, calle, numero
+        }
+    }
+    return matches
+}
+
+fun oneCharDifference(a: String, b: String): Boolean {
+    // Devuelve true si solo difiere en una letra/número
+    if (a.length != b.length) return false
+    var diff = 0
+    for (i in a.indices) {
+        if (a[i] != b[i]) diff++
+        if (diff > 1) return false
+    }
+    return diff == 1
 }

@@ -27,6 +27,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.larangel.rondy.utils.extraerPlaca
+import com.larangel.rondy.utils.extraerTAG
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -34,7 +35,7 @@ import kotlinx.coroutines.withContext
 class CatalgoVehiculosActivity : AppCompatActivity() {
     private lateinit var dataRaw: DataRawRondin
     private var fullVehicleList: List<List<Any>> = emptyList()
-    private var filteredList: List<List<Any>> = emptyList()
+    private var filteredList: MutableList<List<Any>> = mutableListOf()
     private var domicilios: List<List<Any>> = emptyList()
     private var listaCalles: List<String> = emptyList()
     private lateinit var vehicleAdapter: VehiculoAdapter
@@ -93,7 +94,21 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
 
         etSearch.doOnTextChanged { text, start, before, count ->
             val query = text.toString()
-            performSearch(query)
+            if (query.isNotEmpty() ) {
+                val esLectorRFID = query.contains("\n")
+                //Esta visible el FORM, y es un tag del lector... escribir en el TAGID de la edicion
+                if (layoutForm.visibility == View.VISIBLE && esLectorRFID) {
+                    val listaTags: List<String> = query.split("\n")
+                    val tagStr: String? = listaTags.firstNotNullOfOrNull { it.extraerTAG() }
+                    val etTag = findViewById<EditText>(R.id.etFormTag)
+                    etTag.setText(tagStr)
+                    etSearch.setText("")
+                    hideKeyboard()
+                } else {
+                    //Realizar busqueda normal
+                    performSearch(query)
+                }
+            }
 //            if (query.length >= 3) {
 //                performSearch(query)
 //            }else{
@@ -101,10 +116,28 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
 //            }
         }
     }
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+
+        // Si el foco no está ya en el input, lo regresamos después de un pequeño delay
+        // para permitir que el botón presionado ejecute su acción primero.
+        if (!etSearch.isFocused) {
+            etSearch.postDelayed({
+                etSearch.requestFocus()
+            }, 800) // 800ms es suficiente para no interferir con el clic
+        }
+    }
 
     private fun performSearch(query: String) {
-        filteredList = fullVehicleList.filter { row ->
-            row.any { it.toString().contains(query, ignoreCase = true) }
+        //Es lectura de lector RFID
+        val esLectorRFID = query.contains("\n")
+        val lines = query.split("\n")
+        filteredList.clear()
+        for (line in lines) {
+            val _query = if (esLectorRFID == true)  line.extraerTAG() else line
+            filteredList.addAll(fullVehicleList.filter { row ->
+                row.any { it.toString().contains(_query.toString(), ignoreCase = true) }
+            })
         }
 
         when {
@@ -209,6 +242,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
 
     private fun showForm(row: List<Any>?) {
         hideAll()
+        etSearch.setText("")
         layoutForm.visibility = View.VISIBLE
 
 
