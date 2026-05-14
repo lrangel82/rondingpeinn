@@ -87,9 +87,9 @@ class SplashActivity : AppCompatActivity() {
     }
 
     private fun validaLicencia(){
-        Toast.makeText(this@SplashActivity,"VALIDANDO LICENCIA....",Toast.LENGTH_SHORT).show()
         if (isNetworkAvailable()){
             //DESCARGAR CONFIGURACION Y VALIDAR
+            Toast.makeText(this@SplashActivity,"VALIDANDO LICENCIA....",Toast.LENGTH_SHORT).show()
             val bucketName = mySettings?.getString("BUCKET_NAME", "").toString()
             val regionStr  = mySettings?.getString("REGION_STR", "").toString()
             val codigoActiv= mySettings?.getString("CODIGO_ACTIVACION", "").toString()

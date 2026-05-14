@@ -11,9 +11,11 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
+import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -36,15 +38,22 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.button.MaterialButton
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.larangel.rondy.ProgramarTags
+import com.larangel.rondy.VehicleSearchActivity
+import com.larangel.rondy.utils.fomatearImagenLogo
+import com.larangel.rondy.utils.getAddressFromLocation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.tasks.await
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -63,6 +72,7 @@ class IncidenciasMenu : AppCompatActivity() {
     private lateinit var radioHoy: RadioButton
 
     private lateinit var currentPhotoPath: Uri
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
     private var currentTipo: String? = null
     private var currentDescripcion: String? = null
     private val REQUEST_CAMERA_PERMISSION = 100
@@ -93,6 +103,7 @@ class IncidenciasMenu : AppCompatActivity() {
 
         //Configuracion incidencia
         configuraIncidencias = dataRaw?.getIncidenciasConfig() as List<List<String>>?
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         // Initialize UI components
         radioAntier                 = findViewById(R.id.radioButtonDayAntier)
@@ -357,6 +368,92 @@ class IncidenciasMenu : AppCompatActivity() {
             }
         }
     }
+    private suspend fun obtenerUltimaUbicacion(): LatLng?{
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return null
+        }
+        return try {
+            // .await() convierte el OnSuccessListener en un flujo secuencial
+            val location = fusedLocationClient.lastLocation.await()
+            location?.let {
+                LatLng(it.latitude, it.longitude)
+            }
+        } catch (e: Exception) {
+            null // En caso de error (GPS apagado, etc)
+        }
+    }
+    private fun rotateImage(source: Bitmap, angle: Float): Bitmap {
+        val matrix = Matrix()
+        matrix.postRotate(angle)
+        return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+    }
+    private fun salvarImagenConFormato(){
+        val bitmap = try {
+            val inputStream = contentResolver.openInputStream(currentPhotoPath!!)
+            val original = BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
+
+            // Corregir rotación basada en EXIF
+            val exifInputStream = contentResolver.openInputStream(currentPhotoPath!!)
+            val ei = androidx.exifinterface.media.ExifInterface(exifInputStream!!)
+            val orientation = ei.getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_UNDEFINED
+            )
+            exifInputStream.close()
+
+            when (orientation) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> rotateImage(original, 90f)
+                ExifInterface.ORIENTATION_ROTATE_180 -> rotateImage(original, 180f)
+                ExifInterface.ORIENTATION_ROTATE_270 -> rotateImage(original, 270f)
+                else -> original
+            }
+        } catch (e: Exception) {
+            null
+        }
+//        val bitmap = try {
+//            val inputStream = contentResolver.openInputStream(currentPhotoPath!!)
+//            BitmapFactory.decodeStream(inputStream)
+//        } catch (e: Exception) {
+//            null
+//        }
+        lifecycleScope.launch(Dispatchers.IO) {
+            val lastGpsLocation = obtenerUltimaUbicacion()
+            val direccionStr = lastGpsLocation?.let{ getAddressFromLocation(this@IncidenciasMenu, it) }?: "Ubicación desconocida"
+            withContext(Dispatchers.Main) {
+                bitmap?.let { originalBitmap ->
+                    var finalBitmap = originalBitmap
+
+                    // 2. Aplicar edición si el modo Rondín está activo
+                    val logoStr = mySettings?.getString("IMAGEN_LOGO_PNG", "")
+
+                    // Llamamos a la clase de utilidad que creamos antes
+                    finalBitmap = fomatearImagenLogo(
+                        this@IncidenciasMenu,
+                        originalBitmap,
+                        lastGpsLocation,
+                        logoStr,
+                        direccionStr
+                    )
+
+                    // 3. Sobrescribir el archivo original con la versión editada
+                    try {
+                        contentResolver.openOutputStream(currentPhotoPath!!)?.use { outputStream ->
+                            finalBitmap.compress(Bitmap.CompressFormat.JPEG, 95, outputStream)
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(
+                            this@IncidenciasMenu,
+                            "Error al sobrescribir imagen: ${e.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+
+                }
+
+            }
+        }
+    }
 
     fun solicitarCalleYNumero() {
         var numeroSeleccionado: String? = null
@@ -373,6 +470,9 @@ class IncidenciasMenu : AppCompatActivity() {
                 return
             }
         }
+
+        //Agregar formato a la imagen
+        salvarImagenConFormato()
 
         //##### PREGUNTAR por la calle y numero
         val domicilios = dataRaw?.getDomiciliosUbicacion() ?: return

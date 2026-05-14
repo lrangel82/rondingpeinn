@@ -6,6 +6,7 @@ import DataRawRondin
 import EventAdapter
 import EventModal
 import PorRevisarRecord
+import SplashSlidesDialog
 import kotlinx.coroutines.*
 import android.Manifest
 import android.app.PendingIntent
@@ -18,9 +19,11 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
+import android.graphics.drawable.BitmapDrawable
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -29,6 +32,7 @@ import android.provider.MediaStore
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.media.ExifInterface
 import android.nfc.NdefRecord
 import android.nfc.NfcAdapter
 import android.nfc.Tag
@@ -84,6 +88,7 @@ import java.io.File
 import java.io.FileOutputStream
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import android.widget.CompoundButton
 import android.widget.ProgressBar
 import android.widget.FrameLayout
@@ -109,9 +114,12 @@ import com.google.android.material.switchmaterial.SwitchMaterial
 import com.larangel.rondy.CatalgoVehiculosActivity
 import com.larangel.rondy.ProgramarTags
 import com.larangel.rondy.StartRondinActivity
+import com.larangel.rondy.ui.VehiculoFormDialog
 import com.larangel.rondy.utils.buscarPlacaEnListaCache
 import com.larangel.rondy.utils.buscarTagEnListaCache
 import com.larangel.rondy.utils.extraerTAGHexToDec
+import com.larangel.rondy.utils.fomatearImagenLogo
+import com.larangel.rondy.utils.getAddressFromLocation
 import com.larangel.rondy.utils.stopSearchLoop
 import java.time.temporal.ChronoUnit
 import kotlin.String
@@ -124,7 +132,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private lateinit var plateInput: EditText
     private lateinit var searchButton: Button
     private lateinit var cleanButton: ImageButton
-    private lateinit var cameraButton: ImageButton
+    private lateinit var cameraButton: com.google.android.material.button.MaterialButton
     private lateinit var resultText: TextView
     private lateinit var eventsRecyclerView: RecyclerView
     private lateinit var saveEventButton: Button
@@ -132,7 +140,9 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private lateinit var photoThumbnail: ImageView
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     //private lateinit var sheetsService: Sheets
+    private var tagEncontrado: String? = null
     private var tagInexistente: String? = null
+    private var placaInexistente: String? =null
     private val events = ArrayList<EventModal>()
     private val REQUEST_CAMERA_PERMISSION = 100
     private val REQUEST_LOCATION_PERMISSION = 101
@@ -140,6 +150,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private val REQUEST_IMAGE_PICK = 103
     private val REQUEST_STORAGE_PERMISSION = 104
     private var photoUri: Uri? = null
+    private val listaImagenesRondin = mutableListOf<Uri>()
     private var vehicleStreet: String? = null
     private var vehicleNumber: String? = null
     private var vehicleSource: String? = null
@@ -173,9 +184,9 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
         // Initialize UI components
         plateInput = findViewById(R.id.plateInput)
-        searchButton = findViewById(R.id.searchButton)
+        //searchButton = findViewById(R.id.searchButton)
         cleanButton = findViewById(R.id.cleanButton)
-        cameraButton = findViewById(R.id.cameraButton)
+        cameraButton = findViewById<com.google.android.material.button.MaterialButton>(R.id.cameraButton)
         resultText = findViewById(R.id.resultText)
         eventsRecyclerView = findViewById(R.id.eventsRecyclerView)
         saveEventButton = findViewById(R.id.saveEventButton)
@@ -190,12 +201,17 @@ class  VehicleSearchActivity : AppCompatActivity() {
         if (!isActive){
             //Ocultar lo que no es de rondin
             eventsRecyclerView.visibility = View.GONE
-            searchButton.visibility = View.GONE
             plateInput.visibility = View.GONE
             cleanButton.visibility = View.GONE
-            cameraButton.visibility = View.GONE
-            saveEventButton.visibility = View.GONE
+            //cameraButton.visibility = View.GONE
             findViewById<TableRow>(R.id.tableRowVisistas).visibility = View.GONE
+            saveEventButton.setText("Funcionalidad Placas")
+            saveEventButton.visibility = View.VISIBLE
+        }
+
+        //photoThumbnail
+        photoThumbnail.setOnClickListener {
+            mostrarDialogoPrevisualizacion()
         }
 
         // Setup RecyclerView
@@ -203,14 +219,14 @@ class  VehicleSearchActivity : AppCompatActivity() {
         eventsRecyclerView.adapter = EventAdapter(events)
 
         // Search button click listener
-        searchButton.setOnClickListener {
-            val plate = plateInput.text.toString().trim()
-            if (plate.isNotEmpty()) {
-                searchVehicle(plate)
-            } else {
-                Toast.makeText(this, "Enter a license plate", Toast.LENGTH_SHORT).show()
-            }
-        }
+//        searchButton.setOnClickListener {
+//            val plate = plateInput.text.toString().trim()
+//            if (plate.isNotEmpty()) {
+//                searchVehicle(plate)
+//            } else {
+//                Toast.makeText(this, "Enter a license plate", Toast.LENGTH_SHORT).show()
+//            }
+//        }
         plateInput.doOnTextChanged { text, start, before, count ->
             if (stopSearchVehicle == false) {
                 if (text.toString().length >= 3) {
@@ -238,10 +254,16 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
         // Save event button click listener
         saveEventButton.setOnClickListener {
-            if (tagInexistente != null)
-                reportarTagInexistente()
-            else
-                saveNewEvent()
+            if(isActive) {
+                if (tagInexistente != null || placaInexistente != null)
+                    reportarTagPlacaInexistente()
+                else if (tagEncontrado != null)
+                    openVehiculoDialog(tagEncontrado.toString())
+                else
+                    saveNewEvent()
+            }else{
+                mostrarSplashVehiculos()
+            }
         }
 
         // ##### NFC #####  Inicializa Rondin SWTICH
@@ -334,7 +356,13 @@ class  VehicleSearchActivity : AppCompatActivity() {
             }, 800) // 800ms es suficiente para no interferir con el clic
         }
     }
-
+    private fun hideKeyboard() {
+        val view = currentFocus
+        if (view != null) {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(view.windowToken, 0)
+        }
+    }
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.bottom_nav_menu, menu)
         return true
@@ -685,7 +713,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
                     return@launch
                 }
 
-                val thirtyDaysAgo = System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000 // 30 days in milliseconds
+                val thirtyDaysAgo = System.currentTimeMillis() - 10L * 24 * 60 * 60 * 1000 // 10 days in milliseconds
                 val deletedFiles = mutableListOf<String>()
                 storageDir.listFiles()?.forEach { file ->
                     if (file.isFile && file.lastModified() < thirtyDaysAgo) {
@@ -727,7 +755,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(
                             this@VehicleSearchActivity,
-                            "Cleaned ${deletedFiles.size} old thumbnails",
+                            "Eliminadas ${deletedFiles.size} fotos de mas de 10 dias",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -735,7 +763,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
                     withContext(Dispatchers.Main) {
                         Toast.makeText(
                             this@VehicleSearchActivity,
-                            "No thumbnails older than 30 days found",
+                            "No hay fotos antiguas de mas 10 dias para eliminar",
                             Toast.LENGTH_SHORT
                         ).show()
                     }
@@ -828,8 +856,6 @@ class  VehicleSearchActivity : AppCompatActivity() {
                         try {
                             val image = InputImage.fromFilePath(this, uri)
                             processImage(image)
-                            photoThumbnail.setImageURI(uri)
-                            photoThumbnail.visibility = android.view.View.VISIBLE
                         } catch (e: Exception) {
                             println("LARANGEL Error onActivityResult REQUEST_IMAGE_CAPTURE: ${e}")
                             e.printStackTrace()
@@ -845,8 +871,6 @@ class  VehicleSearchActivity : AppCompatActivity() {
                         try {
                             val image = InputImage.fromFilePath(this, uri)
                             processImage(image)
-                            photoThumbnail.setImageURI(uri)
-                            photoThumbnail.visibility = android.view.View.VISIBLE
                         } catch (e: Exception) {
                             println("LARANGEL Error onActivityResult REQUEST_IMAGE_PICK: ${e}")
                             e.printStackTrace()
@@ -862,16 +886,22 @@ class  VehicleSearchActivity : AppCompatActivity() {
         }
     }
 
+    private fun rotateImage(source: Bitmap, angle: Float): Bitmap {
+        val matrix = Matrix()
+        matrix.postRotate(angle)
+        return Bitmap.createBitmap(source, 0, 0, source.width, source.height, matrix, true)
+    }
     private fun processImage(image: InputImage) {
-        //val plate = plateInput.text.toString().trim()
-        //if (plate.isEmpty()) {
+        //Reconocer PLACAS si esta activo
+        if (isActive) {
             val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
             recognizer.process(image)
                 .addOnSuccessListener { visionText ->
                     var plate = visionText.textBlocks.joinToString(" ") { it.text }.trim()
                     var re = Regex("[^A-Za-z0-9 ]")
                     plate = re.replace(plate, "") //Eliminar carcteres no deseados
-                    re = Regex("([A-Z]{3}[0-9]{3,4}[A-Z]?|[0-9]{2}[A-Z][0-9]{3}|[0-9]{3}[A-Z]{3}|[A-Z]{2}[0-9]{4,5}[A-Z]?|[A-Z][0-9]{4}|[A-Z][0-9]{2}[A-Z]{2,3}|[A-Z]{3}[0-9][A-Z]|[A-Z]{5}[0-9]{2})")
+                    re =
+                        Regex("([A-Z]{3}[0-9]{3,4}[A-Z]?|[0-9]{2}[A-Z][0-9]{3}|[0-9]{3}[A-Z]{3}|[A-Z]{2}[0-9]{4,5}[A-Z]?|[A-Z][0-9]{4}|[A-Z][0-9]{2}[A-Z]{2,3}|[A-Z]{3}[0-9][A-Z]|[A-Z]{5}[0-9]{2})")
                     val matchRegult = re.find(plate) //Match Placa
                     plate = if (matchRegult != null) {
                         matchRegult.value
@@ -882,10 +912,10 @@ class  VehicleSearchActivity : AppCompatActivity() {
                     if (plate.length > 3) {
                         plateInput.setText(plate)
                         //searchVehicle(plate)
-                    }else{
+                    } else {
                         Toast.makeText(this, "No PLACA en la imagen", Toast.LENGTH_SHORT).show()
                     }
-                    if (! keySlotSeleccionado.isNullOrEmpty()){
+                    if (!keySlotSeleccionado.isNullOrEmpty()) {
                         //Se esta procesando un key seleccionado, volver a preguntar para procesar
                         preguntarYProcesarLugar(keySlotSeleccionado.toString())
                     }
@@ -893,7 +923,121 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 .addOnFailureListener { e ->
                     Toast.makeText(this, "OCR failed: ${e.message}", Toast.LENGTH_SHORT).show()
                 }
-        //}
+        }
+        //Formatear imagen.
+        val bitmap = try {
+            val inputStream = contentResolver.openInputStream(photoUri!!)
+            val original = BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
+
+            // Corregir rotación basada en EXIF
+            val exifInputStream = contentResolver.openInputStream(photoUri!!)
+            val ei = androidx.exifinterface.media.ExifInterface(exifInputStream!!)
+            val orientation = ei.getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_UNDEFINED
+            )
+            exifInputStream.close()
+
+            when (orientation) {
+                ExifInterface.ORIENTATION_ROTATE_90 -> rotateImage(original, 90f)
+                ExifInterface.ORIENTATION_ROTATE_180 -> rotateImage(original, 180f)
+                ExifInterface.ORIENTATION_ROTATE_270 -> rotateImage(original, 270f)
+                else -> original
+            }
+        } catch (e: Exception) {
+            null
+        }
+        lifecycleScope.launch(Dispatchers.IO) {
+            val direccionStr = getAddressFromLocation(this@VehicleSearchActivity, lastGpsLocation)
+            withContext(Dispatchers.Main) {
+                bitmap?.let { originalBitmap ->
+                    var finalBitmap = originalBitmap
+
+                    // 2. Aplicar edición
+                    val logoStr = mySettings?.getString("IMAGEN_LOGO_PNG", "")
+
+                    // Llamamos a la clase de utilidad que creamos antes
+                    finalBitmap = fomatearImagenLogo(
+                        this@VehicleSearchActivity,
+                        originalBitmap,
+                        lastGpsLocation,
+                        logoStr,
+                        direccionStr
+                    )
+
+                    // 3. Sobrescribir el archivo original con la versión editada
+                    try {
+                        contentResolver.openOutputStream(photoUri!!)?.use { outputStream ->
+                            finalBitmap.compress(Bitmap.CompressFormat.JPEG, 95, outputStream)
+                        }
+                    } catch (e: Exception) {
+                        Toast.makeText(
+                            this@VehicleSearchActivity,
+                            "Error al sobrescribir imagen: ${e.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+
+                    //Guardar en LISTA para enviar al FINALIZAR RONDIN
+                    if(findViewById<Switch>(R.id.swRonding).isChecked) { //Esta en modo rondin
+                        // 4. Guardar en la lista global para enviar después por WhatsApp
+                        listaImagenesRondin.add(photoUri!!)
+                    }
+                    // Actualizar el thumbnail para que el usuario vea la foto ya editada
+                    photoThumbnail.setImageBitmap(finalBitmap)
+                    photoThumbnail.visibility = android.view.View.VISIBLE
+
+                }
+
+            }
+        }
+
+
+
+    }
+
+    //PREVIEW de IMAGENES
+    private fun mostrarDialogoPrevisualizacion() {
+        val builder = AlertDialog.Builder(this)
+        val inflater = layoutInflater
+        val dialogLayout = inflater.inflate(R.layout.dialogo_preview_photo, null)
+
+        val imgPreview = dialogLayout.findViewById<ImageView>(R.id.imgPreviewLarge)
+        val etMensaje = dialogLayout.findViewById<EditText>(R.id.etMensajeWhatsapp)
+
+        val bitmapThumbnail = (photoThumbnail.drawable as? BitmapDrawable)?.bitmap
+
+        // Cargar la imagen actual (usamos photoUri que ya tienes globalmente)
+        bitmapThumbnail?.let { imgPreview.setImageBitmap(it) }
+
+        builder.setView(dialogLayout)
+            .setPositiveButton("Enviar WhatsApp") { _, _ ->
+                val mensaje = etMensaje.text.toString()
+                enviarImagenIndividualWhatsapp(photoUri, mensaje)
+            }
+            .setNegativeButton("Cancelar") { dialog, _ ->
+                dialog.dismiss()
+            }
+
+        builder.create().show()
+    }
+    private fun enviarImagenIndividualWhatsapp(uri: Uri?, mensaje: String) {
+        if (uri == null) return
+
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "image/jpeg"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_TEXT, mensaje)
+            setPackage("com.whatsapp")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+
+        try {
+            startActivity(intent)
+        } catch (e: Exception) {
+            Toast.makeText(this, "WhatsApp no instalado", Toast.LENGTH_SHORT).show()
+        }
     }
 
     fun cleanFrom(){
@@ -902,20 +1046,31 @@ class  VehicleSearchActivity : AppCompatActivity() {
         resultText.text = ""
         plateInput.setText("")
         keySlotSeleccionado = null
-        saveEventButton.visibility= View.GONE
+        if (isActive) saveEventButton.visibility= View.GONE
     }
 
-    private fun reportarTagInexistente(){
+    //PLACAS y TAGS.. busqueda/reporte/edicion
+    private fun openVehiculoDialog(tagString: String) {
+        val rowVehiculo= dataRaw?.getAutoRegistrados()?.filter { row ->
+            row.any { it.toString().contains(tagString, ignoreCase = true) }
+        }
+
+        val dialog = VehiculoFormDialog(rowVehiculo,dataRaw!!) { datosActualizados ->
+            dataRaw?.updateAutoRegistrados(datosActualizados)
+        }
+        dialog.show(supportFragmentManager, "VehiculoDialog")
+    }
+    private fun reportarTagPlacaInexistente(){
         lifecycleScope.launch(Dispatchers.IO) {
             // Guardamos el valor que no se encontró para revisión del admin
             val valuesNoVEHICULO = listOf(
+                placaInexistente ?: "NA",
                 "NA",
                 "NA",
+                LocalDate.now().toString(),
                 "NA",
                 "NA",
-                "NA",
-                "NA",
-                tagInexistente,
+                tagInexistente ?: "NA",
                 "NA",
                 "-987654321"
             )
@@ -933,12 +1088,13 @@ class  VehicleSearchActivity : AppCompatActivity() {
         vehicleNumber = null
         vehicleSource = null
         resultText.text = "" //Clean the text
+        tagEncontrado = null
 
         stopSearchLoop = true
         try {
             //########## TAG #################
-            val tagStr: String? = _plate.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
-            if (tagStr != null){
+            tagEncontrado = _plate.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
+            if (tagEncontrado != null){
                 //es Digito, o viene del lector de TAG RFID
                 val tags = dataRaw?.getTagsCache() ?: emptyList()
                 matches = buscarTagEnListaCache(tags,_plate)
@@ -948,6 +1104,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
                     plateInput.setText("")
                     stopSearchVehicle = false
                 }
+                hideKeyboard()
             }
             //########## ES PLACA ############
             else{
@@ -960,6 +1117,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
             saveEventButton.setText("Salvar Placa en CAJON VISITA")
             saveEventButton.visibility= View.VISIBLE
             tagInexistente = null
+            placaInexistente = null
             if (matches.count() == 1) { //COINCIDENCIA EXACTA
                 val dataID = matches[0][0].toString()
                 vehicleStreet = matches[0][1].toString()
@@ -971,13 +1129,29 @@ class  VehicleSearchActivity : AppCompatActivity() {
                     plateInput.setText(dataID)
                     plateInput.setSelection(dataID.length)
                     stopSearchVehicle = false
-                }else {
+                    if(tagEncontrado != null){
+                        //Encontrado y fue TAG, mostrar la placa asociada y preguntar si coincide
+                        resultText.append("\n### PLACA #### ${matches[0][3]} ######")
+                        saveEventButton.setText("......No es la placa ${matches[0][3]} ?????")
+                    }
+                }else if(tagEncontrado != null) {
                     tagInexistente = dataID
+                    placaInexistente = null
                     resultText.append("LectorTAGS ...\n${dataID}")
                     saveEventButton.setText("Reportar TAG ${dataID} inexistente")
                     stopSearchVehicle = true
                     stopSearchLoop = true
                     plateInput.setText("")
+                    stopSearchVehicle = false
+                }else {
+                    tagInexistente = null
+                    placaInexistente = dataID
+                    resultText.append("NO EXISTE LA PLACA: $dataID")
+                    saveEventButton.setText("Reportar PLACA ${dataID} inexistente")
+                    stopSearchVehicle = true
+                    stopSearchLoop = true
+                    plateInput.setText(dataID)
+                    plateInput.setSelection(dataID.length)
                     stopSearchVehicle = false
                 }
             } else if (matches.isNotEmpty()) {
@@ -997,97 +1171,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
             //showEventsPlate(_plate)
         }
     }
-//    private fun searchVehicle_old(_plate: String) {
-//        waitingOn()
-//        val plate=_plate.filter { it.isLetterOrDigit() }.uppercase()
-//        vehicleStreet = null
-//        vehicleNumber = null
-//        vehicleSource = null
-//        resultText.text = "" //Clean the text
-//
-//        stopSearchVehicle = true
-//
-//        //lifecycleScope.launch(Dispatchers.IO) {
-//            try {
-//                //val vehicles = getCachedVehiclesData()
-//                var match: List<Any>? = null
-//                var similarMatches: MutableList<List<Any>> = mutableListOf()
-//
-//                //###### PUEDE SER TAG #########
-//                if (plate.toIntOrNull() != null){
-//                    val tags = dataRaw?.getTagsCache()
-//                    stopSearchVehicle = false
-//                    tags?.forEach { tag->
-//                        if (stopSearchVehicle) return
-//                        if (tag.size >= 3 && tag[0].toString().equals(plate, ignoreCase = true)) {
-//                            match = tag
-//                            return@forEach
-//                        }
-//                        if (tag.size >= 3 && tag[0].toString().startsWith(plate, ignoreCase = true)) {
-//                            similarMatches.add(tag)
-//                        }
-//                        if (tag.size >= 8 && plate.startsWith(tag[0].toString())){
-//                            similarMatches.add(tag)
-//                        }
-//                        if (similarMatches.size >= 20)
-//                            return@forEach
-//                    }
-//                }
-//                //########## ES PLACA ############
-//                else {
-//                    // 1. Buscar coincidencia exacta
-//                    val vehicles = dataRaw?.getCachedVehiclesData()
-//                    if (vehicles?.isNotEmpty() == true) {
-//                        stopSearchVehicle = false
-//                        for (row in vehicles) {
-//                            if (stopSearchVehicle) return
-//                            if (row.isEmpty() || row[0].toString().isEmpty())
-//                                continue
-//
-//                            val rplate = row[0].toString().filter { it.isLetterOrDigit() }.uppercase()
-//                            if (rplate.isNotEmpty()) {
-//                                if (row.size >= 3 && rplate == plate) {
-//                                    match = row
-//                                    break
-//                                }
-//                                if (row.size >= 3 && oneCharDifference(rplate, plate)) {
-//                                    similarMatches.add(row)
-//                                }
-//                                if (row.size >= 3 && rplate.startsWith(plate)) {
-//                                    similarMatches.add(row)
-//                                }
-//                                if (similarMatches.size >= 20)
-//                                    break
-//                            }
-//                        }
-//                    }
-//                }
-//
-//                //withContext(Dispatchers.Main) {
-//                    waitingOff()
-//                    if (match != null) {
-//                        vehicleStreet = match!![1].toString()
-//                        vehicleNumber = match!![2].toString()
-//                        resultText.append("\nPlaca: $plate\nCalle: $vehicleStreet : $vehicleNumber")
-//                    } else if (similarMatches.isNotEmpty()) {
-//                        resultText.append("\nPlaca no encontrada, pero similar a:\n")
-//                        similarMatches.forEach { sm ->
-//                            resultText.append("Placa: ${sm[0]} Calle: ${sm[1]} : ${sm[2]}\n")
-//                        }
-//                    } else {
-//                        resultText.append("\nNo se encontro la placa en ningun registro: $plate")
-//                    }
-//                    showEventsPlate(plate)
-//                //}
-//            } catch (e: Exception) {
-//               // withContext(Dispatchers.Main) {
-//                    waitingOff()
-//                    resultText.append("\nError searching plate: ${e.message}")
-//                    showEventsPlate(plate)
-//               // }
-//            }
-//        //}
-//    }
+
 
     private fun refreshContadorEventos(){
         waitingOn()
@@ -2032,8 +2116,13 @@ class  VehicleSearchActivity : AppCompatActivity() {
         val tPBarCheckPoints: TextView = findViewById<TextView>(R.id.txtPBar_CheckPoints)
         pBarCheckPoints.visibility = View.VISIBLE
         tPBarCheckPoints.visibility = View.VISIBLE
+        listaImagenesRondin.clear() //Limpiar cualquier listado de imagenes
         //Start NFC
         InitNFC()
+        //Esta corriendo en emulador agregar un checkPoint
+        if(isRunningOnEmulator()){
+            addCheckPoint(CheckPoint("pruebaTag",20.672547,-103.439983,true,LocalDateTime.now().toString()))
+        }
     }
     private fun finalizarRondin(){
         try {
@@ -2179,6 +2268,9 @@ class  VehicleSearchActivity : AppCompatActivity() {
         return bitmap
     }
     fun moveCameraToShowAllTAGS(){
+        try {
+
+
         val checkPoints = mySettings?.getListCheckPoint("LIST_CHECKPOINT")!!.toMutableList()
         val pSlots = dataRaw?.getParkingSlots()
         if (checkPoints.isEmpty() && pSlots!!.isEmpty()){
@@ -2200,7 +2292,9 @@ class  VehicleSearchActivity : AppCompatActivity() {
         val padding = 100 // offset from edges of the map in pixels
         val cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, padding)
         googleMap?.moveCamera(cameraUpdate)
-
+        }catch (e: Exception) {
+            Toast.makeText(this, "Error al mover le mapa", Toast.LENGTH_SHORT).show()
+        }
 
     }
     suspend fun obtenerMapaRondinAllTAGS(minutosTotales: Long = 0): Uri? {
@@ -2312,12 +2406,13 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             val imageUri = obtenerMapaRondinAllTAGS(minutosTotales)
+            listaImagenesRondin.add(0,imageUri!!)
 
             //ENVIAR Mensaje por whatsapp
-            val sendIntent: Intent = Intent(Intent.ACTION_SEND).apply {
+            val sendIntent: Intent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
                 type = "image/*"
                 putExtra(Intent.EXTRA_TEXT, message)
-                putExtra(Intent.EXTRA_STREAM, imageUri)
+                putExtra(Intent.EXTRA_STREAM, ArrayList(listaImagenesRondin))
                 putExtra("android.intent.extra.TEXT", message)
                 //type = "text/plain"
                 //type = "*/*"
@@ -2506,6 +2601,15 @@ class  VehicleSearchActivity : AppCompatActivity() {
 //        )
     }
 
+    fun mostrarSplashVehiculos(){
+        val misImagenes = listOf(
+            R.drawable.slide_vehiculos_01,
+            R.drawable.slide_vehiculos_02
+        )
+
+        val dialog = SplashSlidesDialog(misImagenes,"Info Vehiculos")
+        dialog.show(supportFragmentManager, "SplashSlides")
+    }
 
     data class ParkingSlot(val latitude: Double, val longitude: Double, val key: String, val distance: Double)
 

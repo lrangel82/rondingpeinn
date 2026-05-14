@@ -80,6 +80,14 @@
                 android:layout_weight="1"
                 app:srcCompat="@drawable/logo" />
 
+            <ImageButton
+                android:id="@+id/btnAyuda"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="right"
+                android:contentDescription="Ayuda"
+                app:srcCompat="@android:drawable/ic_menu_help" />
+
             <Button
                 android:id="@+id/btn_permisos"
                 android:layout_width="350dp"

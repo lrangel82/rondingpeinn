@@ -34,7 +34,7 @@ class IncidenciaAdapter(
         // row: [calle, numero, date, datetime, tipo, photoPath, descripcion]
         holder.txtCalleNumero.text = "${row[0]}:${row[1]}"
         holder.txtFechaHora.text = row[3].toString()
-        holder.txtDescripcion.text = row[6].toString()
+        holder.txtDescripcion.text = row.getOrNull(6).toString()  //[6].toString()
 
         // Mostrar imagen como thumbnail, si existe
         val photoPath = row[5] as? String

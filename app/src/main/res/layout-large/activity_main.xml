@@ -36,6 +36,14 @@
                 android:gravity="center"
                 android:orientation="vertical">
 
+                <ImageButton
+                    android:id="@+id/btnAyuda"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="right"
+                    android:contentDescription="Ayuda"
+                    app:srcCompat="@android:drawable/ic_menu_help" />
+
                 <ImageView
                     android:id="@+id/imageLogoMain"
                     android:layout_width="396dp"

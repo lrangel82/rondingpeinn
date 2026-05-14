@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:map="http://schemas.android.com/apk/res-auto"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:layout_marginTop="?attr/actionBarSize"
@@ -28,32 +28,30 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:contentDescription="Limpiar placas"
-                    map:srcCompat="@android:drawable/ic_menu_delete" />
+                    app:srcCompat="@android:drawable/ic_menu_delete" />
 
                 <EditText
                     android:id="@+id/plateInput"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:height="48dp"
                     android:layout_marginLeft="5dp"
                     android:layout_marginRight="5dp"
-                    android:hint="Ingresa PLACA o toma foto" />
-
-                <ImageButton
-                    android:id="@+id/cameraButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:contentDescription="tomar Foto placa"
-                    android:src="@android:drawable/ic_menu_camera" />
+                    android:layout_weight="1"
+                    android:height="48dp"
+                    android:hint="Ingresa PLACA o toma foto"
+                    android:visibility="visible" />
 
             </LinearLayout>
 
-            <Button
-                android:id="@+id/searchButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="BUSCAR PLACA" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/cameraButton"
+                android:layout_width="280dp"
+                android:layout_height="90dp"
+                android:layout_margin="10dp"
+                android:text="Tomar Foto"
+                app:icon="@android:drawable/ic_menu_camera"
+                app:iconGravity="textStart"
+                app:iconPadding="8dp" />
 
             <ImageView
                 android:id="@+id/photoThumbnail"
@@ -67,7 +65,8 @@
             <Button
                 android:id="@+id/saveEventButton"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="60dp"
+                android:layout_margin="10dp"
                 android:text="Salvar Placa en CAJON VISITA" />
 
             <LinearLayout
@@ -86,7 +85,8 @@
                     android:id="@+id/eventsRecyclerView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp" />
+                    android:layout_marginTop="16dp"
+                    android:visibility="visible" />
 
             </LinearLayout>
 
@@ -104,6 +104,7 @@
                 android:paddingVertical="2pt">
 
                 <TableRow
+                    android:id="@+id/tableRowVisistas"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
                     android:paddingVertical="2pt">
@@ -133,7 +134,7 @@
                         android:layout_height="wrap_content"
                         android:layout_gravity="right"
                         android:contentDescription="Ayuda"
-                        map:srcCompat="@android:drawable/ic_menu_help" />
+                        app:srcCompat="@android:drawable/ic_menu_help" />
                 </TableRow>
 
                 <TableRow
@@ -176,8 +177,8 @@
 
                 <fragment
                     android:id="@+id/map_fragment_vehicle"
-                    map:mapId="839c8b86b29f05fd"
-                    map:uiZoomControls="true"
+                    app:mapId="839c8b86b29f05fd"
+                    app:uiZoomControls="true"
                     class="com.google.android.gms.maps.SupportMapFragment"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
@@ -191,7 +192,7 @@
                     android:contentDescription="Puntero central"
                     android:src="@android:drawable/ic_menu_myplaces"
                     android:translationY="-20dp"
-                    map:tint="@color/design_default_color_primary" />
+                    app:tint="@color/design_default_color_primary" />
 
                 <ImageButton
                     android:id="@+id/btn_recuperar_gps_vehiculo"
@@ -204,8 +205,8 @@
                     android:elevation="4dp"
                     android:padding="8dp"
                     android:scaleType="fitCenter"
-                    map:srcCompat="@android:drawable/ic_menu_mylocation"
-                    map:tint="@color/design_default_color_primary" />
+                    app:srcCompat="@android:drawable/ic_menu_mylocation"
+                    app:tint="@color/design_default_color_primary" />
 
             </FrameLayout>
 

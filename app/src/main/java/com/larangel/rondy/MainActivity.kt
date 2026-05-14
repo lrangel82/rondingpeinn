@@ -2,6 +2,7 @@ package com.larangel.rondy
 
 import MySettings
 import DataRawRondin
+import SplashSlidesDialog
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.AlarmManager
@@ -97,7 +98,8 @@ class MainActivity : AppCompatActivity() {
                 val intent: Intent = Intent(this, PermisosActivity::class.java)
                 startActivity(intent)
             }else{
-                startActivity( Intent(this, AyudaActivity::class.java) )
+                //startActivity( Intent(this, AyudaActivity::class.java) )
+                mostrarSplashPermisos()
             }
         }
         val btn_vehiculos: Button = findViewById(R.id.btn_vehiculos)
@@ -111,7 +113,8 @@ class MainActivity : AppCompatActivity() {
                 val intent: Intent = Intent(this, IncidenciasMenu::class.java )
                 startActivity(intent)
             }else{
-                startActivity( Intent(this, AyudaActivity::class.java) )
+                //startActivity( Intent(this, AyudaActivity::class.java) )
+                mostrarSplashIncidencias()
             }
         }
 
@@ -156,12 +159,23 @@ class MainActivity : AppCompatActivity() {
         }
         else {
             dataRaw = DataRawRondin(applicationContext, CoroutineScope(Dispatchers.IO))
-            validaLicencia()
+            //validaLicencia()
             loadingSheetDATA()
         }
         isActive= mySettings?.getInt( "APP_ACTIVADA",0) == 1
 
         verificarPermisosRequeridos()
+
+        val yaVioAyuda = mySettings?.getBoolean("ayuda_main_activity", false)
+        val btnAyuda: ImageButton = findViewById(R.id.btnAyuda)
+        if (yaVioAyuda == false) {
+            mostrarSplashInformativo()
+            mySettings?.saveBoolean("ayuda_main_activity", true) // Lo marcamos como visto
+        }
+        btnAyuda.setOnClickListener {
+            mostrarSplashInformativo()
+        }
+
 
     }
     override fun onResume() {
@@ -242,7 +256,7 @@ class MainActivity : AppCompatActivity() {
                         } else {
                             copyRAdmin.text =
                                 "#### APP DESACTIVADA #### contactar luisrangel@gmail.com ${versionName}"
-                            abrirAlertDesactivada()
+                            mostrarSplashDemo()
                         }
                         swipeRefreshLayout.isRefreshing = false
                     }
@@ -292,7 +306,7 @@ class MainActivity : AppCompatActivity() {
             }
             else {
                 copyRAdmin.text = "#### APP DESACTIVADA #### contactar luisrangel@gmail.com ${versionName}"
-                abrirAlertDesactivada()
+                mostrarSplashDemo()
             }
             Toast.makeText(
                 this@MainActivity,
@@ -328,6 +342,48 @@ class MainActivity : AppCompatActivity() {
             return "sin Version"
         }
     }
+    fun mostrarSplashDemo(){
+        val misImagenes = listOf(
+            R.drawable.slide_demo_01
+        )
+
+        val dialog = SplashSlidesDialog(misImagenes,"")
+        dialog.show(supportFragmentManager, "SplashSlides")
+    }
+    fun mostrarSplashInformativo() {
+        val misImagenes = listOf(
+            R.drawable.slide_bienvenida_01,
+            R.drawable.slide_incidencias_01,
+            R.drawable.slide_incidencias_02,
+            R.drawable.slide_permisos_01,
+            R.drawable.slide_permisos_02,
+            R.drawable.slide_vehiculos_01,
+            R.drawable.slide_vehiculos_02
+        )
+
+        val dialog = SplashSlidesDialog(misImagenes,"Info Rondy")
+        dialog.show(supportFragmentManager, "SplashSlides")
+    }
+    fun mostrarSplashPermisos() {
+        val misImagenes = listOf(
+            R.drawable.slide_permisos_01,
+            R.drawable.slide_permisos_02
+        )
+
+        val dialog = SplashSlidesDialog(misImagenes,"Info Permisos")
+        dialog.show(supportFragmentManager, "SplashSlides")
+    }
+    fun mostrarSplashIncidencias(){
+        val misImagenes = listOf(
+            R.drawable.slide_incidencias_01,
+            R.drawable.slide_incidencias_02
+        )
+
+        val dialog = SplashSlidesDialog(misImagenes,"Info Incidencias")
+        dialog.show(supportFragmentManager, "SplashSlides")
+    }
+
+
 
     @SuppressLint("SuspiciousIndentation")
     private fun loadingSheetDATA(forceLoad: Boolean = false){
@@ -457,53 +513,6 @@ class MainActivity : AppCompatActivity() {
         return network?.isConnected == true
     }
 
-    //programar alarmas
-//    fun programarAlarma(horaStr: String, nombre: String) {
-//        val alarmManager = getSystemService(ALARM_SERVICE) as AlarmManager
-//
-//        // Validar si tenemos permiso para alarmas exactas (Solo necesario en Android 12+)
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-//            if (!alarmManager.canScheduleExactAlarms()) {
-//                return // Detenemos la ejecución hasta que tengamos el permiso
-//            }
-//        }
-//
-//        val intent = Intent(applicationContext, AlarmReceiver::class.java).apply {
-//            putExtra("nombre", nombre)
-//            putExtra("hora", horaStr)
-//        }
-//
-//        // Convertir "HH:mm" a Calendar
-//        val partes = horaStr.split(":")
-//        val calendar = Calendar.getInstance().apply {
-//            set(Calendar.HOUR_OF_DAY, partes[0].toInt())
-//            set(Calendar.MINUTE, partes[1].toInt())
-//            set(Calendar.SECOND, partes.getOrNull(2)?.toInt() ?: 0 )
-//            if (before(Calendar.getInstance())) {
-//                add(Calendar.DATE, 1) // Si ya pasó la hora, programar para mañana
-//            }
-//        }
-//
-//        val pendingIntent = PendingIntent.getBroadcast(
-//            applicationContext,
-//            horaStr.hashCode(), // ID único basado en la hora
-//            intent,
-//            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-//        )
-//
-//        // Programar la alarma exacta
-//        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-//            if (alarmManager.canScheduleExactAlarms()) {
-//                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
-//            } else {
-//                // Fallback si no hay permiso de alarmas exactas
-//                alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
-//            }
-//        } else {
-//            alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, calendar.timeInMillis, pendingIntent)
-//        }
-//
-//    }
 
     //Verificar los permisos de la aplicacion
     private fun verificarPermisosRequeridos(){

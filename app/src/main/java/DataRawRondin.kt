@@ -26,6 +26,8 @@ import com.larangel.rondy.utils.extraerColor
 import com.larangel.rondy.utils.extraerMarcaAuto
 import com.larangel.rondy.utils.extraerPlaca
 import com.larangel.rondy.utils.extraerTAG
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import java.security.Permission
 import java.time.LocalTime
 import java.time.format.DateTimeFormatterBuilder
@@ -544,10 +546,11 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                 //tipo == automovil
                 if (row[4].toString().startsWith("auto",true)){
                     val tagValue: String? = row.firstNotNullOfOrNull { it.toString().extraerTAG() }
+                    val placa: String? = row.firstNotNullOfOrNull { it.toString().extraerPlaca() }
                     if (tagValue != null ){
                         val calle = row[2].toString()
                         val numero= row[3].toString()
-                        allParsedTags.add(listOf(tagValue,calle,numero))
+                        allParsedTags.add(listOf(tagValue,calle,numero,placa.toString()))
                     }
                 }
             }
@@ -667,6 +670,8 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
         val currentCache = state.cache?.toMutableList() ?: mutableListOf()
         currentCache.add(_row)
         state.cache = currentCache
+        //println("DEBUG: _row content: $_row")
+        //val foo=Json.encodeToString(_row)
 
         // 3. Persistir el cambio visual en el caché de disco (MySettings)
         mySettings.saveList("${table.cacheKey}_CACHE", currentCache as List<List<String>>)

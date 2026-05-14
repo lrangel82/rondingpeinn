@@ -26,6 +26,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.larangel.rondy.ui.VehiculoFormDialog
 import com.larangel.rondy.utils.extraerPlaca
 import com.larangel.rondy.utils.extraerTAG
 import com.larangel.rondy.utils.extraerTAGHexToDec
@@ -33,15 +34,16 @@ import com.larangel.rondy.utils.stopSearchLoop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
 
 class CatalgoVehiculosActivity : AppCompatActivity() {
     private lateinit var dataRaw: DataRawRondin
     private var fullVehicleList: List<List<Any>> = emptyList()
     private var filteredList: MutableList<List<Any>> = mutableListOf()
-    private var domicilios: List<List<Any>> = emptyList()
-    private var listaCalles: List<String> = emptyList()
+    //private var domicilios: List<List<Any>> = emptyList()
+    //private var listaCalles: List<String> = emptyList()
     private lateinit var vehicleAdapter: VehiculoAdapter
-    private var isAutoSelecting = false
+    //private var isAutoSelecting = false
 
 
     // UI Elements
@@ -49,7 +51,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
     private lateinit var btnTakePhoto: Button
     private lateinit var limparBtn: Button
     private lateinit var rvResults: RecyclerView
-    private lateinit var layoutForm: View
+    //private lateinit var layoutForm: View
     private lateinit var btnReport: Button
     private lateinit var btnAdd: Button
     private lateinit var spinnerCalle: Spinner
@@ -65,7 +67,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         loadInitialData()
 
         vehicleAdapter = VehiculoAdapter(emptyList()) { vehiculoSeleccionado ->
-            showForm(vehiculoSeleccionado) // Al tocar un botón, abre el formulario
+            openVehiculoDialog(vehiculoSeleccionado) // Al tocar un botón, abre el formulario
         }
         rvResults.adapter = vehicleAdapter
 
@@ -80,16 +82,16 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
     private fun loadInitialData() = lifecycleScope.launch {
         // Carga asíncrona
         fullVehicleList = withContext(Dispatchers.IO) { dataRaw.getAutoRegistrados() ?: emptyList() }
-        domicilios = withContext(Dispatchers.IO) { dataRaw.getDomiciliosUbicacion() ?: emptyList() }
+        //domicilios = withContext(Dispatchers.IO) { dataRaw.getDomiciliosUbicacion() ?: emptyList() }
         val txtAyuda = findViewById<TextView>(R.id.textAyudaCatalogoV)
         txtAyuda.setText("Ingrese las Placas del vehiculo, o Escanee el TAG o la marca del vehiculo\n Total Parque Vehicular:${fullVehicleList.size}")
-        setupSpinners()
+        //setupSpinners()
         showResultsList(fullVehicleList as List<List<String>>) //Mostrar todos
     }
     private fun setupUI() {
         etSearch = findViewById(R.id.etSearch)
         rvResults = findViewById(R.id.rvResults)
-        layoutForm = findViewById(R.id.layoutForm)
+        //layoutForm = findViewById(R.id.layoutForm)
         limparBtn = findViewById(R.id.btnLimpiarCatV)
 
         // Configuración de Grilla en Landscape
@@ -100,18 +102,17 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
             val query = text.toString()
             if (query.isNotEmpty() && query.length > 2 ) {
                 stopSearchLoop=true
-               // val esLectorRFID = query.contains("\n")
-                val tagStr: String? = query.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
-                //Esta visible el FORM, y es un tag del lector... escribir en el TAGID de la edicion
-                if (layoutForm.visibility == View.VISIBLE && tagStr != null) {
-                    val etTag = findViewById<EditText>(R.id.etFormTag)
-                    etTag.setText(tagStr)
-                    etSearch.setText("")
-                    hideKeyboard()
-                } else {
+//                val tagStr: String? = query.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
+//                //Esta visible el FORM, y es un tag del lector... escribir en el TAGID de la edicion
+//                if (layoutForm.visibility == View.VISIBLE && tagStr != null) {
+//                    val etTag = findViewById<EditText>(R.id.etFormTag)
+//                    etTag.setText(tagStr)
+//                    etSearch.setText("")
+//                    hideKeyboard()
+//                } else {
                     //Realizar busqueda normal
-                    performSearch(query)
-                }
+                performSearch(query)
+                //}
             }
 //            if (query.length >= 3) {
 //                performSearch(query)
@@ -156,7 +157,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
 
         when {
             filteredList.isEmpty() && query.isNotEmpty() -> showNotFoundOptions()
-            filteredList.size == 1 -> showForm(filteredList[0])
+            filteredList.size == 1 -> openVehiculoDialog(filteredList[0])
             filteredList.isEmpty() && query.isEmpty() -> showResultsList(fullVehicleList as List<List<String>>)
             else -> showResultsList(filteredList as List<List<String>>)
         }
@@ -165,7 +166,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
     private fun showResultsList(lisData: List<List<String>>) {
         // Aseguramos visibilidad
         rvResults.visibility = View.VISIBLE
-        layoutForm.visibility = View.GONE
+        //layoutForm.visibility = View.GONE
         findViewById<View>(R.id.notFoundActions).visibility = View.GONE
 
         // Actualizamos los datos del adapter con la lista filtrada
@@ -175,7 +176,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
     private fun hideAll(){
         findViewById<EditText>(R.id.etSearch).requestFocus()
         rvResults.visibility = View.GONE
-        layoutForm.visibility = View.GONE
+        //layoutForm.visibility = View.GONE
         findViewById<View>(R.id.notFoundActions).visibility = View.GONE
         hideKeyboard()
     }
@@ -183,7 +184,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
     private fun showNotFoundOptions() {
         // 1. Visibilidad: Ocultamos lista y formulario, mostramos acciones de "no encontrado"
         rvResults.visibility = View.GONE
-        layoutForm.visibility = View.GONE
+        //layoutForm.visibility = View.GONE
         findViewById<View>(R.id.notFoundActions).visibility = View.VISIBLE
 
         val busquedaActual = etSearch.text.toString().trim()
@@ -208,7 +209,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
                     strPlate,
                     "NA",
                     "NA",
-                    "NA",
+                    LocalDate.now().toString(),
                     "NA",
                     "NA",
                     strTag,
@@ -227,7 +228,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         btnAdd = findViewById<Button>(R.id.btnAddVehiculo)
         btnAdd.setOnClickListener {
             findViewById<View>(R.id.notFoundActions).visibility = View.GONE
-            showForm(null) // Abrimos formulario vacío
+            openVehiculoDialog(null) // Abrimos formulario vacío
 
             // Lógica de pre-llenado inteligente
             if (tagValido != null) {
@@ -256,52 +257,58 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
             }
     }
 
-    private fun showForm(row: List<Any>?) {
-        hideAll()
-        etSearch.setText("")
-        layoutForm.visibility = View.VISIBLE
-
-
-        val etPlaca = findViewById<EditText>(R.id.etFormPlaca)
-        val etMarca = findViewById<EditText>(R.id.etFormMarca)
-        val etModelo= findViewById<EditText>(R.id.etFormModelo)
-        val etColor = findViewById<EditText>(R.id.etFormColor)
-        val etTag   = findViewById<EditText>(R.id.etFormTag)
-
-        // Aquí llenas los campos: [placas, calle, numero, marca, modelo, color, tag]
-        // Para calle y número, implementas Spinners filtrados con la lista 'domicilios'
-        etPlaca.setText( row?.getOrNull(0).toString() )
-        etMarca.setText( row?.getOrNull(3).toString() )
-        etModelo.setText( row?.getOrNull(4).toString() )
-        etColor.setText( row?.getOrNull(5).toString() )
-        etTag.setText( row?.getOrNull(6).toString() )
-        preseleccionarDomicilio(row?.getOrNull(1).toString(),row?.getOrNull(2).toString())
-
-        //A que le pones el foco?
-
-
-        val btnCancel = findViewById<Button>(R.id.btnCancel)
-        btnCancel.setOnClickListener {
-            hideAll()
-            etSearch.setText("")
+    private fun openVehiculoDialog(row: List<Any>?) {
+        val dialog = VehiculoFormDialog(row,dataRaw) { datosActualizados ->
+            updateVehicle(datosActualizados)
         }
-        val btnUpdate = findViewById<Button>(R.id.btnUpdate)
-        btnUpdate.setOnClickListener {
-            val valuesNew = listOf(
-                etPlaca.text.toString().filter { it.isLetterOrDigit() }.uppercase(),
-                spinnerCalle.selectedItem.toString(),
-                spinnerNumero.selectedItem.toString(),
-                etMarca.text.toString(),
-                etModelo.text.toString(),
-                etColor.text.toString(),
-                etTag.text.toString().filter { it.isDigit() },
-                row?.getOrNull(7).toString(),
-                row?.getOrNull(8).toString()
-            )
-            updateVehicle(valuesNew)
-            hideAll()
-        }
+        dialog.show(supportFragmentManager, "VehiculoDialog")
     }
+//    private fun showForm(row: List<Any>?) {
+//        hideAll()
+//        etSearch.setText("")
+//        layoutForm.visibility = View.VISIBLE
+//
+//
+//        val etPlaca = findViewById<EditText>(R.id.etFormPlaca)
+//        val etMarca = findViewById<EditText>(R.id.etFormMarca)
+//        val etModelo= findViewById<EditText>(R.id.etFormModelo)
+//        val etColor = findViewById<EditText>(R.id.etFormColor)
+//        val etTag   = findViewById<EditText>(R.id.etFormTag)
+//
+//        // Aquí llenas los campos: [placas, calle, numero, marca, modelo, color, tag]
+//        // Para calle y número, implementas Spinners filtrados con la lista 'domicilios'
+//        etPlaca.setText( row?.getOrNull(0).toString() )
+//        etMarca.setText( row?.getOrNull(3).toString() )
+//        etModelo.setText( row?.getOrNull(4).toString() )
+//        etColor.setText( row?.getOrNull(5).toString() )
+//        etTag.setText( row?.getOrNull(6).toString() )
+//        preseleccionarDomicilio(row?.getOrNull(1).toString(),row?.getOrNull(2).toString())
+//
+//        //A que le pones el foco?
+//
+//
+//        val btnCancel = findViewById<Button>(R.id.btnCancel)
+//        btnCancel.setOnClickListener {
+//            hideAll()
+//            etSearch.setText("")
+//        }
+//        val btnUpdate = findViewById<Button>(R.id.btnUpdate)
+//        btnUpdate.setOnClickListener {
+//            val valuesNew = listOf(
+//                etPlaca.text.toString().filter { it.isLetterOrDigit() }.uppercase(),
+//                spinnerCalle.selectedItem.toString(),
+//                spinnerNumero.selectedItem.toString(),
+//                etMarca.text.toString(),
+//                etModelo.text.toString(),
+//                etColor.text.toString(),
+//                etTag.text.toString().filter { it.isDigit() },
+//                row?.getOrNull(7).toString(),
+//                row?.getOrNull(8).toString()
+//            )
+//            updateVehicle(valuesNew)
+//            hideAll()
+//        }
+//    }
 
     private fun updateVehicle( newRow: List<String>) = lifecycleScope.launch {
         withContext(Dispatchers.IO) {
@@ -311,70 +318,70 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         Toast.makeText(this@CatalgoVehiculosActivity, "Actualizado", Toast.LENGTH_SHORT).show()
     }
 
-    private fun setupSpinners() {
-        spinnerCalle = findViewById<Spinner>(R.id.spinnerCalle)
-        spinnerNumero = findViewById<Spinner>(R.id.spinnerNumero)
-        // 1. Obtener lista única de calles (posición 0 del sublistado)
-        listaCalles = domicilios.map { it[0].toString() }.distinct().sorted()
-
-        // 2. Configurar el adaptador de Calles
-        val adapterCalle = ArrayAdapter(this, android.R.layout.simple_spinner_item, listaCalles)
-        adapterCalle.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerCalle.adapter = adapterCalle
-
-        // 3. Listener para detectar cambios en Calle
-        spinnerCalle.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val calleSeleccionada = listaCalles[position]
-                if (!isAutoSelecting) {
-                    actualizarSpinnerNumeros(calleSeleccionada)
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
-    }
-    private fun actualizarSpinnerNumeros(calle: String) {
-        // 4. Filtrar la lista global de domicilios por la calle elegida
-        // Asumimos que el número está en la posición 1 [calle, numero, lat, lon]
-        val numerosFiltrados = domicilios
-            .filter { it[0] == calle }
-            .map { it[1].toString() }
-            .distinct()
-            .sorted()
-
-        // 5. Configurar el adaptador de Números con los valores filtrados
-        val adapterNumero = ArrayAdapter(this, android.R.layout.simple_spinner_item, numerosFiltrados)
-        adapterNumero.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        spinnerNumero.adapter = adapterNumero
-    }
-    private fun preseleccionarDomicilio(calleExistente: String, numeroExistente: String) {
-        // Seleccionar Calle
-        val indexCalle = listaCalles.indexOf(calleExistente)
-        if (indexCalle != -1) {
-            isAutoSelecting = true
-            spinnerCalle.setSelection(indexCalle)
-
-            // El listener de la calle disparará actualizarSpinnerNumeros automáticamente,
-            // pero necesitamos esperar un momento o forzar la carga para seleccionar el número.
-            val numerosDeEstaCalle = domicilios.filter { it[0] == calleExistente }.map { it[1].toString() }.distinct()
-                .sorted()
-            val adapterNumero = ArrayAdapter(this, android.R.layout.simple_spinner_item, numerosDeEstaCalle)
-            adapterNumero.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            spinnerNumero.adapter = adapterNumero
-
-            adapterNumero.notifyDataSetChanged()
-
-            val indexNumero = numerosDeEstaCalle.indexOf(numeroExistente)
-            if (indexNumero != -1) {
-                spinnerNumero.post {
-                    spinnerNumero.setSelection(indexNumero, false)
-                    spinnerNumero.post { isAutoSelecting = false }
-                }
-            }else {
-                isAutoSelecting = false
-            }
-        }
-    }
+//    private fun setupSpinners() {
+//        spinnerCalle = findViewById<Spinner>(R.id.spinnerCalle)
+//        spinnerNumero = findViewById<Spinner>(R.id.spinnerNumero)
+//        // 1. Obtener lista única de calles (posición 0 del sublistado)
+//        listaCalles = domicilios.map { it[0].toString() }.distinct().sorted()
+//
+//        // 2. Configurar el adaptador de Calles
+//        val adapterCalle = ArrayAdapter(this, android.R.layout.simple_spinner_item, listaCalles)
+//        adapterCalle.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+//        spinnerCalle.adapter = adapterCalle
+//
+//        // 3. Listener para detectar cambios en Calle
+//        spinnerCalle.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+//            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+//                val calleSeleccionada = listaCalles[position]
+//                if (!isAutoSelecting) {
+//                    actualizarSpinnerNumeros(calleSeleccionada)
+//                }
+//            }
+//            override fun onNothingSelected(parent: AdapterView<*>?) {}
+//        }
+//    }
+//    private fun actualizarSpinnerNumeros(calle: String) {
+//        // 4. Filtrar la lista global de domicilios por la calle elegida
+//        // Asumimos que el número está en la posición 1 [calle, numero, lat, lon]
+//        val numerosFiltrados = domicilios
+//            .filter { it[0] == calle }
+//            .map { it[1].toString() }
+//            .distinct()
+//            .sorted()
+//
+//        // 5. Configurar el adaptador de Números con los valores filtrados
+//        val adapterNumero = ArrayAdapter(this, android.R.layout.simple_spinner_item, numerosFiltrados)
+//        adapterNumero.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+//        spinnerNumero.adapter = adapterNumero
+//    }
+//    private fun preseleccionarDomicilio(calleExistente: String, numeroExistente: String) {
+//        // Seleccionar Calle
+//        val indexCalle = listaCalles.indexOf(calleExistente)
+//        if (indexCalle != -1) {
+//            isAutoSelecting = true
+//            spinnerCalle.setSelection(indexCalle)
+//
+//            // El listener de la calle disparará actualizarSpinnerNumeros automáticamente,
+//            // pero necesitamos esperar un momento o forzar la carga para seleccionar el número.
+//            val numerosDeEstaCalle = domicilios.filter { it[0] == calleExistente }.map { it[1].toString() }.distinct()
+//                .sorted()
+//            val adapterNumero = ArrayAdapter(this, android.R.layout.simple_spinner_item, numerosDeEstaCalle)
+//            adapterNumero.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+//            spinnerNumero.adapter = adapterNumero
+//
+//            adapterNumero.notifyDataSetChanged()
+//
+//            val indexNumero = numerosDeEstaCalle.indexOf(numeroExistente)
+//            if (indexNumero != -1) {
+//                spinnerNumero.post {
+//                    spinnerNumero.setSelection(indexNumero, false)
+//                    spinnerNumero.post { isAutoSelecting = false }
+//                }
+//            }else {
+//                isAutoSelecting = false
+//            }
+//        }
+//    }
 
     private fun hideKeyboard() {
         val view = currentFocus

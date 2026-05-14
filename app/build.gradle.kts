@@ -14,8 +14,8 @@ android {
         applicationId = "com.larangel.rondy"
         minSdk = 29
         targetSdk = 35
-        versionCode = 2
-        versionName = "Argos"
+        versionCode = 4
+        versionName = "Heimdall"
         //Argos,Heimdall,Anubis,Cerbero,Garam,Jano,Talos,Ladon,Grifo,Sleipnit
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -68,6 +68,8 @@ android {
 dependencies {
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     implementation("com.tbuonomo:dotsindicator:5.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation("androidx.viewpager2:viewpager2:1.0.0")
     implementation(libs.taptargetview)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)

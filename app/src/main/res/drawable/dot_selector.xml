@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Punto activo (Blanco) -->
+    <item android:state_selected="true">
+        <shape android:shape="oval">
+            <solid android:color="@android:color/white" />
+            <size android:width="10dp" android:height="10dp" />
+        </shape>
+    </item>
+    <!-- Punto inactivo (Gris) -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#80FFFFFF" />
+            <size android:width="10dp" android:height="10dp" />
+        </shape>
+    </item>
+</selector>
