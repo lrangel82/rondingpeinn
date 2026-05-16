@@ -191,6 +191,24 @@ fun buscarPlacaEnListaCache(placasCache:List<List<Any>>, strPlaca:String):List<L
             matches.add(listOf(placaValue,"No registrado","0")) //Tag, calle, numero
         }
     }
+    else if(strPlaca.length > 2 && strPlaca.length<8){
+        //Buscar cualquier coincidencia
+        var foundTag=false
+        for (row in placasCache){
+            if (stopSearchLoop) return emptyList()
+            if (row.isEmpty()) continue
+            val placaID = row[0].toString().uppercase()
+            if (placaID.isEmpty()) continue
+
+            if (placaID.contains(strPlaca.uppercase()) ) {
+                foundTag=true
+                matches.add(row)
+            }
+        }
+        if (foundTag == false) { //No se encontro ninguno
+            matches.add(listOf(strPlaca,"No registrado","0")) //Tag, calle, numero
+        }
+    }
     return matches
 }
 
