@@ -1,13 +1,9 @@
 import android.content.Context
-import android.content.Context.CONNECTIVITY_SERVICE
 import android.net.NetworkCapabilities
 import android.os.Build
-import android.widget.TextView
-import android.widget.Toast
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
-import com.google.api.client.util.DateTime
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest
 import com.google.api.services.sheets.v4.model.DeleteDimensionRequest
@@ -16,7 +12,6 @@ import com.google.api.services.sheets.v4.model.Request
 import com.google.api.services.sheets.v4.model.ValueRange
 import com.larangel.rondy.R
 import kotlinx.coroutines.*
-import androidx.lifecycle.lifecycleScope
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -26,11 +21,7 @@ import com.larangel.rondy.utils.extraerColor
 import com.larangel.rondy.utils.extraerMarcaAuto
 import com.larangel.rondy.utils.extraerPlaca
 import com.larangel.rondy.utils.extraerTAG
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import java.security.Permission
 import java.time.LocalTime
-import java.time.format.DateTimeFormatterBuilder
 
 enum class SheetTable(
     var sheetName: String,
@@ -100,27 +91,6 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     private lateinit var sheetsService: Sheets
     private val TAG = "package:com.larangel.rondy"
     private val CACHE_DURATION_MS = 60 * 60 * 1000 // 1 hora
-
-//    private val flexibleDateFormatter = DateTimeFormatterBuilder()
-//        .appendOptional(DateTimeFormatter.ofPattern("d/M/yyyy"))
-//        .appendOptional(DateTimeFormatter.ofPattern("dd/MM/yyyy"))
-//        .appendOptional(DateTimeFormatter.ofPattern("d/M/yy"))
-//        .appendOptional(DateTimeFormatter.ofPattern("d/M/yyyy"))
-//        .appendOptional(DateTimeFormatter.ofPattern("dd/MM/yy"))
-//        .appendOptional(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-//        .appendOptional(DateTimeFormatter.ofPattern("M/dd/yyyy"))
-//        .toFormatter()
-
-//    private val flexibleDateTimeFormatter = DateTimeFormatterBuilder()
-//        .appendOptional(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
-//        .appendOptional(DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss"))
-//        .appendOptional(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss"))
-//        .appendOptional(DateTimeFormatter.ofPattern("d/MM/yyyy H:mm:ss"))
-//        .appendOptional(DateTimeFormatter.ofPattern("d/M/yyyy HH:mm:ss"))
-//        .appendOptional(DateTimeFormatter.ofPattern("d/M/yy HH:mm:ss"))
-//        .appendOptional(DateTimeFormatter.ofPattern("M/d/yyyy H:mm:ss"))
-//        .appendOptional(DateTimeFormatter.ISO_LOCAL_DATE_TIME)
-//        .toFormatter()
 
     private fun parseLenientDateTime(dateTimeString: String): LocalDateTime {
         val formats = listOf(
@@ -469,6 +439,15 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             null
         }
     }
+    private fun getSheetsNameRegex(spreadsheetId: String, regextoFind: Regex): List<String>{
+        return try {
+            val spreadsheet = sheetsService.spreadsheets().get(spreadsheetId).execute()
+            spreadsheet.sheets.filter { regextoFind.matches(it.properties.title) }.map{ it.properties.title }
+        } catch (e: Exception) {
+            Log.e(TAG, "No se pudo obtener el Nombre de la hoja $regextoFind")
+            emptyList()
+        }
+    }
 
 
     // VEHICULOS
@@ -478,35 +457,38 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             val allRows = mutableListOf<List<Any>>()
 
             // 1. Obtener Vehículos de RESIDENTES
+            val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")
+            val sheetNameResidentes = getSheetsNameRegex(spreadsheetId, Regex("${SheetTable.RESIDENTES_UNIDAD.cacheKey}.*",
+                RegexOption.IGNORE_CASE))
             val stateResidentes = tableStates[SheetTable.RESIDENTES_UNIDAD]
 
-            // 2. Aseguramos que la RAM tenga datos (Carga desde RAM -> Disco -> Red)
+            //  Aseguramos que la RAM tenga datos (Carga desde RAM -> Disco -> Red) de este coto
             if (stateResidentes?.cache == null) runBlocking { getResidentes() }
-            stateResidentes?.cache?.forEach { row ->
-                //tipo == automovil
-                if (row[4].toString().startsWith("auto",true)){
-                    val placa: String? = row.firstNotNullOfOrNull { it.toString().extraerPlaca() }
-                    if (placa != null ){
-                        val calle = row[2].toString()
-                        val numero= row[3].toString()
-                        allRows.add(listOf(placa,calle,numero))
+
+            // 3. Buscar en el registro de todos los cotos
+            sheetNameResidentes.forEach { sheetResidente ->
+                val rowsRes = if (sheetResidente == SheetTable.RESIDENTES_UNIDAD.sheetName) {
+                    stateResidentes?.cache  //Usar el cache para no sobrecargar internet
+                }else{
+                    //Los demas si tendran que irse a recargar a internet
+                    sheetsService.spreadsheets().values()
+                        .get(spreadsheetId, "$sheetResidente!${SheetTable.RESIDENTES_UNIDAD.range}") // all residente
+                        .execute().getValues()?.drop(1)
+                }
+
+                //Filtrar solo los AUTOMOVILES
+                rowsRes?.forEach { row ->
+                    //tipo == automovil
+                    if (row[4].toString().startsWith("auto",true)){
+                        val placa: String? = row.firstNotNullOfOrNull { it.toString().extraerPlaca() }
+                        if (placa != null ){
+                            val calle = row[2].toString()
+                            val numero= row[3].toString()
+                            allRows.add(listOf(placa,calle,numero))
+                        }
                     }
                 }
             }
-
-//            val residentsId = mySettings.getString("PARKING_SPREADSHEET_ID", "")!!
-//            val residentsSheet = SheetTable.VEHICULOS.sheetName //mySettings.getString("WS_AUTOS_REGISTRADOS", "AutosRegistrados")!!
-//
-//            if (residentsId.isEmpty()) throw IllegalArgumentException("No hay Sheet configurado")
-//
-//            //try {
-//                val response = sheetsService.spreadsheets().values()
-//                    .get(residentsId, "$residentsSheet!A:C") // placa, calle, numero
-//                    .execute()
-//                response.getValues().drop(1)?.let { allRows.addAll(it) }
-//            //} catch (e: Exception) {
-//            //    Log.e(TAG, "Error leyendo Residentes: ${e.message}")
-//            //}
 
             // 2. Obtener Vehículos VISITANTES (Hojas: ingreso y salida)
             val visitorsId = mySettings.getString("REGISTRO_CARROS_SPREADSHEET_ID", "")

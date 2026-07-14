@@ -14,8 +14,8 @@ android {
         applicationId = "com.larangel.rondy"
         minSdk = 29
         targetSdk = 35
-        versionCode = 5
-        versionName = "Heimdall.02"
+        versionCode = 6
+        versionName = "Heimdall.06"
         //Argos,Heimdall,Anubis,Cerbero,Garam,Jano,Talos,Ladon,Grifo,Sleipnit
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

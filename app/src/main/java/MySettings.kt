@@ -31,10 +31,10 @@ class MySettings(context: Context) {
         context.getSharedPreferences("rondy_prefs_v2", Context.MODE_PRIVATE)
     }
 
-    suspend fun fetchAndProcessS3Config(bucketName: String, regionStr: String, targetHKey: String) {
+    suspend fun fetchAndProcessS3Config(bucketName: String, regionStr: String, targetHKey: String, force:Boolean = false) {
         //Verificar si ya procesamos esto hoy
         val numDayValidado = getInt("DIA_VALIDADO_CODIGO",0)
-        if (numDayValidado == LocalDate.now().dayOfMonth) return
+        if (numDayValidado == LocalDate.now().dayOfMonth && !force) return
 
         val regex = Regex("configCasetaApp/config\\.ini_.*[0-9.]+")
         val bucketUrl = "https://$bucketName.s3.$regionStr.amazonaws.com"
@@ -147,6 +147,7 @@ class MySettings(context: Context) {
     }
     fun cleanPreferenceS3Config(){
         with(sharedPreferences.edit()) {
+            saveInt("DIA_VALIDADO_CODIGO",-1)
             putInt("APP_ACTIVADA", 0)
             putInt("ESADMIN",0)
             putString("REGISTRO_CARROS_SPREADSHEET_ID", "")

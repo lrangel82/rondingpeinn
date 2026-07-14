@@ -246,7 +246,7 @@ class MainActivity : AppCompatActivity() {
             lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     //Buscar y descargar nueva configuracion
-                    mySettings?.fetchAndProcessS3Config(bucketName, regionStr, codigoActiv)
+                    mySettings?.fetchAndProcessS3Config(bucketName, regionStr, codigoActiv, force = true)
                     //Inizializa el ENUM con los valores correctos del nombre de sheets
                     SheetTable.initializeAll(mySettings)
                     isActive= mySettings?.getInt( "APP_ACTIVADA",0) == 1
@@ -390,8 +390,10 @@ class MainActivity : AppCompatActivity() {
 
         //Load all the data in thread
         lifecycleScope.launch(Dispatchers.IO) {
-            if (::swipeRefreshLayout.isInitialized)
-                swipeRefreshLayout.isRefreshing = true
+            withContext(Dispatchers.Main) {
+                if (::swipeRefreshLayout.isInitialized)
+                    swipeRefreshLayout.isRefreshing = true
+            }
 
             val alarmas = dataRaw?.getAlarmas(forceLoad)
             val residentes = dataRaw?.getResidentes(forceLoad)

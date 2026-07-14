@@ -137,7 +137,6 @@ class SettingsActivity : AppCompatActivity() {
         mySettings?.saveString("REGION_STR", region)
         mySettings?.saveString("CODIGO_ACTIVACION", txtCodigoActivation.text.toString())
         mySettings?.saveString("PASSWORD_PERMISOS", txtPwdPermisos.text.toString())
-        mySettings?.saveInt("DIA_VALIDADO_CODIGO", 0)
 
         //Procesar la configuracion de la red y la validacion del codigo
         lifecycleScope.launch(Dispatchers.IO) {
