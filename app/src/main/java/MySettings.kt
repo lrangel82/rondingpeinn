@@ -227,8 +227,11 @@ class MySettings(context: Context) {
     }
     fun getSimpleList(key: String): List<String>{
         val jsonString=sharedPreferences.getString(key, "[]") ?: "[]"
-        val objectList = Json.decodeFromString<List<String>>(jsonString)
-        return objectList
+        return try{
+            Json.decodeFromString<List<String>>(jsonString)
+        }catch (e:Exception) {
+            listOf<String>(jsonString)
+        }
     }
 
 

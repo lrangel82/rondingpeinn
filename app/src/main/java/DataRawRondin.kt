@@ -41,6 +41,7 @@ enum class SheetTable(
     DIRECCIONES("Direcciones", "directions", "A:D"),  // calle, numero, latitud, longitud
     AUTOS_REGISTRADOS("AutosRegistrados", "autosRegistrados", "A:I"), //placa,calle,numero,marca,modelo,color,tag
     RESIDENTES_UNIDAD("ResidentesUnidad", "residentesUnidad", "A:Q"),
+    ALL_RESIDENTES_UNIDAD("ResidentesUnidad", "AllResidentesUnidad", "A:Q"),
     ALARMAS_RONDIN("AlarmasRondin","alarmasRondin","A:B"); //userid,clave,calle,numero,tipo,nombre,telefono,email,celular,notas,ciudad,estado,fecha_updated_condovive,fecha_updated_app,es_nuevo,es_actualizado,es_eliminado
 
 
@@ -457,35 +458,21 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             val allRows = mutableListOf<List<Any>>()
 
             // 1. Obtener Vehículos de RESIDENTES
-            val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")
-            val sheetNameResidentes = getSheetsNameRegex(spreadsheetId, Regex("${SheetTable.RESIDENTES_UNIDAD.cacheKey}.*",
-                RegexOption.IGNORE_CASE))
-            val stateResidentes = tableStates[SheetTable.RESIDENTES_UNIDAD]
+             val stateALLResidentes = tableStates[SheetTable.ALL_RESIDENTES_UNIDAD]
 
-            //  Aseguramos que la RAM tenga datos (Carga desde RAM -> Disco -> Red) de este coto
-            if (stateResidentes?.cache == null) runBlocking { getResidentes() }
+            // Aseguramos que la RAM tenga datos (Carga desde RAM -> Disco -> Red) de este coto
+            if (stateALLResidentes?.cache == null) runBlocking { getAllPosibleResidentes() }
 
-            // 3. Buscar en el registro de todos los cotos
-            sheetNameResidentes.forEach { sheetResidente ->
-                val rowsRes = if (sheetResidente == SheetTable.RESIDENTES_UNIDAD.sheetName) {
-                    stateResidentes?.cache  //Usar el cache para no sobrecargar internet
-                }else{
-                    //Los demas si tendran que irse a recargar a internet
-                    sheetsService.spreadsheets().values()
-                        .get(spreadsheetId, "$sheetResidente!${SheetTable.RESIDENTES_UNIDAD.range}") // all residente
-                        .execute().getValues()?.drop(1)
-                }
-
+            // Buscar en el registro de todos los cotos
+            stateALLResidentes?.cache?.forEach { row ->
+                //tipo == automovil
                 //Filtrar solo los AUTOMOVILES
-                rowsRes?.forEach { row ->
-                    //tipo == automovil
-                    if (row[4].toString().startsWith("auto",true)){
-                        val placa: String? = row.firstNotNullOfOrNull { it.toString().extraerPlaca() }
-                        if (placa != null ){
-                            val calle = row[2].toString()
-                            val numero= row[3].toString()
-                            allRows.add(listOf(placa,calle,numero))
-                        }
+                if (row[4].toString().startsWith("auto",true)){
+                    val placa: String? = row.firstNotNullOfOrNull { it.toString().extraerPlaca() }
+                    if (placa != null ){
+                        val calle = row[2].toString()
+                        val numero= row[3].toString()
+                        allRows.add(listOf(placa,calle,numero))
                     }
                 }
             }
@@ -775,6 +762,28 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             allRows.addAll(rows)
 
             // Retornamos la lista para que SmartCache la guarde en RAM y Disco
+            allRows
+        }
+    }
+    fun getAllPosibleResidentes(forceLoad: Boolean = false):List<List<Any>> = runBlocking{
+        getSmartCache(SheetTable.ALL_RESIDENTES_UNIDAD, forceLoad) {
+            val allRows = mutableListOf<List<Any>>()
+            val spreadsheetIds = mySettings.getSimpleList("PARKING_SPREADSHEET_ID")
+            for (spreadsheetId in spreadsheetIds){
+                if (spreadsheetId.isEmpty()) continue
+                val sheetNameResidentes = getSheetsNameRegex(spreadsheetId, Regex("${SheetTable.ALL_RESIDENTES_UNIDAD.sheetName}.*",
+                    RegexOption.IGNORE_CASE))
+
+                sheetNameResidentes.forEach { sheetResidente ->
+                    val rowsRes = sheetsService.spreadsheets().values()
+                            .get(
+                                spreadsheetId,
+                                "$sheetResidente!${SheetTable.ALL_RESIDENTES_UNIDAD.range}"
+                            ) // all residente
+                            .execute().getValues()?.drop(1) ?: emptyList()
+                    allRows.addAll(rowsRes)
+                }
+            }
             allRows
         }
     }

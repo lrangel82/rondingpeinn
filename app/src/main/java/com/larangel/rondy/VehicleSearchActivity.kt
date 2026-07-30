@@ -143,6 +143,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private var tagEncontrado: String? = null
     private var tagInexistente: String? = null
     private var placaInexistente: String? =null
+    private var ejecutandoEnvioAdmon: Boolean = false
     private val events = ArrayList<EventModal>()
     private val REQUEST_CAMERA_PERMISSION = 100
     private val REQUEST_LOCATION_PERMISSION = 101
@@ -340,9 +341,20 @@ class  VehicleSearchActivity : AppCompatActivity() {
             mostrarAyuda()
         }
 
+        if (savedInstanceState != null) {
+            // Recuperamos la URI que se guardó antes de que el proceso muriera
+            photoUri = savedInstanceState.getParcelable("saved_photo_uri")
+        }
         plateInput.requestFocus()
 
 
+    }
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // Guardamos la URI si no es nula
+        photoUri?.let {
+            outState.putParcelable("saved_photo_uri", it)
+        }
     }
 
     override fun onUserInteraction() {
@@ -893,7 +905,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
     }
     private fun processImage(image: InputImage) {
         //Reconocer PLACAS si esta activo
-        if (isActive) {
+        if (isActive && !ejecutandoEnvioAdmon) {
             val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
             recognizer.process(image)
                 .addOnSuccessListener { visionText ->
@@ -988,6 +1000,12 @@ class  VehicleSearchActivity : AppCompatActivity() {
                     photoThumbnail.setImageBitmap(finalBitmap)
                     photoThumbnail.visibility = android.view.View.VISIBLE
 
+                    if (ejecutandoEnvioAdmon) {
+                        ejecutandoEnvioAdmon = false
+                        enviarImagenIndividualWhatsapp(photoUri, resultText.getText().toString())
+                        cleanFrom()
+                    }
+
                 }
 
             }
@@ -1075,9 +1093,11 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 "-987654321"
             )
             dataRaw?.addAutoRegistrados(valuesNoVEHICULO as List<String>)
+            ejecutandoEnvioAdmon=true //Con esto se envia mesanja a whatsapp despues de capturar imagen
+            captureImage() //Capturar imagen para reportar
+
             withContext(Dispatchers.Main) {
                 Toast.makeText(this@VehicleSearchActivity, "Reportado al administrador", Toast.LENGTH_SHORT).show()
-                cleanFrom()
             }
         }
     }
@@ -1093,6 +1113,8 @@ class  VehicleSearchActivity : AppCompatActivity() {
         stopSearchLoop = true
         try {
             //########## TAG #################
+            //E28069152000700F68B8ED0E ESTE NO SE LEE
+            //AABB0000CF7A9F0000000000
             tagEncontrado = _plate.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
             if (tagEncontrado != null){
                 //es Digito, o viene del lector de TAG RFID
@@ -1115,6 +1137,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
             //Se encontro?
             waitingOff()
             saveEventButton.setText("Salvar Placa en CAJON VISITA")
+            saveEventButton.setBackgroundColor(Color.parseColor("#008000"))
             saveEventButton.visibility= View.VISIBLE
             tagInexistente = null
             placaInexistente = null
@@ -1133,12 +1156,14 @@ class  VehicleSearchActivity : AppCompatActivity() {
                         //Encontrado y fue TAG, mostrar la placa asociada y preguntar si coincide
                         resultText.append("\n### PLACA #### ${matches[0][3]} ######")
                         saveEventButton.setText("......No es la placa ${matches[0][3]} ?????")
+                        saveEventButton.setBackgroundColor(Color.YELLOW)
                     }
                 }else if(tagEncontrado != null) {
                     tagInexistente = dataID
                     placaInexistente = null
-                    resultText.append("LectorTAGS ...\n${dataID}")
+                    resultText.append("TAG:${dataID}\n\n >>>>>NO SE ENCONTRO EL TAG... REPORTAR TAG<<<<\n\n⬇\uFE0F⬇\uFE0F⬇\uFE0F⬇\uFE0F")
                     saveEventButton.setText("Reportar TAG ${dataID} inexistente")
+                    saveEventButton.setBackgroundColor(Color.RED)
                     stopSearchVehicle = true
                     stopSearchLoop = true
                     plateInput.setText("")
@@ -1146,8 +1171,9 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 }else {
                     tagInexistente = null
                     placaInexistente = dataID
-                    resultText.append("NO EXISTE LA PLACA: $dataID")
+                    resultText.append("NO EXISTE LA PLACA: $dataID\n\n >>>>>  REPORTAR PLACA  <<<<\n\n⬇\uFE0F⬇\uFE0F⬇\uFE0F⬇\uFE0F")
                     saveEventButton.setText("Reportar PLACA ${dataID} inexistente")
+                    saveEventButton.setBackgroundColor(Color.RED)
                     stopSearchVehicle = true
                     stopSearchLoop = true
                     plateInput.setText(dataID)

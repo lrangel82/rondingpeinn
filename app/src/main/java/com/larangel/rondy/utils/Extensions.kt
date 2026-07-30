@@ -41,12 +41,34 @@ fun String.extraerTAG(): String? {
     return TagRegex.find(this.uppercase())?.value
 }
 fun String.extraerTAGHexToDec():String?{
-    val TagRegex = Regex("AABB([0-9A-F]{10})0{10}")
-    val hexadecimal = TagRegex.find(this.uppercase())?.groups?.get(1)?.value
+    // 1. Limpiar y normalizar la cadena a mayúsculas
+    val cleanInput = this.trim().uppercase()
+
+    // 2. Validar que tenga exactamente 24 caracteres y que sean hexadecimales válidos
+    val hexRegex = Regex("^[0-9A-F]{24}$")
+    if (!hexRegex.matches(cleanInput)) return null
+
     return try {
-        // Convertimos de Hexadecimal (base 16) a Decimal
-        // Usamos toLong porque un hex de 10 dígitos puede superar el límite de un Int
-        hexadecimal?.toLong(16)?.toString()
+        val hexadecimalUtil: String
+
+        // 3. Comprobar si los últimos caracteres son ceros (Opción 1: TAG con ceros de relleno)
+        if (cleanInput.endsWith("0")) {
+            // Quitamos todos los ceros finales de relleno
+            val sinCerosFinales = cleanInput.dropLastWhile { it == '0' }
+
+            // Si la cadena quedó vacía o más corta, tomamos los caracteres útiles restantes
+            // Aseguramos un máximo de 8 caracteres (Wiegand 34), rellenando a la izquierda si es necesario
+            val utiles = sinCerosFinales.takeLast(8)
+            hexadecimalUtil = utiles.padStart(8, '0')
+        } else {
+            // 4. Si NO termina en ceros (Opción 2: TAG con datos completos)
+            // Tomamos estrictamente los últimos 8 caracteres hexadecimales
+            hexadecimalUtil = cleanInput.takeLast(8)
+        }
+
+        // 5. Convertir el bloque final de 8 caracteres hexadecimales a Decimal
+        // Usamos toLong(16) por seguridad, aunque 8 caracteres hex caben justo en un entero sin signo.
+        hexadecimalUtil.toLong(16).toString()
     } catch (e: Exception) {
         null
     }
@@ -122,30 +144,33 @@ var stopSearchLoop = false
 fun buscarTagEnListaCache(tagsCache:List<List<Any>>, strLectorRFID: String): List<List<Any>>{
     val allLines = strLectorRFID.split("\n")
     var matches: MutableList<List<Any>> = mutableListOf()
+    var tagsBuscados: MutableList<String> = mutableListOf()
     stopSearchLoop = false
     for (line in allLines) {
         if (stopSearchLoop) return emptyList()
         val tagValue = line.extraerTAGHexToDec()
-        if (tagValue != null){
+
+        if (tagValue != null && !tagsBuscados.contains(tagValue)){
+            tagsBuscados.add(tagValue)
             var foundTag=false
             tagsCache?.forEach { tag ->
                 if (stopSearchLoop) return@forEach
                 val tagId = tag[0].toString()
-
                 // 1. Coincidencia Exacta (Prioridad máxima)
                 if (tagId.equals(tagValue, ignoreCase = true)) {
-                    foundTag=true
+                    foundTag = true
                     matches.clear()
-                    matches.add( tag )
+                    matches.add(tag)
                     stopSearchLoop = true
                     return matches
                 }
 
                 // 2. Similares (Sugerencias)
                 if (tagId.startsWith(tagValue, true) || tagValue.startsWith(tagId)) {
-                    foundTag=true
+                    foundTag = true
                     matches.add(tag)
                 }
+
             }
             if (foundTag == false) { //No se encontro ninguno
                 matches.add(listOf(tagValue,"No registrado","0")) //Tag, calle, numero
