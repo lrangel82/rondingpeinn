@@ -87,11 +87,11 @@ class MainActivity : AppCompatActivity() {
 //        binding = ActivityMainBinding.inflate(layoutInflater)
 //        setContentView(binding.root)
 
-        val btn: Button = findViewById(R.id.btn_StartRondin)
-        btn.setOnClickListener{
-            val intent: Intent = Intent(this, StartRondinActivity::class.java )
-            startActivity(intent)
-        }
+//        val btn: Button = findViewById(R.id.btn_StartRondin)
+//        btn.setOnClickListener{
+//            val intent: Intent = Intent(this, StartRondinActivity::class.java )
+//            startActivity(intent)
+//        }
         val btnPermisos: Button = findViewById(R.id.btn_permisos)
         btnPermisos.setOnClickListener{
             if (isActive) {
@@ -102,11 +102,15 @@ class MainActivity : AppCompatActivity() {
                 mostrarSplashPermisos()
             }
         }
+
+        //MAPA
         val btn_vehiculos: Button = findViewById(R.id.btn_vehiculos)
         btn_vehiculos.setOnClickListener{
             val intent: Intent = Intent(this, VehicleSearchActivity::class.java )
             startActivity(intent)
         }
+
+        //INCIDENCIAS
         val btn_incidencias: Button = findViewById(R.id.btnIncidenciasMain)
         btn_incidencias.setOnClickListener {
             if (isActive) {
@@ -118,21 +122,22 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        val copyRAdmin: TextView = findViewById<TextView>(R.id.textCopyright)
-        copyRAdmin.setOnClickListener{
-            val clickRequired: Int = 9
-            if (counterAdmin++ >= clickRequired ) {
-                // Modo Admin
-                val intent: Intent = Intent(this, ProgramarTags::class.java )
-                startActivity(intent)
-            }
-            else if ( counterAdmin >= clickRequired - 2 ) {
-                Toast.makeText(this, "Admin left clicks: ${ clickRequired - counterAdmin }", Toast.LENGTH_SHORT)
-                    .show()
-            }
+//        val copyRAdmin: TextView = findViewById<TextView>(R.id.textCopyright)
+//        copyRAdmin.setOnClickListener{
+//            val clickRequired: Int = 9
+//            if (counterAdmin++ >= clickRequired ) {
+//                // Modo Admin
+//                val intent: Intent = Intent(this, ProgramarTags::class.java )
+//                startActivity(intent)
+//            }
+//            else if ( counterAdmin >= clickRequired - 2 ) {
+//                Toast.makeText(this, "Admin left clicks: ${ clickRequired - counterAdmin }", Toast.LENGTH_SHORT)
+//                    .show()
+//            }
+//
+//        }
 
-        }
-
+        //CONFIG --> Settings
         val btnCnfTags: ImageButton = findViewById(R.id.btnConfigTag)
         btnCnfTags.setOnClickListener {
             val intent: Intent = Intent(this, SettingsActivity::class.java )
@@ -141,8 +146,12 @@ class MainActivity : AppCompatActivity() {
 
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayoutMain)
         swipeRefreshLayout.setOnRefreshListener {
-            validaLicencia()
-            loadingSheetDATA(true)
+            lifecycleScope.launch {
+                swipeRefreshLayout.isRefreshing = true
+                validaLicencia(true)
+                loadingSheetDATA(true)
+                swipeRefreshLayout.isRefreshing = false
+            }
         }
 
         mySettings = MySettings(applicationContext)
@@ -159,8 +168,12 @@ class MainActivity : AppCompatActivity() {
         }
         else {
             dataRaw = DataRawRondin(applicationContext, CoroutineScope(Dispatchers.IO))
-            //validaLicencia()
-            loadingSheetDATA()
+            lifecycleScope.launch {
+                swipeRefreshLayout.isRefreshing = true
+                validaLicencia()
+                loadingSheetDATA()
+                swipeRefreshLayout.isRefreshing = false
+            }
         }
         isActive= mySettings?.getInt( "APP_ACTIVADA",0) == 1
 
@@ -230,9 +243,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun validaLicencia(){
+    private suspend fun validaLicencia(force: Boolean = false){
         val copyRAdmin: TextView = findViewById<TextView>(R.id.textCopyright)
-        swipeRefreshLayout.isRefreshing = true
         Toast.makeText(this@MainActivity,"VALIDANDO LICENCIA....",Toast.LENGTH_SHORT).show()
 
         //VERSION
@@ -243,38 +255,36 @@ class MainActivity : AppCompatActivity() {
             val bucketName = mySettings?.getString("BUCKET_NAME", "").toString()
             val regionStr  = mySettings?.getString("REGION_STR", "").toString()
             val codigoActiv= mySettings?.getString("CODIGO_ACTIVACION", "").toString()
-            lifecycleScope.launch(Dispatchers.IO) {
+            //lifecycleScope.launch(Dispatchers.IO) {
                 try {
                     //Buscar y descargar nueva configuracion
-                    mySettings?.fetchAndProcessS3Config(bucketName, regionStr, codigoActiv, force = true)
-                    //Inizializa el ENUM con los valores correctos del nombre de sheets
-                    SheetTable.initializeAll(mySettings)
-                    isActive= mySettings?.getInt( "APP_ACTIVADA",0) == 1
+                    mySettings?.fetchAndProcessS3Config(bucketName, regionStr, codigoActiv, force = force)
                     withContext(Dispatchers.Main) {
-                        if (isActive) {
-                            copyRAdmin.text = "${versionName} develop by Luis Rangel"
-                        } else {
-                            copyRAdmin.text =
-                                "#### APP DESACTIVADA #### contactar luisrangel@gmail.com ${versionName}"
-                            mostrarSplashDemo()
-                        }
-                        swipeRefreshLayout.isRefreshing = false
+                        //Inizializa el ENUM con los valores correctos del nombre de sheets
+                        SheetTable.initializeAll(mySettings)
+                        isActive= mySettings?.getInt( "APP_ACTIVADA",0) == 1
                     }
+
+                    if (isActive) {
+                        copyRAdmin.text = "${versionName} develop by Luis Rangel"
+                    } else {
+                        copyRAdmin.text =
+                            "#### APP DESACTIVADA #### contactar luisrangel@gmail.com ${versionName}"
+                        mostrarSplashDemo()
+                    }
+
                 } catch (e: Exception) {
-                    withContext(Dispatchers.Main) {
-                        swipeRefreshLayout.isRefreshing = false
-                        e.printStackTrace()
-                        Toast.makeText(this@MainActivity,"Error al validar la LICENCIA, error: ${e.message}",Toast.LENGTH_LONG).show()
-                    }
+                    e.printStackTrace()
+                    Toast.makeText(this@MainActivity,"Error al validar la LICENCIA, error: ${e.message}",Toast.LENGTH_LONG).show()
                 }
-            }
+            //}
         }
         else{
             val appActivada = mySettings?.getInt("APP_ACTIVADA",0)
             if (appActivada == 1) {
                 copyRAdmin.text = "(SIN INTERNET)       ${versionName} develop by Luis Rangel"
                 //Mostrar cache
-                lifecycleScope.launch(Dispatchers.IO) {
+                //lifecycleScope.launch(Dispatchers.IO) {
                     val vehiculosData = dataRaw?.getCachedVehiclesData()
                     val tagsData = dataRaw?.getTagsCache()
                     val domiciliosUbicacion = dataRaw?.getDomiciliosUbicacion()
@@ -301,7 +311,7 @@ class MainActivity : AppCompatActivity() {
                             .setPositiveButton("OK", null)
                             .show()
                     }
-                }
+                //}
 
             }
             else {
@@ -386,15 +396,12 @@ class MainActivity : AppCompatActivity() {
 
 
     @SuppressLint("SuspiciousIndentation")
-    private fun loadingSheetDATA(forceLoad: Boolean = false){
+    private suspend fun loadingSheetDATA(forceLoad: Boolean = false){
 
         //Load all the data in thread
-        lifecycleScope.launch(Dispatchers.IO) {
-            withContext(Dispatchers.Main) {
-                if (::swipeRefreshLayout.isInitialized)
-                    swipeRefreshLayout.isRefreshing = true
-            }
-
+        //lifecycleScope.launch(Dispatchers.IO) {
+            //withContext(Dispatchers.Main) {
+        val dataResult = withContext(Dispatchers.IO) {
             val alarmas = dataRaw?.getAlarmas(forceLoad)
             val residentes = dataRaw?.getResidentes(forceLoad)
             val autosEventos = dataRaw?.getAutosEventos(forceLoad)
@@ -409,13 +416,22 @@ class MainActivity : AppCompatActivity() {
             val incidenciasData = dataRaw?.getIncidenciasEventos(forceLoad)
             val incidenciasConfig = dataRaw?.getIncidenciasConfig(forceLoad)
 
-            withContext(Dispatchers.Main) {
-                swipeRefreshLayout.isRefreshing = false
+            // Empaquetamos los datos para usarlos afuera en el hilo Main
+            DataWrapper(
+                alarmas, residentes, autosEventos, vehiculosData, tagsData,
+                domiciliosUbicacion, porRevisar, parkingSlots, multas,
+                domiciliosWarnings, permisosData, incidenciasData, incidenciasConfig
+            )
+        }
+            //}
+
+            //withContext(Dispatchers.Main) {
+                //swipeRefreshLayout.isRefreshing = false
                 //Init textos
                 updateTextoBotones()
 
                 //SetUp Alarmas
-                alarmas?.forEach { row->
+        dataResult.alarmas?.forEach { row->
                     programarAlarma(applicationContext, row[0].toString(),row[1].toString())
                 }
 
@@ -425,11 +441,18 @@ class MainActivity : AppCompatActivity() {
                 val urlLogo = mySettings?.getString("IMAGEN_LOGO_PNG","")
                 cargarImagenConfigurada(logoimg,urlLogo,R.drawable.logo)
                 try {
-                    val totalCargados = residentes!!.count()
-                        + autosEventos!!.count() + vehiculosData!!.count() + tagsData!!.count()
-                        + domiciliosUbicacion!!.count() + porRevisar!!.count() + parkingSlots!!.count()
-                        + multas!!.count() + domiciliosWarnings!!.count() + permisosData!!.count()
-                        + incidenciasData!!.count() + incidenciasConfig!!.count()
+                    val totalCargados = (dataResult.residentes?.count() ?: 0) +
+                            (dataResult.autosEventos?.count() ?: 0) +
+                            (dataResult.vehiculosData?.count() ?: 0) +
+                            (dataResult.tagsData?.count() ?: 0) +
+                            (dataResult.domiciliosUbicacion?.count() ?: 0) +
+                            (dataResult.porRevisar?.count() ?: 0) +
+                            (dataResult.parkingSlots?.count() ?: 0) +
+                            (dataResult.multas?.count() ?: 0) +
+                            (dataResult.domiciliosWarnings?.count() ?: 0) +
+                            (dataResult.permisosData?.count() ?: 0) +
+                            (dataResult.incidenciasData?.count() ?: 0) +
+                            (dataResult.incidenciasConfig?.count() ?: 0)
                     Toast.makeText(
                         this@MainActivity,
                         "Iniciando...${totalCargados} registrosDB",
@@ -439,9 +462,9 @@ class MainActivity : AppCompatActivity() {
                     e.printStackTrace()
                     Toast.makeText(this@MainActivity,"Error cargar, error: ${e.message}",Toast.LENGTH_LONG).show()
                 }
-            }
+            //}
 
-        } // fun coroutine
+        //} // fun coroutine
 
     }
     private fun updateTextoBotones(){
@@ -624,3 +647,21 @@ class MainActivity : AppCompatActivity() {
     }
 
 }
+
+
+// Clase auxiliar de ayuda (puedes ponerla al final de tu archivo) para pasar los datos limpios de IO a Main
+private class DataWrapper(
+    val alarmas: List<List<Any>>?, // Cambia el tipo List<List<Any>> por el tipo real que retornen tus funciones
+    val residentes: List<Any>?,
+    val autosEventos: List<Any>?,
+    val vehiculosData: List<Any>?,
+    val tagsData: List<Any>?,
+    val domiciliosUbicacion: List<Any>?,
+    val porRevisar: List<Any>?,
+    val parkingSlots: List<Any>?,
+    val multas: List<Any>?,
+    val domiciliosWarnings: List<Any>?,
+    val permisosData: List<Any>?,
+    val incidenciasData: List<Any>?,
+    val incidenciasConfig: List<Any>?
+)

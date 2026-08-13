@@ -154,7 +154,8 @@ class SettingsActivity : AppCompatActivity() {
                 mySettings?.fetchAndProcessS3Config(
                     bucketName,
                     region,
-                    txtCodigoActivation.text.toString()
+                    txtCodigoActivation.text.toString(),
+                    force = true
                 )
                 withContext(Dispatchers.Main) {
                     //Inizializa el ENUM con los valores correctos del nombre de sheets
@@ -180,8 +181,10 @@ class SettingsActivity : AppCompatActivity() {
                             "Finalizada SYNC",
                             Toast.LENGTH_LONG
                         ).show()
-                        this@SettingsActivity.finish()
+                        //this@SettingsActivity.finish()
                     }
+
+                    reiniciarRondy()
 
                 }
             }else {
@@ -195,6 +198,14 @@ class SettingsActivity : AppCompatActivity() {
             }
         }
 
+    }
+    fun reiniciarRondy(){
+        val intent: Intent = Intent(this, MainActivity::class.java )
+        val componentName = intent.component
+        val restartIntent = Intent.makeRestartActivityTask(componentName)
+
+        startActivity(restartIntent)
+        kotlin.system.exitProcess(0)
     }
     fun mostrarAyuda() {
         val txtCodigoAct = findViewById<EditText>(R.id.txtCodigoActivacion)

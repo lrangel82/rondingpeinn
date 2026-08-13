@@ -111,6 +111,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.api.client.util.DateTime
 import com.larangel.rondy.CatalgoVehiculosActivity
 import com.larangel.rondy.ProgramarTags
 import com.larangel.rondy.StartRondinActivity
@@ -2053,11 +2054,19 @@ class  VehicleSearchActivity : AppCompatActivity() {
     //##################### RONDINERO ##################
     private fun inicializaRondinSwitch(){
         val rswitch = findViewById<Switch>(R.id.swRonding)
-        val checkPoints = mySettings?.getListCheckPoint("LIST_CHECKPOINT")!!.toMutableList()
+        //val checkPoints = mySettings?.getListCheckPoint("LIST_CHECKPOINT")!!.toMutableList()
         try { //Limpiar cualquier listener existente
             rswitch.setOnCheckedChangeListener(null)
             //Hay algun rondin iniciado?
-            rswitch.isChecked = checkPoints.size > 0
+            val inicioRondinFecha= mySettings?.getString("INICIO_RONDIN", "").toString()
+            val dateTimeInicio = dataRaw?.parseLenientDateTime(inicioRondinFecha)
+            val horasDesdeInicioRondin = java.time.Duration.between(dateTimeInicio, LocalDateTime.now()).toHours()
+
+            //EL inicio del rondin fue hace menos de 6 horas?
+            if (inicioRondinFecha != null &&  horasDesdeInicioRondin < 6)
+                rswitch.isChecked = true
+            else
+                rswitch.isChecked = false
 
             setListenerRondinSwitch(rswitch)
             //Ocultar/Mostrar elementos
@@ -2143,6 +2152,8 @@ class  VehicleSearchActivity : AppCompatActivity() {
         pBarCheckPoints.visibility = View.VISIBLE
         tPBarCheckPoints.visibility = View.VISIBLE
         listaImagenesRondin.clear() //Limpiar cualquier listado de imagenes
+        val fechaActual = LocalDateTime.now().toString()
+        mySettings?.saveString("INICIO_RONDIN", fechaActual)
         //Start NFC
         InitNFC()
         //Esta corriendo en emulador agregar un checkPoint
@@ -2154,6 +2165,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
         try {
             //Enviar mensaje e imagen por whatsapp
             enviarFinRondintoWhatsapp()
+            mySettings?.saveString("INICIO_RONDIN", "")
 
         }catch (e: Exception){
             Toast.makeText(this, "Error al Finalizar el Rondin: ${e.message}", Toast.LENGTH_SHORT).show()

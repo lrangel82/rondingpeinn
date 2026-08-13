@@ -34,12 +34,12 @@ class MySettings(context: Context) {
     suspend fun fetchAndProcessS3Config(bucketName: String, regionStr: String, targetHKey: String, force:Boolean = false) {
         //Verificar si ya procesamos esto hoy
         val numDayValidado = getInt("DIA_VALIDADO_CODIGO",0)
-        if (numDayValidado == LocalDate.now().dayOfMonth && !force) return
+        if ((LocalDate.now().dayOfMonth - numDayValidado) < 15 && !force) return
 
         val regex = Regex("configCasetaApp/config\\.ini_.*[0-9.]+")
         val bucketUrl = "https://$bucketName.s3.$regionStr.amazonaws.com"
         val client = OkHttpClient()
-        saveInt("APP_ACTIVADA",0)
+
         try {
             // 1. Obtener el XML del listado del bucket
             val request = Request.Builder().url(bucketUrl).build()
@@ -47,6 +47,7 @@ class MySettings(context: Context) {
             val xmlBody = response.body?.string() ?: ""
 
             if (!response.isSuccessful) throw Exception("Error al obtener lista: ${response.code}")
+            saveInt("APP_ACTIVADA",0)
 
             // 2. Parsear el XML para encontrar la llave (Key) que coincida con la Regex
             val filesFoundKey = parseS3XmlForMatchingKey(xmlBody, regex)

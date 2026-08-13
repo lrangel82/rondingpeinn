@@ -93,7 +93,7 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     private val TAG = "package:com.larangel.rondy"
     private val CACHE_DURATION_MS = 60 * 60 * 1000 // 1 hora
 
-    private fun parseLenientDateTime(dateTimeString: String): LocalDateTime {
+    fun parseLenientDateTime(dateTimeString: String): LocalDateTime {
         val formats = listOf(
             "d/MM/yyyy H:mm:ss",
             "d/MM/yyyy HH:mm:ss",
@@ -107,7 +107,8 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             "MM-dd-yyyy HH:mm:ss",
             "MM/dd/yyyy HH:mm:ss",
             "yyyyMMdd HHmmss",
-            "yyyyMMdd'T'HHmmss"
+            "yyyyMMdd'T'HHmmss",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
         ).map { DateTimeFormatter.ofPattern(it) }
 
         for (format in formats) {
@@ -119,7 +120,7 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
         }
         return LocalDateTime.MIN // Return null if no format matches
     }
-    private fun parseLenientDate(dateTimeString: String): LocalDate {
+    fun parseLenientDate(dateTimeString: String): LocalDate {
         val formats = listOf(
             "d/MM/yyyy",
             "yyyy/MM/dd",

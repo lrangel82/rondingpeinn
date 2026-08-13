@@ -11,11 +11,12 @@ android {
     compileSdk = 36
 
     defaultConfig {
+        manifestPlaceholders += mapOf()
         applicationId = "com.larangel.rondy"
         minSdk = 29
-        targetSdk = 35
-        versionCode = 7
-        versionName = "Heimdall.06"
+        targetSdk = 36
+        versionCode = 8
+        versionName = "Heimdall.08"
         //Argos,Heimdall,Anubis,Cerbero,Garam,Jano,Talos,Ladon,Grifo,Sleipnit
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
