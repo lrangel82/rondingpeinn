@@ -170,7 +170,7 @@ class MainActivity : AppCompatActivity() {
             dataRaw = DataRawRondin(applicationContext, CoroutineScope(Dispatchers.IO))
             lifecycleScope.launch {
                 swipeRefreshLayout.isRefreshing = true
-                validaLicencia()
+                //validaLicencia()
                 loadingSheetDATA()
                 swipeRefreshLayout.isRefreshing = false
             }
