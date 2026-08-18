@@ -1,6 +1,8 @@
 import CheckPoint
 import android.content.Context
 import android.content.SharedPreferences
+import android.net.NetworkCapabilities
+import android.os.Build
 import androidx.core.content.edit
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
@@ -25,13 +27,27 @@ import android.widget.Toast
 import com.larangel.rondy.SettingsActivity
 import java.time.LocalDate
 
-class MySettings(context: Context) {
+class MySettings(private val context: Context) {
 
     private val sharedPreferences: SharedPreferences by lazy {
         context.getSharedPreferences("rondy_prefs_v2", Context.MODE_PRIVATE)
     }
+    private fun isNetworkAvailable(): Boolean {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val net = cm.activeNetwork ?: return false
+        val cap = cm.getNetworkCapabilities(net) ?: return false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            return cap.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                    cap.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        }else {
+            // Para versiones de Android anteriores a Marshmallow (API 23)
+            val networkInfo = cm.activeNetworkInfo
+            return networkInfo != null && networkInfo.isConnected
+        }
+    }
 
     suspend fun fetchAndProcessS3Config(bucketName: String, regionStr: String, targetHKey: String, force:Boolean = false) {
+        if (!isNetworkAvailable()) return
         //Verificar si ya procesamos esto hoy
         val numDayValidado = getInt("DIA_VALIDADO_CODIGO",0)
         if ((LocalDate.now().dayOfMonth - numDayValidado) < 15 && !force) return
@@ -273,5 +289,21 @@ class MySettings(context: Context) {
 
     fun removePreference(key: String) {
         sharedPreferences.edit() { remove(key) }
+    }
+}
+
+class CrashHandler(private val context: Context) : Thread.UncaughtExceptionHandler {
+    private val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
+
+    override fun uncaughtException(thread: Thread, throwable: Throwable) {
+        // 1. Convertir el error en texto plano
+        val errorTexto = throwable.stackTraceToString()
+
+        // 2. Guardar en tu clase existente MySettings
+        val settings = MySettings(context) // Ajusta como instancies tu clase
+        settings.saveString("ultimoCrash", errorTexto)
+
+        // 3. Dejar que la app termine de cerrarse
+        defaultHandler?.uncaughtException(thread, throwable)
     }
 }

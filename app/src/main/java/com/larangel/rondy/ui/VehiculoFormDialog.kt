@@ -2,6 +2,7 @@ package com.larangel.rondy.ui
 
 import DataRawRondin
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -38,17 +39,10 @@ class VehiculoFormDialog (
         return inflater.inflate(R.layout.dialog_vehiculo_form, container, false)
     }
 
-    private fun loadInitialData() = lifecycleScope.launch {
-        val cache = dataRaw.getDomiciliosUbicacion() ?: emptyList()
-        withContext(Dispatchers.IO) {
-            domicilios = cache
-         }
-    }
-
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        loadInitialData()
+        //loadInitialData2()
 
         val etPlaca = view.findViewById<EditText>(R.id.etFormPlaca)
         val etMarca = view.findViewById<EditText>(R.id.etFormMarca)
@@ -57,8 +51,6 @@ class VehiculoFormDialog (
         val etTag = view.findViewById<EditText>(R.id.etFormTag)
         val btnCancel = view.findViewById<Button>(R.id.btnCancel)
         val btnUpdate = view.findViewById<Button>(R.id.btnUpdate)
-        setupSpinners(view)
-
 
         // 1. Llenar datos si es edición
         row?.let {
@@ -71,13 +63,31 @@ class VehiculoFormDialog (
             preseleccionarDomicilio(it.getOrNull(1).toString(), it.getOrNull(2).toString())
         }
 
+        // 2. Lanzar la carga de datos de forma segura
+        lifecycleScope.launch {
+            // Bloqueamos de forma secuencial dentro de la corrutina usando withContext
+            domicilios = withContext(Dispatchers.IO) {
+                dataRaw.getDomiciliosUbicacion() ?: emptyList()
+            }
+            Log.d("SPINNER", "Datos cargados: ${domicilios.toString()}")
+
+            // 3. Una vez que existen los datos, configuramos Spinners y seleccionamos valores
+            setupSpinners(view)
+
+            // Si es edición, preseleccionamos ahora que los Spinners ya tienen los adapters llenos
+            row?.let {
+                preseleccionarDomicilio(it.getOrNull(1).toString(), it.getOrNull(2).toString())
+            }
+        }
+
+
         btnCancel.setOnClickListener { dismiss() }
 
         btnUpdate.setOnClickListener {
             val valuesNew = listOf(
                 etPlaca.text.toString().filter { it.isLetterOrDigit() }.uppercase(),
-                spinnerCalle.selectedItem.toString(),
-                spinnerNumero.selectedItem.toString(),
+                spinnerCalle.selectedItem.toString() ?: "",
+                spinnerNumero.selectedItem.toString() ?: "",
                 etMarca.text.toString(),
                 etModelo.text.toString(),
                 etColor.text.toString(),
@@ -108,6 +118,7 @@ class VehiculoFormDialog (
         spinnerNumero = view.findViewById<Spinner>(R.id.spinnerNumero)
         // 1. Obtener lista única de calles (posición 0 del sublistado)
         listaCalles = domicilios.map { it[0].toString() }.distinct().sorted()
+        Log.d("SPINNER", "setupSpinners listaCalles:" + listaCalles.toString())
 
         // 2. Configurar el adaptador de Calles
         val adapterCalle = ArrayAdapter(view.context, android.R.layout.simple_spinner_item, listaCalles)
@@ -142,9 +153,11 @@ class VehiculoFormDialog (
     private fun preseleccionarDomicilio(calleExistente: String, numeroExistente: String) {
         // Seleccionar Calle
         val indexCalle = listaCalles.indexOf(calleExistente)
+        Log.d("SPINNER", "indexCalle:" + indexCalle.toString() + " listaCalles:" + listaCalles.toString() + " calleExistente:" + calleExistente + " numeroExistente:" + numeroExistente)
         if (indexCalle != -1) {
             isAutoSelecting = true
             spinnerCalle.setSelection(indexCalle)
+            Log.d("SPINNER", "preseleccionarDomicilio selectedItem:" + spinnerCalle.selectedItem )
 
             // El listener de la calle disparará actualizarSpinnerNumeros automáticamente,
             // pero necesitamos esperar un momento o forzar la carga para seleccionar el número.

@@ -1,5 +1,6 @@
 package com.larangel.rondy
 
+import CrashHandler
 import MySettings
 import DataRawRondin
 import SplashSlidesDialog
@@ -81,17 +82,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Thread.setDefaultUncaughtExceptionHandler(CrashHandler(this))
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
 
-//        binding = ActivityMainBinding.inflate(layoutInflater)
-//        setContentView(binding.root)
-
-//        val btn: Button = findViewById(R.id.btn_StartRondin)
-//        btn.setOnClickListener{
-//            val intent: Intent = Intent(this, StartRondinActivity::class.java )
-//            startActivity(intent)
-//        }
         val btnPermisos: Button = findViewById(R.id.btn_permisos)
         btnPermisos.setOnClickListener{
             if (isActive) {
@@ -156,6 +150,16 @@ class MainActivity : AppCompatActivity() {
 
         mySettings = MySettings(applicationContext)
 
+        val ultimoCrash = mySettings?.getString("ultimoCrash","")
+
+        // Si hay un error guardado, lo enviamos
+        if (!ultimoCrash.isNullOrEmpty()) {
+            enviarAWhatsApp(ultimoCrash)
+
+            // IMPORTANTE: Limpiar el registro para que no lo vuelva a enviar
+            mySettings!!.saveString("ultimoCrash", "")
+        }
+
         val codigoActiviacion = mySettings?.getString("CODIGO_ACTIVACION", "")!!
         val num_tags = mySettings?.getInt("rondin_num_tags", 0)!!
         if (codigoActiviacion.isEmpty()){
@@ -190,6 +194,27 @@ class MainActivity : AppCompatActivity() {
         }
 
 
+    }
+    private fun enviarAWhatsApp(mensaje: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Ocurrió un error anteriormente")
+            .setMessage("La aplicación se cerró de forma inesperada. ¿Deseas enviar el reporte de error por WhatsApp al programador?")
+            .setPositiveButton("Enviar") { _, _ ->
+                // Si el usuario acepta, se ejecuta tu código original de WhatsApp
+                try {
+                    val intent = Intent(Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(Intent.EXTRA_TEXT, "Reporte de error:\n\n$mensaje")
+                        setPackage("com.whatsapp")
+                    }
+                    startActivity(intent)
+                } catch (e: Exception) {
+                    Toast.makeText(this, "WhatsApp no está instalado", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Cancelar", null) // Si cancela, simplemente se cierra el mensaje
+            .setCancelable(false) // Evita que se cierre si tocan fuera del cuadro
+            .show()
     }
     override fun onResume() {
         super.onResume()
