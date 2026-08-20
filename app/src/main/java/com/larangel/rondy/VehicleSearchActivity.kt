@@ -39,6 +39,7 @@ import android.nfc.Tag
 import android.nfc.tech.Ndef
 import android.os.Build
 import android.os.Environment
+import android.os.StrictMode
 import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.Menu
@@ -58,22 +59,22 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
-import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
-import com.google.api.client.http.javanet.NetHttpTransport
-import com.google.api.client.json.gson.GsonFactory
-import com.google.api.services.sheets.v4.Sheets
-import com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest
-import com.google.api.services.sheets.v4.model.DeleteDimensionRequest
-import com.google.api.services.sheets.v4.model.DimensionRange
-import com.google.api.services.sheets.v4.model.Request
-import com.google.api.services.sheets.v4.model.ValueRange
+//import com.google.api.client.googleapis.auth.oauth2.GoogleCredential
+//import com.google.api.client.http.javanet.NetHttpTransport
+//import com.google.api.client.json.gson.GsonFactory
+//import com.google.api.services.sheets.v4.Sheets
+//import com.google.api.services.sheets.v4.model.BatchUpdateSpreadsheetRequest
+//import com.google.api.services.sheets.v4.model.DeleteDimensionRequest
+//import com.google.api.services.sheets.v4.model.DimensionRange
+//import com.google.api.services.sheets.v4.model.Request
+//import com.google.api.services.sheets.v4.model.ValueRange
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import java.io.ByteArrayOutputStream
 import java.io.File as JavaFile
 import java.text.SimpleDateFormat
-import java.time.Duration
+//import java.time.Duration
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -87,7 +88,7 @@ import androidx.core.graphics.scale
 import java.io.File
 import java.io.FileOutputStream
 import android.view.View
-import android.view.ViewGroup
+//import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.CompoundButton
 import android.widget.ProgressBar
@@ -98,7 +99,8 @@ import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.widget.doOnTextChanged
-import androidx.fragment.app.Fragment
+//import androidx.fragment.app.Fragment
+// import androidx.privacysandbox.tools.core.generator.build
 import com.getkeepsafe.taptargetview.TapTarget
 import com.getkeepsafe.taptargetview.TapTargetSequence
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -110,11 +112,11 @@ import com.google.android.gms.maps.model.CircleOptions
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
 import com.google.android.gms.maps.model.MarkerOptions
-import com.google.android.material.switchmaterial.SwitchMaterial
-import com.google.api.client.util.DateTime
-import com.larangel.rondy.CatalgoVehiculosActivity
-import com.larangel.rondy.ProgramarTags
-import com.larangel.rondy.StartRondinActivity
+//import com.google.android.material.switchmaterial.SwitchMaterial
+//import com.google.api.client.util.DateTime
+//import com.larangel.rondy.CatalgoVehiculosActivity
+//import com.larangel.rondy.ProgramarTags
+//import com.larangel.rondy.StartRondinActivity
 import com.larangel.rondy.ui.VehiculoFormDialog
 import com.larangel.rondy.utils.buscarPlacaEnListaCache
 import com.larangel.rondy.utils.buscarTagEnListaCache
@@ -181,6 +183,12 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.Builder()
+            .detectDiskReads()
+            .detectDiskWrites()
+            .detectNetwork()   // Detecta si haces red en hilo principal
+            .penaltyLog()
+            .build())
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_vehicle_search)
 
@@ -232,9 +240,11 @@ class  VehicleSearchActivity : AppCompatActivity() {
         plateInput.doOnTextChanged { text, start, before, count ->
             if (stopSearchVehicle == false) {
                 if (text.toString().length >= 3) {
+                    stopSearchVehicle=true
                     plateInput.postDelayed({
+                        stopSearchVehicle=false
                         searchVehicle(text.toString())
-                    }, 800) //Esperar un poco antes de mandar la busqueda
+                    }, 1000) //Esperar un poco antes de mandar la busqueda
                 } else {
                     resultText.text = "" //Clean
                 }
@@ -1112,15 +1122,19 @@ class  VehicleSearchActivity : AppCompatActivity() {
         tagEncontrado = null
 
         stopSearchLoop = true
+        if (stopSearchVehicle) return
+        stopSearchVehicle = true
+
         try {
+            stopSearchVehicle = false
             //########## TAG #################
             //E28069152000700F68B8ED0E ESTE NO SE LEE
             //AABB0000CF7A9F0000000000
             tagEncontrado = _plate.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
-            if (tagEncontrado != null){
+            if (tagEncontrado != null) {
                 //es Digito, o viene del lector de TAG RFID
                 val tags = dataRaw?.getTagsCache() ?: emptyList()
-                matches = buscarTagEnListaCache(tags,_plate)
+                matches = buscarTagEnListaCache(tags, _plate)
                 //si encontro mas de uno debo limpiar y fue lectura de escaner, limpiar el text
                 if (matches.count() > 1 && _plate.contains("\n")) {
                     stopSearchVehicle = true
@@ -1134,6 +1148,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 val vehicles = dataRaw?.getCachedVehiclesData() ?: emptyList()
                 matches = buscarPlacaEnListaCache(vehicles,_plate)
             }
+            if (stopSearchVehicle) return
 
             //Se encontro?
             waitingOff()
@@ -1942,7 +1957,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
     fun set_pause_gps(){
         val locationManager = getSystemService(LOCATION_SERVICE) as LocationManager
-        if (locationManager != null)
+        if (locationManager != null && locationListener != null)
             locationManager.removeUpdates(locationListener as LocationListener)
     }
     @RequiresPermission(allOf = [Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION])

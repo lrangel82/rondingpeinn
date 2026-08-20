@@ -1,6 +1,6 @@
 package com.larangel.rondy
 
-import CrashHandler
+
 import MySettings
 import DataRawRondin
 import SplashSlidesDialog
@@ -17,6 +17,7 @@ import android.icu.util.Calendar
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.StrictMode
 import android.provider.Settings
 import android.view.Menu
 import android.view.MenuItem
@@ -81,8 +82,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.Builder()
+            .detectDiskReads()
+            .detectDiskWrites()
+            .detectNetwork()   // Detecta si haces red en hilo principal
+            .penaltyLog()
+            .build())
         super.onCreate(savedInstanceState)
-        Thread.setDefaultUncaughtExceptionHandler(CrashHandler(this))
         enableEdgeToEdge()
         setContentView(R.layout.activity_main)
 
@@ -116,24 +122,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-//        val copyRAdmin: TextView = findViewById<TextView>(R.id.textCopyright)
-//        copyRAdmin.setOnClickListener{
-//            val clickRequired: Int = 9
-//            if (counterAdmin++ >= clickRequired ) {
-//                // Modo Admin
-//                val intent: Intent = Intent(this, ProgramarTags::class.java )
-//                startActivity(intent)
-//            }
-//            else if ( counterAdmin >= clickRequired - 2 ) {
-//                Toast.makeText(this, "Admin left clicks: ${ clickRequired - counterAdmin }", Toast.LENGTH_SHORT)
-//                    .show()
-//            }
-//
-//        }
 
         //CONFIG --> Settings
         val btnCnfTags: ImageButton = findViewById(R.id.btnConfigTag)
         btnCnfTags.setOnClickListener {
+            val dato = 10/0
             val intent: Intent = Intent(this, SettingsActivity::class.java )
             startActivity(intent)
         }
@@ -150,16 +143,6 @@ class MainActivity : AppCompatActivity() {
 
         mySettings = MySettings(applicationContext)
 
-        val ultimoCrash = mySettings?.getString("ultimoCrash","")
-
-        // Si hay un error guardado, lo enviamos
-        if (!ultimoCrash.isNullOrEmpty()) {
-            enviarAWhatsApp(ultimoCrash)
-
-            // IMPORTANTE: Limpiar el registro para que no lo vuelva a enviar
-            mySettings!!.saveString("ultimoCrash", "")
-        }
-
         val codigoActiviacion = mySettings?.getString("CODIGO_ACTIVACION", "")!!
         val num_tags = mySettings?.getInt("rondin_num_tags", 0)!!
         if (codigoActiviacion.isEmpty()){
@@ -171,9 +154,9 @@ class MainActivity : AppCompatActivity() {
             startActivity(intent)
         }
         else {
-            dataRaw = DataRawRondin(applicationContext, CoroutineScope(Dispatchers.IO))
             lifecycleScope.launch {
                 swipeRefreshLayout.isRefreshing = true
+                dataRaw = DataRawRondin(applicationContext, CoroutineScope(Dispatchers.IO))
                 //validaLicencia()
                 loadingSheetDATA()
                 swipeRefreshLayout.isRefreshing = false
@@ -195,27 +178,7 @@ class MainActivity : AppCompatActivity() {
 
 
     }
-    private fun enviarAWhatsApp(mensaje: String) {
-        AlertDialog.Builder(this)
-            .setTitle("Ocurrió un error anteriormente")
-            .setMessage("La aplicación se cerró de forma inesperada. ¿Deseas enviar el reporte de error por WhatsApp al programador?")
-            .setPositiveButton("Enviar") { _, _ ->
-                // Si el usuario acepta, se ejecuta tu código original de WhatsApp
-                try {
-                    val intent = Intent(Intent.ACTION_SEND).apply {
-                        type = "text/plain"
-                        putExtra(Intent.EXTRA_TEXT, "Reporte de error:\n\n$mensaje")
-                        setPackage("com.whatsapp")
-                    }
-                    startActivity(intent)
-                } catch (e: Exception) {
-                    Toast.makeText(this, "WhatsApp no está instalado", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton("Cancelar", null) // Si cancela, simplemente se cierra el mensaje
-            .setCancelable(false) // Evita que se cierre si tocan fuera del cuadro
-            .show()
-    }
+
     override fun onResume() {
         super.onResume()
         updateTextoBotones()
@@ -453,9 +416,9 @@ class MainActivity : AppCompatActivity() {
             //withContext(Dispatchers.Main) {
                 //swipeRefreshLayout.isRefreshing = false
                 //Init textos
-                updateTextoBotones()
+        updateTextoBotones()
 
-                //SetUp Alarmas
+        //SetUp Alarmas
         dataResult.alarmas?.forEach { row->
                     programarAlarma(applicationContext, row[0].toString(),row[1].toString())
                 }

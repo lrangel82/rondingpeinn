@@ -160,16 +160,41 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
     }
 
     init {
-        initializeGoogleServices()
-        checarPendientesAlInicio()
+        coroutineScopeObject.launch(Dispatchers.IO) {
+            initializeGoogleServices()
+            // Una vez inicializado el servicio, checar pendientes
+            checarPendientesAlInicio()
+        }
     }
 
     private fun initializeGoogleServices() {
-        val serviceAccountStream = context.resources.openRawResource(R.raw.json_google_service_account)
-        val credential = GoogleCredential.fromStream(serviceAccountStream)
-            .createScoped(listOf("https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"))
-        sheetsService = Sheets.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance(), credential)
-            .setApplicationName("My First Project").build()
+//        val serviceAccountStream = context.resources.openRawResource(R.raw.json_google_service_account)
+//        val credential = GoogleCredential.fromStream(serviceAccountStream)
+//            .createScoped(listOf("https://www.googleapis.com/auth/drive", "https://www.googleapis.com/auth/spreadsheets"))
+//        sheetsService = Sheets.Builder(NetHttpTransport(), GsonFactory.getDefaultInstance(), credential)
+//            .setApplicationName("My First Project").build()
+        try {
+            val serviceAccountStream = context.resources.openRawResource(R.raw.json_google_service_account)
+            val credential = GoogleCredential.fromStream(serviceAccountStream)
+                .createScoped(listOf(
+                    "https://www.googleapis.com/auth/drive",
+                    "https://www.googleapis.com/auth/spreadsheets"
+                ))
+
+            // Este .build() es el que causa el error de StrictMode
+            val service = Sheets.Builder(
+                NetHttpTransport(),
+                GsonFactory.getDefaultInstance(),
+                credential
+            )
+                .setApplicationName("Rondy App")
+                .build()
+
+            sheetsService = service
+            Log.d("DataRaw", "Google Sheets inicializado correctamente")
+        } catch (e: Exception) {
+            Log.e("DataRaw", "Error inicializando Google Services: ${e.message}")
+        }
 
     }
     private fun checarPendientesAlInicio() {
@@ -273,6 +298,7 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
         return if (isConnected) {
             withContext(Dispatchers.IO) {
                 try {
+                    if (sheetsService == null) return@withContext diskCache
                     val freshData = fetcher()
                     mySettings.saveList("${table.cacheKey}_CACHE", freshData as List<List<String>>)
                     mySettings.saveLong(table.timestampKey, now)
