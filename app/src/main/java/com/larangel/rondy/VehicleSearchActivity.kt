@@ -1005,7 +1005,9 @@ class  VehicleSearchActivity : AppCompatActivity() {
                     //Guardar en LISTA para enviar al FINALIZAR RONDIN
                     if(findViewById<Switch>(R.id.swRonding).isChecked) { //Esta en modo rondin
                         // 4. Guardar en la lista global para enviar después por WhatsApp
-                        listaImagenesRondin.add(photoUri!!)
+                        photoUri?.let { uri ->
+                            listaImagenesRondin.add(uri)
+                        }
                     }
                     // Actualizar el thumbnail para que el usuario vea la foto ya editada
                     photoThumbnail.setImageBitmap(finalBitmap)
