@@ -106,6 +106,7 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             "dd/MM/yyyy HH:mm:ss",
             "MM-dd-yyyy HH:mm:ss",
             "MM/dd/yyyy HH:mm:ss",
+            "M/d/yyyy H:mm:ss",
             "yyyyMMdd HHmmss",
             "yyyyMMdd'T'HHmmss",
             "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
@@ -901,6 +902,7 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                 val fechaFinStr = row.getOrNull(8)?.toString() ?: ""
                 val procesadoRobot = row.getOrNull(13)?.toString() ?: ""
 
+                if (fechaInicioStr.isBlank() && fechaFinStr.isBlank()) return@filter false
                 if ( !stringTrue.contains(procesadoRobot) && esAdmin == 1){ //Si es Admin regresar los no validados
                     //No ha sido procesado y es admin
                     true

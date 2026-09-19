@@ -8,6 +8,7 @@ import SheetRow
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.ProgressBar
@@ -85,54 +86,6 @@ class PermisosActivity : AppCompatActivity() {
         }
     }
 
-    private fun parseLenientDateTime(dateTimeString: String): LocalDateTime {
-        val formats = listOf(
-            "d/MM/yyyy H:mm:ss",
-            "d/MM/yyyy HH:mm:ss",
-            "yyyy/MM/dd HH:mm:ss",
-            "yyyy-MM-dd HH:mm:ss",
-            "yyyy-MM-dd'T'HH:mm:ss",
-            "yyyy/MM/dd HH:mm:ss",
-            "yyyy/MM/dd'T'HH:mm:ss",
-            "dd-MM-yyyy HH:mm:ss",
-            "dd/MM/yyyy HH:mm:ss",
-            "MM-dd-yyyy HH:mm:ss",
-            "MM/dd/yyyy HH:mm:ss",
-            "yyyyMMdd HHmmss",
-            "yyyyMMdd'T'HHmmss"
-        ).map { DateTimeFormatter.ofPattern(it) }
-
-        for (format in formats) {
-            try {
-                return LocalDateTime.parse(dateTimeString, format)
-            } catch (e: Exception) {
-                // Try the next format if parsing fails
-            }
-        }
-        return LocalDateTime.MIN // Return null if no format matches
-    }
-    private fun parseLenientDate(dateTimeString: String): LocalDate {
-        val formats = listOf(
-            "d/MM/yyyy",
-            "yyyy/MM/dd",
-            "yyyy-MM-dd",
-            "dd-MM-yyyy",
-            "dd/MM/yyyy",
-            "MM-dd-yyyy",
-            "MM/dd/yyyy",
-            "M/dd/yyyy",
-            "yyyyMMdd"
-        ).map { DateTimeFormatter.ofPattern(it) }
-
-        for (format in formats) {
-            try {
-                return LocalDate.parse(dateTimeString, format)
-            } catch (e: Exception) {
-                // Try the next format if parsing fails
-            }
-        }
-        return LocalDate.MIN // Return null if no format matches
-    }
 
     @SuppressLint("NotifyDataSetChanged")
     private fun fetchSheetData(forceLoad: Boolean = false) {
@@ -147,15 +100,15 @@ class PermisosActivity : AppCompatActivity() {
                 permisosData?.forEach { permiso ->
                     try {
                         val userModal = PermisosModal(
-                            fechaCreado = parseLenientDateTime(permiso[0].toString()),
+                            fechaCreado = dataRaw!!.parseLenientDateTime(permiso[0].toString()),
                             calle = permiso[1].toString(),
                             numero = permiso[2].toString(),
                             solicitante = permiso[3].toString(),
                             correo = permiso[4].toString(),
                             tipoAcceso = permiso[5].toString(),
                             tipo = permiso[6].toString(),
-                            fechaInicio = parseLenientDate(permiso[7].toString()),
-                            fechaFin = parseLenientDate(permiso[8].toString()),
+                            fechaInicio = dataRaw!!.parseLenientDate(permiso[7].toString()),
+                            fechaFin = dataRaw!!.parseLenientDate(permiso[8].toString()),
                             descripcion = permiso[9].toString(),
                             nombrePersonas = permiso[10].toString(),
                             aprobado = stringTrue.contains(permiso.getOrNull(11)),

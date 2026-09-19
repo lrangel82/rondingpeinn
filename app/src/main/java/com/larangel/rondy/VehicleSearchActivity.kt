@@ -174,6 +174,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
     private var stopSearchVehicle: Boolean = false
     private var isActive: Boolean = false
+    private var searchJob: Job? = null
 
     //RONDIN NFC
     private var nfcAdapter: NfcAdapter? = null
@@ -239,16 +240,32 @@ class  VehicleSearchActivity : AppCompatActivity() {
 //        }
         plateInput.doOnTextChanged { text, start, before, count ->
             if (stopSearchVehicle == false) {
-                if (text.toString().length >= 3) {
-                    stopSearchVehicle=true
-                    plateInput.postDelayed({
-                        stopSearchVehicle=false
-                        searchVehicle(text.toString())
-                    }, 1000) //Esperar un poco antes de mandar la busqueda
+                // Cancelamos el temporizador del carácter anterior
+                searchJob?.cancel()
+
+                val query = text.toString().trim()
+
+                if (query.length >= 3) {
+                    searchJob = lifecycleScope.launch {
+                        delay(2000) // Espera 2000ms de silencio total del lector antes de buscar
+                        searchVehicle(query)
+                    }
                 } else {
                     resultText.text = "" //Clean
                 }
             }
+
+//            if (stopSearchVehicle == false) {
+//                if (text.toString().length >= 3) {
+//                    stopSearchVehicle=true
+//                    plateInput.postDelayed({
+//                        stopSearchVehicle=false
+//                        searchVehicle(text.toString())
+//                    }, 1000) //Esperar un poco antes de mandar la busqueda
+//                } else {
+//                    resultText.text = "" //Clean
+//                }
+//            }
         }
 
         // Clean button

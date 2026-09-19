@@ -126,7 +126,6 @@ class MainActivity : AppCompatActivity() {
         //CONFIG --> Settings
         val btnCnfTags: ImageButton = findViewById(R.id.btnConfigTag)
         btnCnfTags.setOnClickListener {
-            val dato = 10/0
             val intent: Intent = Intent(this, SettingsActivity::class.java )
             startActivity(intent)
         }
