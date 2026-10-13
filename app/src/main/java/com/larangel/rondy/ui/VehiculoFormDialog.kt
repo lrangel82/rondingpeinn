@@ -1,6 +1,7 @@
 package com.larangel.rondy.ui
 
 import DataRawRondin
+import MySettings
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -11,13 +12,11 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Spinner
-import android.widget.TextView
 import androidx.core.widget.doOnTextChanged
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
 import com.larangel.rondy.R
-import com.larangel.rondy.utils.extraerTAGHexToDec
-import com.larangel.rondy.utils.stopSearchLoop
+import com.larangel.rondy.utils.extraerTAGConConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -26,6 +25,7 @@ import kotlinx.coroutines.withContext
 class VehiculoFormDialog (
     private val row: List<Any>? = null,
     private val dataRaw: DataRawRondin,
+    private val mySettings: MySettings?,
     private val onConfirm: (List<String>) -> Unit
 ) : DialogFragment() {
     private var domicilios: List<List<Any>> = emptyList()
@@ -33,6 +33,11 @@ class VehiculoFormDialog (
     private lateinit var spinnerCalle: Spinner
     private lateinit var spinnerNumero: Spinner
     private var isAutoSelecting = false
+
+    // Variables de configuración RFID
+    private var currentOffset = 0
+    private var currentBytesToRead = 1
+    private var currentFormat = "Hexadecimal"
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         // Inflamos el layout que ya tienes (asegúrate de que el ID sea el correcto)
@@ -43,6 +48,9 @@ class VehiculoFormDialog (
         super.onViewCreated(view, savedInstanceState)
 
         //loadInitialData2()
+        currentOffset = mySettings?.getInt("rfid_byte_offset", 0) ?: 0
+        currentBytesToRead = mySettings?.getInt("rfid_bytes_reader", 1) ?: 1
+        currentFormat = mySettings?.getString("rfid_output_format", "Hexadecimal") ?: "Hexadecimal"
 
         val etPlaca = view.findViewById<EditText>(R.id.etFormPlaca)
         val etMarca = view.findViewById<EditText>(R.id.etFormMarca)
@@ -101,8 +109,8 @@ class VehiculoFormDialog (
 
         etTag.doOnTextChanged { text, start, before, count ->
             val query = text.toString()
-            if (query.isNotEmpty() && query.length > 2 ) {
-                val tagStr: String? = query.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
+            if (query.isNotEmpty() && query.length > 23 ) {
+                val tagStr: String? = query.extraerTAGConConfig(currentOffset,currentBytesToRead,currentFormat)  //query.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
                 //Esta visible el FORM, y es un tag del lector... escribir en el TAGID de la edicion
                 if ( tagStr != null) {
                     etTag.setText(tagStr)

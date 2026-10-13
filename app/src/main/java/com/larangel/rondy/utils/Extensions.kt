@@ -36,9 +36,37 @@ fun String.extraerPlaca(): String? {
 /**
  * Busca un TAG valido en el texto
  */
-fun String.extraerTAG(): String? {
-    val TagRegex = Regex("([1-9][0-9]{6,7})")
-    return TagRegex.find(this.uppercase())?.value
+fun String.extraerTAG( bytesToRead: Int = 3, outputFormat: String="Decimal"): String? {
+    val regex = if (outputFormat == "Decimal") {
+        // --- CASO DECIMAL ---
+        // 1 byte max: 255 (3 dígitos)
+        // 2 bytes max: 65,535 (5 dígitos)
+        // 3 bytes max: 16,777,215 (8 dígitos) -> Tu regla actual
+        // 4 bytes max: 4,294,967,295 (10 dígitos)
+
+        val maxDigits = when (bytesToRead) {
+            1 -> 3
+            2 -> 5
+            3 -> 8
+            else -> bytesToRead * 3 // Estimación segura para bytes mayores
+        }
+
+        // Busca secuencias de números de entre 1 y 'maxDigits' de longitud.
+        // Se usa [0-9] para permitir números que comiencen con cero si el lector los entrega así.
+        Regex("[0-9]{1,$maxDigits}")
+    } else {
+        // --- CASO HEXADECIMAL ---
+        // 1 byte = 2 caracteres HEX (ej: A4)
+        // 2 bytes = 4 caracteres HEX (ej: A4B2)
+        // 3 bytes = 6 caracteres HEX -> Tu regla actual
+        val hexLength = bytesToRead * 2
+
+        // Busca una secuencia exacta de caracteres Hexadecimales (0-9, A-F)
+        Regex("[0-9A-F]{$hexLength}")
+    }
+
+    // Buscamos la primera coincidencia en el texto (pasado a mayúsculas por si es HEX)
+    return regex.find(this.uppercase())?.value
 }
 fun String.extraerTAGHexToDec():String?{
     // 1. Limpiar y normalizar la cadena a mayúsculas
@@ -71,6 +99,52 @@ fun String.extraerTAGHexToDec():String?{
         hexadecimalUtil.toLong(16).toString()
     } catch (e: Exception) {
         null
+    }
+}
+/**
+ * Extensión para traducir un TAG en base a las configuraciones guardadas.
+ * @param offset Byte de inicio de lectura (0 a 11)
+ * @param bytesToRead Cantidad de bytes a leer
+ * @param outputFormat Formato de salida esperado ("Decimal" o cualquier otro para Hexadecimal)
+ * @return El valor traducido o null si el formato intermedio no es válido
+ */
+fun String.extraerTAGConConfig(offset: Int, bytesToRead: Int, outputFormat: String): String? {
+    // 1. Limpiar espacios y tomar la última línea por si viene un bloque con saltos de línea
+    val lastValidLine = this.split("\n")
+        .map { it.trim() }
+        .lastOrNull { it.isNotEmpty() } ?: ""
+
+    // 2. Normalizar a una cadena de 24 caracteres HEX rellenando con ceros a la derecha
+    val cleanHex24 = lastValidLine.padEnd(24, '0').substring(0, 24).uppercase()
+
+    // 3. Validar que la cadena normalizada sea hexadecimal válida de 24 caracteres
+    val hexRegex = Regex("^[0-9A-F]{24}$")
+    if (!hexRegex.matches(cleanHex24)) return null
+
+    return try {
+        val startByte = offset
+        val endByte = offset + bytesToRead - 1
+        val selectedHexBuilder = StringBuilder()
+
+        // 4. Replicar la extracción de bytes según el offset y bytes a leer (1 byte = 2 caracteres hex)
+        for (i in 0 until 12) {
+            if (i in startByte..endByte) {
+                val byteStr = cleanHex24.substring(i * 2, (i * 2) + 2)
+                selectedHexBuilder.append(byteStr)
+            }
+        }
+        val hexResult = selectedHexBuilder.toString()
+
+        // 5. Aplicar la conversión final según el formato guardado
+        if (outputFormat == "Decimal") {
+            // Convierte el fragmento hex extraído a Decimal
+            hexResult.toLong(16).toString()
+        } else {
+            // Retorna el fragmento en Hexadecimal puro
+            hexResult
+        }
+    } catch (e: Exception) {
+        null // Retorna null si ocurre un desbordamiento o error de parseo
     }
 }
 
@@ -141,17 +215,17 @@ fun programarAlarma(context:Context, horaStr: String, nombre: String) {
 
 //*** Buscar TAGS/PLACAS validos
 var stopSearchLoop = false
-fun buscarTagEnListaCache(tagsCache:List<List<Any>>, strLectorRFID: String): List<List<Any>>{
-    val allLines = strLectorRFID.split("\n")
+fun buscarTagEnListaCache(tagsCache:List<List<Any>>, tagValue: String): List<List<Any>>{
+    //val allLines = strLectorRFID.split("\n")
     var matches: MutableList<List<Any>> = mutableListOf()
-    var tagsBuscados: MutableList<String> = mutableListOf()
-    stopSearchLoop = false
-    for (line in allLines) {
-        if (stopSearchLoop) return emptyList()
-        val tagValue = line.extraerTAGHexToDec()
+    //var tagsBuscados: MutableList<String> = mutableListOf()
+    //stopSearchLoop = false
+    //for (line in allLines) {
+    //    if (stopSearchLoop) return emptyList()
+    //    val tagValue = line.extraerTAGHexToDec()
 
-        if (tagValue != null && !tagsBuscados.contains(tagValue)){
-            tagsBuscados.add(tagValue)
+    //    if (tagValue != null && !tagsBuscados.contains(tagValue)){
+    //        tagsBuscados.add(tagValue)
             var foundTag=false
             tagsCache?.forEach { tag ->
                 if (stopSearchLoop) return@forEach
@@ -175,8 +249,8 @@ fun buscarTagEnListaCache(tagsCache:List<List<Any>>, strLectorRFID: String): Lis
             if (foundTag == false) { //No se encontro ninguno
                 matches.add(listOf(tagValue,"No registrado","0")) //Tag, calle, numero
             }
-        }
-    }
+    //    }
+    //}
     return matches
 }
 fun buscarPlacaEnListaCache(placasCache:List<List<Any>>, strPlaca:String):List<List<Any>>{

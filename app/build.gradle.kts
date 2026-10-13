@@ -15,7 +15,7 @@ android {
         applicationId = "com.larangel.rondy"
         minSdk = 29
         targetSdk = 36
-        versionCode = 13
+        versionCode = 14
         versionName = "Heimdall.10"
         //Argos,Heimdall,Anubis,Cerbero,Garam,Jano,Talos,Ladon,Grifo,Sleipnit
 

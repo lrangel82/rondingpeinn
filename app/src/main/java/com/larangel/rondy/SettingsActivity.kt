@@ -48,6 +48,7 @@ class SettingsActivity : AppCompatActivity() {
         val btnCtaVehiculos: ImageButton = findViewById(R.id.btnCatalogoVehiculos)
         val btnParkignSlots: ImageButton = findViewById(R.id.btnParkingSlots)
         val btnAlarmas: ImageButton = findViewById(R.id.btnAlarmas)
+        val btnRfid: ImageButton = findViewById(R.id.btnRfid)
 
         btnGuardar.setOnClickListener{
             salvarConfig()
@@ -74,6 +75,10 @@ class SettingsActivity : AppCompatActivity() {
             startActivity(Intent(this, CatalogoAlarmasActivity::class.java ))
             //this.finish()
         }
+        btnRfid.setOnClickListener{
+            startActivity(Intent(this, RfidSettingsActivity::class.java ))
+            //this.finish()
+        }
 
         val yaVioAyuda = mySettings?.getBoolean("ayuda_settings_activity", false)
         if (yaVioAyuda == false) {
@@ -86,12 +91,19 @@ class SettingsActivity : AppCompatActivity() {
 
         //Es ADMIN?
         val esAdmin = mySettings?.getInt("ESADMIN",0)
-        val layOutConfigAdmin: LinearLayout = findViewById(R.id.layoutConfigAdmin)
+        val layOutAlarma: LinearLayout = findViewById(R.id.lyout_alarma)
+        val layOutRfid: LinearLayout = findViewById(R.id.lyout_rfid)
+        val layOutParking: LinearLayout = findViewById(R.id.lyout_parking)
+        val layOutVehiculos: LinearLayout = findViewById(R.id.lyout_vehiculos)
         if (esAdmin == 1) {
-            layOutConfigAdmin.visibility = View.VISIBLE
+            layOutAlarma.visibility = View.VISIBLE
+            layOutParking.visibility = View.VISIBLE
+            layOutVehiculos.visibility = View.VISIBLE
         }
         else {
-            layOutConfigAdmin.visibility = View.GONE
+            layOutAlarma.visibility = View.GONE
+            layOutParking.visibility = View.GONE
+            layOutVehiculos.visibility = View.GONE
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
@@ -281,10 +293,6 @@ class SettingsActivity : AppCompatActivity() {
 //            }
 //        )
     }
-
-
-
-
 
 
     // Utilidad simple para detectar red

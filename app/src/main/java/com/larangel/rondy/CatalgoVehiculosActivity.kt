@@ -1,6 +1,7 @@
 package com.larangel.rondy
 
 import DataRawRondin
+import MySettings
 import VehiculoAdapter
 import android.content.Context
 import android.content.res.Configuration
@@ -8,8 +9,6 @@ import android.graphics.Bitmap
 import android.os.Bundle
 import android.view.View
 import android.view.inputmethod.InputMethodManager
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Spinner
@@ -29,22 +28,27 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.larangel.rondy.ui.VehiculoFormDialog
 import com.larangel.rondy.utils.extraerPlaca
-import com.larangel.rondy.utils.extraerTAG
-import com.larangel.rondy.utils.extraerTAGHexToDec
+import com.larangel.rondy.utils.extraerTAGConConfig
 import com.larangel.rondy.utils.stopSearchLoop
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
 class CatalgoVehiculosActivity : AppCompatActivity() {
     private lateinit var dataRaw: DataRawRondin
+    private var mySettings: MySettings? = null
     private var fullVehicleList: List<List<Any>> = emptyList()
     private var filteredList: MutableList<List<Any>> = mutableListOf()
     private lateinit var vehicleAdapter: VehiculoAdapter
 
     // UI Elements
     private lateinit var etSearch: EditText
+    private var searchJob: Job? = null
+    var tagEncontrado : String? = null
+
     private lateinit var btnTakePhoto: Button
     private lateinit var limparBtn: Button
     private lateinit var rvResults: RecyclerView
@@ -56,13 +60,23 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
 
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
 
+    // Variables de configuración RFID
+    private var currentOffset = 0
+    private var currentBytesToRead = 1
+    private var currentFormat = "Hexadecimal"
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContentView(R.layout.activity_catalgo_vehiculos)
 
+        mySettings=MySettings(applicationContext)
         dataRaw = DataRawRondin(applicationContext, lifecycleScope)
         setupUI()
+
+        currentOffset = mySettings?.getInt("rfid_byte_offset", 0) ?: 0
+        currentBytesToRead = mySettings?.getInt("rfid_bytes_reader", 1) ?: 1
+        currentFormat = mySettings?.getString("rfid_output_format", "Hexadecimal") ?: "Hexadecimal"
 
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayoutCatalogoVehiculos)
         swipeRefreshLayout.setOnRefreshListener {
@@ -107,7 +121,11 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         etSearch.doOnTextChanged { text, start, before, count ->
             val query = text.toString()
             if (query.isNotEmpty() && query.length > 2 ) {
-                stopSearchLoop=true
+                searchJob?.cancel()
+                searchJob = lifecycleScope.launch {
+                    delay(2000) // Espera 2000ms de silencio total del lector antes de buscar
+                    performSearch(query)
+                }
 //                val tagStr: String? = query.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
 //                //Esta visible el FORM, y es un tag del lector... escribir en el TAGID de la edicion
 //                if (layoutForm.visibility == View.VISIBLE && tagStr != null) {
@@ -117,7 +135,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
 //                    hideKeyboard()
 //                } else {
                     //Realizar busqueda normal
-                performSearch(query)
+                //performSearch(query)
                 //}
             }
 //            if (query.length >= 3) {
@@ -144,14 +162,21 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
     }
 
     private fun performSearch(query: String) {
+        if (stopSearchLoop==true) return
         //Es lectura de lector RFID
-        stopSearchLoop = false
+        stopSearchLoop = true
+        tagEncontrado = null
         val lines = query.split("\n")
         filteredList.clear()
         for (line in lines) {
-            if (stopSearchLoop == true) return
-            var _query = line.extraerTAGHexToDec() //if (esLectorRFID == true)  line.extraerTAGHexToDec() else line
-            if (_query.isNullOrEmpty()) _query = line
+            var _query = ""
+            tagEncontrado = line.extraerTAGConConfig(currentOffset,currentBytesToRead,currentFormat) //line.extraerTAGHexToDec() //if (esLectorRFID == true)  line.extraerTAGHexToDec() else line
+
+            if (tagEncontrado.isNullOrEmpty())
+                _query = line
+            else
+                _query = tagEncontrado.toString()
+
             if (_query.isNotEmpty()) {
                 filteredList.addAll(fullVehicleList.filter { row ->
                     if (stopSearchLoop == true) false
@@ -159,7 +184,9 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
                 })
             }
         }
-        if (stopSearchLoop == true) return
+        if (! tagEncontrado.isNullOrEmpty())
+            etSearch.setText("") //Se encontro TAG hay que limpiar para la siguiente lectura
+
 
         when {
             filteredList.isEmpty() && query.isNotEmpty() -> showNotFoundOptions()
@@ -167,6 +194,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
             filteredList.isEmpty() && query.isEmpty() -> showResultsList(fullVehicleList as List<List<String>>)
             else -> showResultsList(filteredList as List<List<String>>)
         }
+        stopSearchLoop = false
     }
 
     private fun showResultsList(lisData: List<List<String>>) {
@@ -194,17 +222,17 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         findViewById<View>(R.id.notFoundActions).visibility = View.VISIBLE
 
         val busquedaActual = etSearch.text.toString().trim()
-        val tagValido = busquedaActual.extraerTAGHexToDec()
+        //val tagValido = busquedaActual.extraerTAGConConfig(currentOffset,currentBytesToRead,currentFormat) //.extraerTAGHexToDec()
         var strTag="NA"
         var strPlate="NA"
 
-        if (tagValido != null)
-            strTag = tagValido
+        if ( tagEncontrado  != null)
+            strTag = tagEncontrado.toString()
         else {
             // Contiene letras -> asumimos que es una PLACA
             strPlate = busquedaActual.extraerPlaca().toString()
         }
-        findViewById<TextView>(R.id.txtNoRegistro).setText("El registro [[${tagValido ?: strPlate}]] no existe en la base de datos, que desea hacer?")
+        findViewById<TextView>(R.id.txtNoRegistro).setText("El registro [[${tagEncontrado ?: strPlate}]] no existe en la base de datos, que desea hacer?")
 
         // 2. Configurar botón de Reportar (Inexistente)
         btnReport = findViewById<Button>(R.id.btnReportInexistente)
@@ -237,9 +265,9 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
             openVehiculoDialog(null) // Abrimos formulario vacío
 
             // Lógica de pre-llenado inteligente
-            if (tagValido != null) {
+            if (tagEncontrado != null) {
                 // Es puramente numérico -> asumimos que es un TAG
-                findViewById<EditText>(R.id.etFormTag).setText(tagValido)
+                findViewById<EditText>(R.id.etFormTag).setText(tagEncontrado)
             } else {
                 // Contiene letras -> asumimos que es una PLACA
                 findViewById<EditText>(R.id.etFormPlaca).setText(strPlate ?: busquedaActual)
@@ -264,7 +292,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
     }
 
     private fun openVehiculoDialog(row: List<Any>?) {
-        val dialog = VehiculoFormDialog(row,dataRaw) { datosActualizados ->
+        val dialog = VehiculoFormDialog(row,dataRaw,mySettings) { datosActualizados ->
             updateVehicle(datosActualizados)
         }
         dialog.show(supportFragmentManager, "VehiculoDialog")

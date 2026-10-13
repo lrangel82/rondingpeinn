@@ -120,7 +120,7 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.larangel.rondy.ui.VehiculoFormDialog
 import com.larangel.rondy.utils.buscarPlacaEnListaCache
 import com.larangel.rondy.utils.buscarTagEnListaCache
-import com.larangel.rondy.utils.extraerTAGHexToDec
+import com.larangel.rondy.utils.extraerTAGConConfig
 import com.larangel.rondy.utils.fomatearImagenLogo
 import com.larangel.rondy.utils.getAddressFromLocation
 import com.larangel.rondy.utils.stopSearchLoop
@@ -182,6 +182,11 @@ class  VehicleSearchActivity : AppCompatActivity() {
     private var intentNFCFiltersArray: Array<IntentFilter>? = null
     private var techNFCListsArray: Array<Array<String>>? = null
 
+    // Variables de configuración RFID
+    private var currentOffset = 0
+    private var currentBytesToRead = 1
+    private var currentFormat = "Hexadecimal"
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         StrictMode.setThreadPolicy(StrictMode.ThreadPolicy.Builder()
@@ -209,6 +214,10 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
         isActive= mySettings?.getInt( "APP_ACTIVADA",0) == 1
 
+        currentOffset = mySettings?.getInt("rfid_byte_offset", 0) ?: 0
+        currentBytesToRead = mySettings?.getInt("rfid_bytes_reader", 1) ?: 1
+        currentFormat = mySettings?.getString("rfid_output_format", "Hexadecimal") ?: "Hexadecimal"
+
         if (!isActive){
             //Ocultar lo que no es de rondin
             eventsRecyclerView.visibility = View.GONE
@@ -229,15 +238,6 @@ class  VehicleSearchActivity : AppCompatActivity() {
         eventsRecyclerView.layoutManager = LinearLayoutManager(this)
         eventsRecyclerView.adapter = EventAdapter(events)
 
-        // Search button click listener
-//        searchButton.setOnClickListener {
-//            val plate = plateInput.text.toString().trim()
-//            if (plate.isNotEmpty()) {
-//                searchVehicle(plate)
-//            } else {
-//                Toast.makeText(this, "Enter a license plate", Toast.LENGTH_SHORT).show()
-//            }
-//        }
         plateInput.doOnTextChanged { text, start, before, count ->
             if (stopSearchVehicle == false) {
                 // Cancelamos el temporizador del carácter anterior
@@ -255,17 +255,6 @@ class  VehicleSearchActivity : AppCompatActivity() {
                 }
             }
 
-//            if (stopSearchVehicle == false) {
-//                if (text.toString().length >= 3) {
-//                    stopSearchVehicle=true
-//                    plateInput.postDelayed({
-//                        stopSearchVehicle=false
-//                        searchVehicle(text.toString())
-//                    }, 1000) //Esperar un poco antes de mandar la busqueda
-//                } else {
-//                    resultText.text = "" //Clean
-//                }
-//            }
         }
 
         // Clean button
@@ -951,7 +940,6 @@ class  VehicleSearchActivity : AppCompatActivity() {
 
                     if (plate.length > 3) {
                         plateInput.setText(plate)
-                        //searchVehicle(plate)
                     } else {
                         Toast.makeText(this, "No PLACA en la imagen", Toast.LENGTH_SHORT).show()
                     }
@@ -1103,7 +1091,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
             row.any { it.toString().contains(tagString, ignoreCase = true) }
         }
 
-        val dialog = VehiculoFormDialog(rowVehiculo,dataRaw!!) { datosActualizados ->
+        val dialog = VehiculoFormDialog(rowVehiculo,dataRaw!!,mySettings!!) { datosActualizados ->
             dataRaw?.updateAutoRegistrados(datosActualizados)
         }
         dialog.show(supportFragmentManager, "VehiculoDialog")
@@ -1140,34 +1128,41 @@ class  VehicleSearchActivity : AppCompatActivity() {
         resultText.text = "" //Clean the text
         tagEncontrado = null
 
-        stopSearchLoop = true
         if (stopSearchVehicle) return
         stopSearchVehicle = true
 
         try {
-            stopSearchVehicle = false
             //########## TAG #################
             //E28069152000700F68B8ED0E ESTE NO SE LEE
             //AABB0000CF7A9F0000000000
-            tagEncontrado = _plate.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
-            if (tagEncontrado != null) {
-                //es Digito, o viene del lector de TAG RFID
-                val tags = dataRaw?.getTagsCache() ?: emptyList()
-                matches = buscarTagEnListaCache(tags, _plate)
-                //si encontro mas de uno debo limpiar y fue lectura de escaner, limpiar el text
-                if (matches.count() > 1 && _plate.contains("\n")) {
-                    stopSearchVehicle = true
-                    plateInput.setText("")
-                    stopSearchVehicle = false
+            for (line in _plate.split("\n")) {
+                tagEncontrado = line.extraerTAGConConfig(currentOffset,currentBytesToRead,currentFormat)
+                if (tagEncontrado != null) {
+                    //es Digito, o viene del lector de TAG RFID
+                    val tags = dataRaw?.getTagsCache() ?: emptyList()
+                    matches = buscarTagEnListaCache(tags, tagEncontrado!!)
+                    //si encontro mas de uno debo limpiar y fue lectura de escaner, limpiar el text
+                    if (matches.count() > 0 ) {
+                        vehicleNumber = matches[0][2].toString()
+                        if (vehicleNumber != "0") {
+                            stopSearchVehicle = true
+                            break
+                        }
+                        //stopSearchVehicle = false
+                    }
+                    hideKeyboard()
                 }
-                hideKeyboard()
             }
             //########## ES PLACA ############
-            else{
+            if (tagEncontrado==null){
                 val vehicles = dataRaw?.getCachedVehiclesData() ?: emptyList()
                 matches = buscarPlacaEnListaCache(vehicles,_plate)
             }
-            if (stopSearchVehicle) return
+            //if (stopSearchVehicle) return
+            if (tagEncontrado != null){
+                //Limpiar texto input placas porque era tag y no se encontro coincidencia
+                plateInput.setText("")
+            }
 
             //Se encontro?
             waitingOff()
@@ -1230,6 +1225,8 @@ class  VehicleSearchActivity : AppCompatActivity() {
             waitingOff()
             resultText.append("\nError searching plate: ${e.message}")
             //showEventsPlate(_plate)
+        }finally {
+            stopSearchVehicle = false
         }
     }
 

@@ -4,12 +4,12 @@
 
     <uses-permission android:name="android.permission.NFC" />
     <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -33,13 +33,16 @@
         android:theme="@style/Theme.Rondy"
         tools:targetApi="31">
         <activity
+            android:name=".RfidSettingsActivity"
+            android:exported="false" />
+        <activity
             android:name=".CatalogoAlarmasActivity"
             android:exported="false" />
         <activity
             android:name=".ui.AlarmaActivity"
+            android:launchMode="singleInstance"
             android:showOnLockScreen="true"
-            android:turnScreenOn="true"
-            android:launchMode="singleInstance" />
+            android:turnScreenOn="true" />
 
         <receiver
             android:name=".AlarmReceiver"
