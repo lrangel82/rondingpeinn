@@ -16,13 +16,16 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+//import androidx.compose.ui.semantics.text
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.doOnTextChanged
 import androidx.lifecycle.lifecycleScope
+//import androidx.preference.forEach
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.google.android.material.chip.Chip
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
@@ -57,6 +60,11 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
     private lateinit var btnAdd: Button
     private lateinit var spinnerCalle: Spinner
     private lateinit var spinnerNumero: Spinner
+    //Calles y numeros
+    private lateinit var chipGroupFiltros: com.google.android.material.chip.ChipGroup
+    private var uiState = CatalogoUiState()
+    private var todasLasCalles: MutableList<String> = mutableListOf()
+    private var numerosPorCalle: MutableMap<String, List<String>> = mutableMapOf()
 
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
 
@@ -74,11 +82,15 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         dataRaw = DataRawRondin(applicationContext, lifecycleScope)
         setupUI()
 
+        todasLasCalles = dataRaw.getDomiciliosDict().keys.toMutableList()
+        numerosPorCalle = dataRaw.getDomiciliosDict() as MutableMap<String, List<String>>
+
         currentOffset = mySettings?.getInt("rfid_byte_offset", 0) ?: 0
         currentBytesToRead = mySettings?.getInt("rfid_bytes_reader", 1) ?: 1
         currentFormat = mySettings?.getString("rfid_output_format", "Hexadecimal") ?: "Hexadecimal"
 
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayoutCatalogoVehiculos)
+        chipGroupFiltros = findViewById(R.id.chipGroupFiltros)
         swipeRefreshLayout.setOnRefreshListener {
             loadInitialData(true)
         }
@@ -104,10 +116,44 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         // Carga asíncrona
         fullVehicleList = withContext(Dispatchers.IO) { dataRaw.getAutoRegistrados(forceLoad) ?: emptyList() }
         //domicilios = withContext(Dispatchers.IO) { dataRaw.getDomiciliosUbicacion() ?: emptyList() }
-        val txtAyuda = findViewById<TextView>(R.id.textAyudaCatalogoV)
-        txtAyuda.setText("Ingrese las Placas del vehiculo, o Escanee el TAG o la marca del vehiculo\n Total Parque Vehicular:${fullVehicleList.size}")
+
+        actualizarInterfazFiltrosCalleNumero()
+
         showResultsList(fullVehicleList as List<List<String>>) //Mostrar todos
         swipeRefreshLayout.isRefreshing = false
+    }
+    private fun actualizarInterfazFiltrosCalleNumero(){
+        //Filtros calle y numero
+        chipGroupFiltros.removeAllViews()
+        // 1. Si tenemos calle y número seleccionado: Mostrar "Volver a Calle"
+        if (uiState.numeroSeleccionado != null) {
+            addNavigationChip("← ${uiState.calleSeleccionada} #${uiState.numeroSeleccionado}") {
+                uiState = uiState.copy(numeroSeleccionado = null)
+                loadInitialData()
+            }
+        }
+        // 2. Si tenemos calle pero no número: Mostrar "Volver a todas" + lista de números
+        else if (uiState.calleSeleccionada != null) {
+            addNavigationChip("← Ver todas las calles") {
+                uiState = uiState.copy(calleSeleccionada = null)
+                loadInitialData()
+            }
+
+            numerosPorCalle[uiState.calleSeleccionada]?.forEach { num ->
+                addFilterChip("# $num") {
+                    uiState = uiState.copy(numeroSeleccionado = num)
+                    loadInitialData()
+                }
+            }
+        }// 3. Estado inicial: Mostrar todas las calles
+        else {
+            todasLasCalles.forEach { calle ->
+                addFilterChip(calle) {
+                    uiState = uiState.copy(calleSeleccionada = calle)
+                    loadInitialData()
+                }
+            }
+        }
     }
     private fun setupUI() {
         etSearch = findViewById(R.id.etSearch)
@@ -126,27 +172,12 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
                     delay(2000) // Espera 2000ms de silencio total del lector antes de buscar
                     performSearch(query)
                 }
-//                val tagStr: String? = query.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
-//                //Esta visible el FORM, y es un tag del lector... escribir en el TAGID de la edicion
-//                if (layoutForm.visibility == View.VISIBLE && tagStr != null) {
-//                    val etTag = findViewById<EditText>(R.id.etFormTag)
-//                    etTag.setText(tagStr)
-//                    etSearch.setText("")
-//                    hideKeyboard()
-//                } else {
-                    //Realizar busqueda normal
-                //performSearch(query)
-                //}
             }
-//            if (query.length >= 3) {
-//                performSearch(query)
-//            }else{
-//                rvResults.visibility = View.GONE
-//            }
         }
         limparBtn.setOnClickListener {
             etSearch.setText("")
-            performSearch("")
+            uiState = CatalogoUiState()
+            loadInitialData()
         }
     }
     override fun onUserInteraction() {
@@ -157,7 +188,8 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         if (!etSearch.isFocused) {
             etSearch.postDelayed({
                 etSearch.requestFocus()
-            }, 800) // 800ms es suficiente para no interferir con el clic
+                hideKeyboard()
+            }, 1000) // 800ms es suficiente para no interferir con el clic
         }
     }
 
@@ -184,7 +216,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
                 })
             }
         }
-        if (! tagEncontrado.isNullOrEmpty())
+        if (! tagEncontrado.isNullOrEmpty() || query.length >= 25)
             etSearch.setText("") //Se encontro TAG hay que limpiar para la siguiente lectura
 
 
@@ -203,8 +235,42 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         //layoutForm.visibility = View.GONE
         findViewById<View>(R.id.notFoundActions).visibility = View.GONE
 
+        //Filtramos por calle y numero si existe
+        filteredList = lisData as MutableList<List<Any>>
+        if (uiState.calleSeleccionada != null) {
+            filteredList = filteredList.filter { row ->
+                row[1].toString().equals(uiState.calleSeleccionada.toString(), ignoreCase = true)
+            }.toMutableList()
+        }
+        if (uiState.numeroSeleccionado != null) {
+            filteredList = filteredList.filter { row ->
+                row[2].toString().equals(uiState.numeroSeleccionado.toString(), ignoreCase = true)
+            }.toMutableList()
+        }
+        val txtAyuda = findViewById<TextView>(R.id.textAyudaCatalogoV)
+        txtAyuda.setText("Vehiculos:${filteredList.size}")
+
         // Actualizamos los datos del adapter con la lista filtrada
-        vehicleAdapter.updateData(lisData )
+        vehicleAdapter.updateData(filteredList as List<List<String>>)
+    }
+
+    //Calles  y numeros
+    private fun addNavigationChip(text: String, onClick: () -> Unit) {
+        val chip = Chip(this).apply {
+            this.text = text
+            setChipBackgroundColorResource(R.color.purple_500)
+            setTextColor(resources.getColor(R.color.white))
+            setOnClickListener { onClick() }
+        }
+        chipGroupFiltros.addView(chip)
+    }
+    private fun addFilterChip(text: String, onClick: () -> Unit) {
+        val chip = Chip(this).apply {
+            this.text = text
+            isCheckable = true
+            setOnClickListener { onClick() }
+        }
+        chipGroupFiltros.addView(chip)
     }
 
     private fun hideAll(){
@@ -315,3 +381,9 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
     }
 
 }
+
+data class CatalogoUiState(
+    val calleSeleccionada: String? = null,
+    val numeroSeleccionado: String? = null,
+    val queryTexto: String = ""
+)

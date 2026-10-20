@@ -50,10 +50,11 @@ fun String.extraerTAG( bytesToRead: Int = 3, outputFormat: String="Decimal"): St
             3 -> 8
             else -> bytesToRead * 3 // Estimación segura para bytes mayores
         }
+        val minDigits = maxDigits - 1
 
         // Busca secuencias de números de entre 1 y 'maxDigits' de longitud.
         // Se usa [0-9] para permitir números que comiencen con cero si el lector los entrega así.
-        Regex("[0-9]{1,$maxDigits}")
+        Regex("[0-9]{$minDigits,$maxDigits}")
     } else {
         // --- CASO HEXADECIMAL ---
         // 1 byte = 2 caracteres HEX (ej: A4)

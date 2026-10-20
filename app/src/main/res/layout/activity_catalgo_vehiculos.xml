@@ -55,6 +55,18 @@
                     android:contentDescription="Tomar Foto"
                     android:src="@android:drawable/ic_menu_camera" />
             </LinearLayout>
+            <!-- Contenedor de Filtros Dinámicos (Botones de calles/números) -->
+            <HorizontalScrollView
+                android:id="@+id/filterScroll"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="8dp">
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/chipGroupFiltros"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:singleLine="true" />
+            </HorizontalScrollView>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rvResults"

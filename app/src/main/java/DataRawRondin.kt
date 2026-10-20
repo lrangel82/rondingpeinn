@@ -533,6 +533,8 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")!!
             val nameWS = SheetTable.TAGS.sheetName //mySettings.getString("WS_AUTOS_REGISTRADOS", "AutosRegistrados")!!
             if (spreadsheetId.isEmpty()) throw IllegalArgumentException("No hay Sheet configurado")
+            val currentBytesToRead = mySettings?.getInt("rfid_bytes_reader", 1) ?: 1
+            val currentFormat = mySettings?.getString("rfid_output_format", "Hexadecimal") ?: "Hexadecimal"
 
             // 1. Obtener Vehículos de RESIDENTES
             val stateResidentes = tableStates[SheetTable.RESIDENTES_UNIDAD]
@@ -542,7 +544,7 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             stateResidentes?.cache?.forEach { row ->
                 //tipo == automovil
                 if (row[4].toString().startsWith("auto",true)){
-                    val tagValue: String? = row.firstNotNullOfOrNull { it.toString().extraerTAG() }
+                    val tagValue: String? = row.firstNotNullOfOrNull { it.toString().extraerTAG(currentBytesToRead,currentFormat) }
                     val placa: String? = row.firstNotNullOfOrNull { it.toString().extraerPlaca() }
                     if (tagValue != null ){
                         val calle = row[2].toString()
@@ -588,17 +590,19 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             val allRows = mutableListOf<List<Any>>()
             val spreadsheetId = mySettings.getString("PARKING_SPREADSHEET_ID", "")!!
             if (spreadsheetId.isEmpty()) throw IllegalArgumentException("No hay Sheet configurado")
+            val currentBytesToRead = mySettings?.getInt("rfid_bytes_reader", 1) ?: 1
+            val currentFormat = mySettings?.getString("rfid_output_format", "Hexadecimal") ?: "Hexadecimal"
 
             // 1. Obtener Vehículos de RESIDENTES
             val stateResidentes = tableStates[SheetTable.RESIDENTES_UNIDAD]
 
             // 2. Aseguramos que la RAM tenga datos (Carga desde RAM -> Disco -> Red)
-            if (stateResidentes?.cache == null) runBlocking { getResidentes() }
+            if (stateResidentes?.cache == null || forceLoad) runBlocking { getResidentes(forceLoad) }
             stateResidentes?.cache?.forEach { row ->
                 //tipo == automovil
                 if (row[4].toString().startsWith("auto",true)){
                     val placa: String? = row.firstNotNullOfOrNull { it.toString().extraerPlaca() }
-                    val tag: String? = row.firstNotNullOfOrNull { it.toString().extraerTAG() }
+                    val tag: String? = row.firstNotNullOfOrNull { it.toString().extraerTAG(currentBytesToRead, currentFormat) }
                     if (placa != null ){
                         val userid= row[0].toString()
                         val calle = row[2].toString()
@@ -1059,6 +1063,149 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             }
         }
         return result as List<List<Any>>
+    }
+    //Domiclios calle y numero
+    private fun ordenarDomicilios(domicilio: String): List<Comparable<*>> {
+        val domicilioLimpio = domicilio.trim()
+        val regex = Regex("(\\d+|\\D+)")
+        val matches = regex.findAll(domicilioLimpio).map { it.value }
+
+        return matches.map { parte ->
+            // Si es un número, lo convierte a Int para que se ordene numéricamente, si no, se queda como String
+            parte.toIntOrNull() ?: parte
+        }.toList()
+    }
+    private val domicilioComparator = Comparator<String> { a, b ->
+        val listaA = ordenarDomicilios(a)
+        val listaB = ordenarDomicilios(b)
+
+        val minSize = minOf(listaA.size, listaB.size)
+        for (i in 0 until minSize) {
+            val elemA = listaA[i]
+            val elemB = listaB[i]
+
+            if (elemA::class != elemB::class) {
+                // Si no son del mismo tipo, comparamos sus representaciones en String
+                val comp = elemA.toString().compareTo(elemB.toString())
+                if (comp != 0) return@Comparator comp
+            } else {
+                val comp = when (elemA) {
+                    is Int -> elemA.compareTo(elemB as Int)
+                    else -> (elemA as String).compareTo(elemB as String)
+                }
+                if (comp != 0) return@Comparator comp
+            }
+        }
+        listaA.size.compareTo(listaB.size)
+    }
+    private fun prioridadCalles(calle: String): Int {
+        return when (calle.lowercase()) {
+            "administracion" -> 0 // Máxima prioridad
+            "casaclub" -> 2       // Mínima prioridad (va al final)
+            else -> 1             // Orden alfabético normal para las demás
+        }
+    }
+    private var cacheDomiciliosDict: Map<String, List<String>>? = null
+    private var cacheFullDomiciliosDict: Map<String, List<String>>? = null
+    private var cacheFullDomiciliosDictTimestamp: Long = 0L
+    fun getDomiciliosDict(forceLoad: Boolean = false): Map<String, List<String>> {
+        if (! isNetworkAvailable()) {
+            return cacheDomiciliosDict ?: emptyMap()
+        }
+
+        if (cacheDomiciliosDict == null || forceLoad) {
+            val rows = getDomiciliosUbicacion(forceLoad)
+            val indexedDict = mutableMapOf<String, MutableList<String>>()
+
+            for (row in rows) {
+                if (row.size >= 2) {
+                    val cClean = row[0].toString().trim()
+                    val nClean = row[1].toString().trim()
+
+                    if (!indexedDict.containsKey(cClean)) {
+                        indexedDict[cClean] = mutableListOf()
+                    }
+                    indexedDict[cClean]?.add(nClean)
+                }
+            }
+            cacheDomiciliosDict = indexedDict
+        }
+        return cacheDomiciliosDict ?: emptyMap()
+    }
+    fun getDomiciliosFullDict(forceLoad: Boolean = false): Map<String, List<String>> = runBlocking {
+        val isConnected = isNetworkAvailable()
+        if (!isConnected) {
+            return@runBlocking cacheFullDomiciliosDict ?: emptyMap()
+        }
+
+        val lastTimestamp = cacheFullDomiciliosDictTimestamp
+        val now = System.currentTimeMillis()
+
+        if (cacheFullDomiciliosDict == null || forceLoad || (now - lastTimestamp > CACHE_DURATION_MS)) {
+            val postfixLocal = mySettings.getString("POSTFIX_SHEETNAME", "") ?: ""
+            val sheetName = SheetTable.DIRECCIONES.sheetName.replace(postfixLocal, "")
+            val indexedDict = mutableMapOf<String, MutableList<String>>()
+
+            val spreadIds = mySettings.getSimpleList(mySettings.getString("PARKING_SPREADSHEET_ID", "")!!) ?: emptyList()
+            if (spreadIds.isEmpty()) throw IllegalArgumentException("No hay Sheet configurado")
+
+            for (idx in spreadIds) {
+                if (idx.isEmpty()) continue
+                try {
+                    // Eliminar el postfix de la búsqueda con Regex
+                    val sheetNameRegex = "${sheetName}.*".toRegex()
+                    val sheetNames = getSheetsNameRegex(idx, sheetNameRegex) // Asume que retorna List<String>
+
+                    for (sn in sheetNames) {
+                        try {
+                            // Leemos el rango de la hoja actual
+                            val response = sheetsService.spreadsheets().values()
+                                .get(idx, "$sn!${SheetTable.DIRECCIONES.range}")
+                                .execute()
+
+                            val rows = response.getValues() ?: emptyList()
+                            if (rows.size > 1) {
+                                // .drop(1) para omitir el encabezado
+                                for (row in rows.drop(1)) {
+                                    if (row.size >= 2) {
+                                        val cClean = row[0].toString().trim()
+                                        val nClean = row[1].toString().trim()
+
+                                        if (!indexedDict.containsKey(cClean)) {
+                                            indexedDict[cClean] = mutableListOf()
+                                        }
+                                        indexedDict[cClean]?.add(nClean)
+                                    }
+                                }
+                            }
+                        } catch (e: Exception) {
+                            println("Error ocurred while fetching direcciones from spreadsheet $idx, $sn: ${e.message}")
+                        }
+                    }
+                } catch (e: Exception) {
+                    println("Error con el spreadsheet $idx: ${e.message}")
+                }
+            }
+
+            // ORDENAMOS los números internos usando el comparador natural
+            for ((calle, numeros) in indexedDict) {
+                numeros.sortWith(domicilioComparator)
+            }
+
+            // ORDENAMOS las llaves del mapa por prioridad y luego alfabéticamente
+            val llavesOrdenadas = indexedDict.keys.sortedWith(compareBy<String> { prioridadCalles(it) }.thenBy { it })
+
+            // Reconstruimos el mapa ordenado (LinkedHashMap preserva el orden de inserción)
+            val dictFinal = linkedMapOf<String, List<String>>()
+            for (calle in llavesOrdenadas) {
+                dictFinal[calle] = indexedDict[calle] ?: emptyList()
+            }
+
+            cacheFullDomiciliosDict = dictFinal
+            cacheFullDomiciliosDictTimestamp = now
+        }
+
+        return@runBlocking cacheFullDomiciliosDict ?: emptyMap()
     }
 
     //Por Revisar registros
