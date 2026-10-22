@@ -392,6 +392,13 @@ class  VehicleSearchActivity : AppCompatActivity() {
             imm.hideSoftInputFromWindow(view.windowToken, 0)
         }
     }
+    private fun showKeyboard() {
+        val view = currentFocus
+        if (view != null) {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
         menuInflater.inflate(R.menu.bottom_nav_menu, menu)
         return true
@@ -1138,6 +1145,7 @@ class  VehicleSearchActivity : AppCompatActivity() {
             for (line in _plate.split("\n")) {
                 tagEncontrado = line.extraerTAGConConfig(currentOffset,currentBytesToRead,currentFormat)
                 if (tagEncontrado != null) {
+                    resultText.append("\nTAG: ${tagEncontrado}")
                     //es Digito, o viene del lector de TAG RFID
                     val tags = dataRaw?.getTagsCache() ?: emptyList()
                     matches = buscarTagEnListaCache(tags, tagEncontrado!!)

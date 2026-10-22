@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:layout_marginTop="?attr/actionBarSize"
+    tools:context=".CatalgoVehiculosActivity">
+
+    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+        android:id="@+id/swipeRefreshLayoutCatalogoVehiculos"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+
+
+
+        <!-- PANEL IZQUIERDO: CONTROLES -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/panelControles"
+                android:layout_width="300dp"
+                android:layout_height="match_parent"
+                android:background="#F5F5F5"
+                android:orientation="vertical"
+                android:padding="16dp"
+                app:layout_constraintEnd_toStartOf="@id/guideline"
+                app:layout_constraintStart_toStartOf="parent">
+
+                <TextView
+                    android:id="@+id/textAyudaCatalogoV"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@color/teal_700"
+                    android:padding="10dp"
+                    android:text="Ingrese las Placas del vehiculo, o Escanee el TAG o la marca del vehiculo"
+                    android:textAlignment="center"
+                    android:textColor="@color/white"
+                    android:textSize="20sp"
+                    android:textStyle="bold|italic"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+                <LinearLayout
+                    android:id="@+id/searchContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    app:layout_constraintTop_toBottomOf="@id/textAyudaCatalogoV">
+
+                    <EditText
+                        android:id="@+id/etSearch"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:hint="Placa, Calle o Tag (mín. 3 carac.)"
+                        android:inputType="text|textCapCharacters|textMultiLine" />
+
+                    <ImageButton
+                        android:id="@+id/btnTakePhoto"
+                        android:layout_width="48.dp"
+                        android:layout_height="48.dp"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Tomar Foto"
+                        android:src="@android:drawable/ic_menu_camera" />
+                </LinearLayout>
+
+                <ScrollView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:layout_weight="1">
+
+                    <com.google.android.material.chip.ChipGroup
+                        android:id="@+id/chipGroupFiltros"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        app:singleSelection="true" />
+                </ScrollView>
+
+                <Button
+                    android:id="@+id/btnLimpiarCatV"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="20dp"
+                    android:gravity="bottom|center_horizontal"
+                    android:text="Limpiar"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    tools:layout_editor_absoluteX="136dp" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvResults"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginTop="8.dp"
+                    android:visibility="visible"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                    app:layout_constraintBottom_toTopOf="@+id/btnLimpiarCatV"
+                    app:layout_constraintTop_toBottomOf="@id/searchContainer"
+                    tools:listitem="@android:layout/simple_list_item_1" />
+
+                <LinearLayout
+                    android:id="@+id/notFoundActions"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:visibility="gone"
+                    app:layout_constraintBottom_toTopOf="@+id/btnLimpiarCatV"
+                    app:layout_constraintTop_toBottomOf="@+id/searchContainer"
+                    tools:layout_editor_absoluteX="20dp">
+
+                    <TextView
+                        android:id="@+id/txtNoRegistro"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="El registro no existe en la base de datos, que desea hacer?"
+                        android:textAlignment="center"
+                        android:textAllCaps="false"
+                        android:textSize="34sp"
+                        android:textStyle="bold|italic" />
+
+                    <Button
+                        android:id="@+id/btnReportInexistente"
+                        style="@android:style/Widget.Holo.Button.Borderless"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Reportar Inexistente"
+                        android:textColor="@android:color/holo_red_dark" />
+
+                    <Button
+                        android:id="@+id/btnAddVehiculo"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Agregar Nuevo" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+
+
+
+
+
+    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

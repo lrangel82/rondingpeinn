@@ -174,6 +174,11 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
                 }
             }
         }
+        etSearch.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                showKeyboard() //Restaurar el teclado
+            }
+        }
         limparBtn.setOnClickListener {
             etSearch.setText("")
             uiState = CatalogoUiState()
@@ -184,11 +189,11 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         super.onUserInteraction()
 
         // Si el foco no está ya en el input, lo regresamos después de un pequeño delay
-        // para permitir que el botón presionado ejecute su acción primero.
+        // para permitir que el botón presionado ejecute su acción primero
         if (!etSearch.isFocused) {
             etSearch.postDelayed({
                 etSearch.requestFocus()
-                hideKeyboard()
+                //hideKeyboard()
             }, 1000) // 800ms es suficiente para no interferir con el clic
         }
     }
@@ -206,8 +211,9 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
 
             if (tagEncontrado.isNullOrEmpty())
                 _query = line
-            else
+            else {
                 _query = tagEncontrado.toString()
+            }
 
             if (_query.isNotEmpty()) {
                 filteredList.addAll(fullVehicleList.filter { row ->
@@ -216,8 +222,11 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
                 })
             }
         }
-        if (! tagEncontrado.isNullOrEmpty() || query.length >= 25)
-            etSearch.setText("") //Se encontro TAG hay que limpiar para la siguiente lectura
+        if (! tagEncontrado.isNullOrEmpty() || query.length >= 25) {
+            etSearch.setText(tagEncontrado)
+            etSearch.selectAll()//Se encontro TAG hay que limpiar para la siguiente lectura
+            hideKeyboard()
+        }
 
 
         when {
@@ -377,6 +386,13 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         if (view != null) {
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.hideSoftInputFromWindow(view.windowToken, 0)
+        }
+    }
+    private fun showKeyboard() {
+        val view = currentFocus
+        if (view != null) {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
         }
     }
 

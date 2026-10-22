@@ -2,22 +2,27 @@ package com.larangel.rondy.ui
 
 import DataRawRondin
 import MySettings
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.InputMethodManager
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.EditText
 import android.widget.Spinner
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.widget.doOnTextChanged
 import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.lifecycleScope
 import com.larangel.rondy.R
 import com.larangel.rondy.utils.extraerTAGConConfig
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -38,6 +43,7 @@ class VehiculoFormDialog (
     private var currentOffset = 0
     private var currentBytesToRead = 1
     private var currentFormat = "Hexadecimal"
+    private var searchJob: Job? = null
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         // Inflamos el layout que ya tienes (asegúrate de que el ID sea el correcto)
@@ -108,14 +114,27 @@ class VehiculoFormDialog (
         }
 
         etTag.doOnTextChanged { text, start, before, count ->
+            searchJob?.cancel()
             val query = text.toString()
-            if (query.isNotEmpty() && query.length > 23 ) {
-                val tagStr: String? = query.extraerTAGConConfig(currentOffset,currentBytesToRead,currentFormat)  //query.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
-                //Esta visible el FORM, y es un tag del lector... escribir en el TAGID de la edicion
-                if ( tagStr != null) {
-                    etTag.setText(tagStr)
-                    etTag.setSelection(tagStr.length)
+            searchJob = lifecycleScope.launch {
+                delay(2000) // Espera 2000ms de silencio total del lector antes de buscar
+                if (query.isNotEmpty() && query.length > 23 ) {
+                    val tagStr: String? = query.extraerTAGConConfig(currentOffset,currentBytesToRead,currentFormat)  //query.split("\n").firstNotNullOfOrNull { it.extraerTAGHexToDec() }
+                    //Esta visible el FORM, y es un tag del lector... escribir en el TAGID de la edicion
+                    if ( tagStr != null) {
+                        etTag.setText(tagStr)
+                        etTag.selectAll() //Dejar seleccionad para sustituir
+                        hideKeyboard()
+                    }
                 }
+            }
+        }
+        etTag.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                showKeyboard() //Restaurar el teclado
+            }else{
+                //recibe el foco, seleccionar para sustituir
+                etTag.post { etTag.selectAll() }
             }
         }
 
@@ -186,6 +205,23 @@ class VehiculoFormDialog (
             }else {
                 isAutoSelecting = false
             }
+        }
+    }
+
+    private fun hideKeyboard() {
+        val view = dialog?.currentFocus ?: view
+        if (view != null) {
+            val imm =
+                requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(view.windowToken, 0)
+        }
+    }
+    private fun showKeyboard() {
+        val view = dialog?.currentFocus ?: view
+        if (view != null) {
+            val imm =
+                requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
         }
     }
 
