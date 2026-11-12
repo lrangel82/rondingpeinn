@@ -120,6 +120,7 @@ import com.google.android.gms.maps.model.MarkerOptions
 import com.larangel.rondy.ui.VehiculoFormDialog
 import com.larangel.rondy.utils.buscarPlacaEnListaCache
 import com.larangel.rondy.utils.buscarTagEnListaCache
+import com.larangel.rondy.utils.extraerTAG
 import com.larangel.rondy.utils.extraerTAGConConfig
 import com.larangel.rondy.utils.fomatearImagenLogo
 import com.larangel.rondy.utils.getAddressFromLocation
@@ -1143,7 +1144,12 @@ class  VehicleSearchActivity : AppCompatActivity() {
             //E28069152000700F68B8ED0E ESTE NO SE LEE
             //AABB0000CF7A9F0000000000
             for (line in _plate.split("\n")) {
-                tagEncontrado = line.extraerTAGConConfig(currentOffset,currentBytesToRead,currentFormat)
+                if (line.length>=24) { //LECTOR TAGS AABB0000CF7A9F0000000000
+                    tagEncontrado = line.extraerTAGConConfig (currentOffset, currentBytesToRead ,currentFormat) //Extraer TAG
+                }
+                else{ //buscar numero tag formateado 9781141 or 953F95
+                    tagEncontrado = line.extraerTAG(currentBytesToRead, currentFormat) //Extraer TAG
+                }
                 if (tagEncontrado != null) {
                     resultText.append("\nTAG: ${tagEncontrado}")
                     //es Digito, o viene del lector de TAG RFID

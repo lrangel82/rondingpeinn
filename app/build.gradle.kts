@@ -1,5 +1,3 @@
-import com.android.build.api.dsl.Packaging
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -11,17 +9,15 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        manifestPlaceholders += mapOf()
+        manifestPlaceholders += mapOf("MAPS_API_KEY" to "AIzaSyATaJVERe6EKwsM1rAM1zR8QtMzJMkmkFs")
         applicationId = "com.larangel.rondy"
         minSdk = 29
         targetSdk = 36
-        versionCode = 14
-        versionName = "Heimdall.10"
+        versionCode = 15
+        versionName = "Argos.10"
         //Argos,Heimdall,Anubis,Cerbero,Garam,Jano,Talos,Ladon,Grifo,Sleipnit
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        manifestPlaceholders["MAPS_API_KEY"] = "AIzaSyATaJVERe6EKwsM1rAM1zR8QtMzJMkmkFs"
     }
 
     buildTypes {

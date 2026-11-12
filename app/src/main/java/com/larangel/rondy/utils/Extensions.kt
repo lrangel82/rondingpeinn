@@ -29,7 +29,7 @@ import java.util.Locale
  * Busca una placa en un texto usando Regex y devuelve el valor o null
  */
 fun String.extraerPlaca(): String? {
-    val plateRegex = Regex("([A-Z]{3}[0-9]{3,4}[A-Z]?|[0-9]{2}[A-Z][0-9]{3}|[0-9]{3}[A-Z]{3}|[A-Z]{2}[0-9]{4,5}[A-Z]?|[A-Z][0-9]{4}|[A-Z][0-9]{2}[A-Z]{2,3}|[A-Z]{3}[0-9][A-Z]|[A-Z]{5}[0-9]{2})")
+    val plateRegex = Regex("([A-Z]{3}[0-9]{3,4}[A-Z]?|[0-9]{2}[A-Z][0-9]{3}|[0-9]{3,4}[A-Z]{3}|[A-Z]{2}[0-9]{4,5}[A-Z]?|[A-Z][0-9]{4}|[A-Z][0-9]{2}[A-Z]{2,3}|[A-Z]{3}[0-9][A-Z]|[A-Z]{5}[0-9]{2})")
     return plateRegex.find(this.uppercase())?.value
 }
 
@@ -54,7 +54,7 @@ fun String.extraerTAG( bytesToRead: Int = 3, outputFormat: String="Decimal"): St
 
         // Busca secuencias de números de entre 1 y 'maxDigits' de longitud.
         // Se usa [0-9] para permitir números que comiencen con cero si el lector los entrega así.
-        Regex("[0-9]{$minDigits,$maxDigits}")
+        Regex("""\b[0-9]{$minDigits,$maxDigits}\b""")
     } else {
         // --- CASO HEXADECIMAL ---
         // 1 byte = 2 caracteres HEX (ej: A4)
@@ -63,7 +63,7 @@ fun String.extraerTAG( bytesToRead: Int = 3, outputFormat: String="Decimal"): St
         val hexLength = bytesToRead * 2
 
         // Busca una secuencia exacta de caracteres Hexadecimales (0-9, A-F)
-        Regex("[0-9A-F]{$hexLength}")
+        Regex("""\b[0-9A-F]{$hexLength}\b""")
     }
 
     // Buscamos la primera coincidencia en el texto (pasado a mayúsculas por si es HEX)
@@ -153,7 +153,7 @@ fun String.extraerTAGConConfig(offset: Int, bytesToRead: Int, outputFormat: Stri
  * Busca un COLOR valido en el texto
  */
 fun String.extraerColor(): String? {
-    val ColorRegex = Regex("(rojo|verde|azul|magenta|lila|morado|rosa|turquesa|amarillo|blanco|negro|cafe|marron|violeta|naranja|beige|gris|plata)")
+    val ColorRegex = Regex("""((?<=\bcolor:)[a-z]+\b|\b(rojo|verde|azul|magenta|lila|morado|rosa|turquesa|amarillo|blanco|negro|cafe|marron|violeta|naranja|beige|gris|plata)\b)""")
     return ColorRegex.find(this.lowercase())?.value
 }
 
@@ -161,7 +161,12 @@ fun String.extraerColor(): String? {
  * Busca un MARCA de un auto valido en el texto
  */
 fun String.extraerMarcaAuto(): String? {
-    val MarcaRegex = Regex("(YAMAHA|Acura|Alfa Romeo|Audi|Auteco|Bentley|BMW|Changan|Chirey|Chrysler|Fiat|Ford Motor|Foton|General Motors|Great Wall Motor|Honda|Hyundai|Infiniti|Isuzu|JAC|Jaguar|JETOUR|KIA|Land Rover|Lexus|Lincoln|Mazda|Mercedes Benz|MG Motor|MG ROVER|Mini|Mitsubishi|MOTORNATION|Nissan|Omoda|Peugeot|Porsche|Renault|SEAT|Smart|Subaru|Suzuki|Toyota|Volkswagen|Volvo)",
+    val MarcaRegex = Regex("""((?<=\bmarca:)[A-Za-z]+\b|\b(YAMAHA|Acura|Alfa Romeo|Audi|Auteco|Bentley|BMW|Changan|Chirey|Chrysler|Fiat|Ford Motor|Foton|General Motors|Great Wall Motor|Honda|Hyundai|Infiniti|Isuzu|JAC|Jaguar|JETOUR|KIA|Land Rover|Lexus|Lincoln|Mazda|Mercedes Benz|MG Motor|MG ROVER|Mini|Mitsubishi|MOTORNATION|Nissan|Omoda|Peugeot|Porsche|Renault|SEAT|Smart|Subaru|Suzuki|Toyota|Volkswagen|Volvo)\b)""",
+        RegexOption.IGNORE_CASE)
+    return MarcaRegex.find(this)?.value
+}
+fun String.extraerModeloAuto(): String? {
+    val MarcaRegex = Regex("""(?<=\bmodelo:)[A-Za-z]+\b""",
         RegexOption.IGNORE_CASE)
     return MarcaRegex.find(this)?.value
 }

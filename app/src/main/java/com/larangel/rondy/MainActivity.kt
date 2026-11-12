@@ -132,11 +132,13 @@ class MainActivity : AppCompatActivity() {
 
         swipeRefreshLayout = findViewById(R.id.swipeRefreshLayoutMain)
         swipeRefreshLayout.setOnRefreshListener {
+            swipeRefreshLayout.isRefreshing = true
             lifecycleScope.launch {
-                swipeRefreshLayout.isRefreshing = true
                 validaLicencia(true)
                 loadingSheetDATA(true)
-                swipeRefreshLayout.isRefreshing = false
+                withContext(Dispatchers.Main) {
+                    swipeRefreshLayout.isRefreshing = false
+                }
             }
         }
 

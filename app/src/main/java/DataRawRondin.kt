@@ -19,6 +19,7 @@ import kotlin.time.Duration.Companion.minutes
 import android.util.Log
 import com.larangel.rondy.utils.extraerColor
 import com.larangel.rondy.utils.extraerMarcaAuto
+import com.larangel.rondy.utils.extraerModeloAuto
 import com.larangel.rondy.utils.extraerPlaca
 import com.larangel.rondy.utils.extraerTAG
 import java.time.LocalTime
@@ -496,7 +497,7 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
                 //tipo == automovil
                 //Filtrar solo los AUTOMOVILES
                 if (row[4].toString().startsWith("auto",true)){
-                    val placa: String? = row.firstNotNullOfOrNull { it.toString().extraerPlaca() }
+                    val placa: String? = if (row[6].toString().extraerPlaca() == null) row.firstNotNullOfOrNull { it.toString().extraerPlaca() } else row[6].toString().extraerPlaca()
                     if (placa != null ){
                         val calle = row[2].toString()
                         val numero= row[3].toString()
@@ -544,43 +545,15 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             stateResidentes?.cache?.forEach { row ->
                 //tipo == automovil
                 if (row[4].toString().startsWith("auto",true)){
-                    val tagValue: String? = row.firstNotNullOfOrNull { it.toString().extraerTAG(currentBytesToRead,currentFormat) }
-                    val placa: String? = row.firstNotNullOfOrNull { it.toString().extraerPlaca() }
+                    val tagValue: String? = if (row[8].toString().extraerTAG(currentBytesToRead,currentFormat) == null) row.firstNotNullOfOrNull { it.toString().extraerTAG(currentBytesToRead,currentFormat) } else row[8].toString().extraerTAG(currentBytesToRead,currentFormat)
                     if (tagValue != null ){
+                        val placa: String? = if (row[6].toString().extraerPlaca() == null) row.firstNotNullOfOrNull { it.toString().extraerPlaca() } else row[6].toString().extraerPlaca()
                         val calle = row[2].toString()
                         val numero= row[3].toString()
                         allParsedTags.add(listOf(tagValue,calle,numero,placa.toString()))
                     }
                 }
             }
-
-//            //try {
-//            // Obtenemos el rango A:H (Placas, Calle, Numero, Marca, Modelo, Color, Tag1, Tag2, userid)
-//            val response = sheetsService.spreadsheets().values()
-//                .get(spreadsheetId, "$nameWS!A:I")
-//                .execute()
-//
-//            // Omitimos el encabezado
-//            val rows = response.getValues()?.drop(1) ?: emptyList()
-//
-//            rows.forEach { row ->
-//                // Índices: Calle(1), Numero(2), Tag1(6), Tag2(7), userid(8)
-//                val calle = row.getOrNull(1)?.toString() ?: ""
-//                val numero = row.getOrNull(2)?.toString() ?: ""
-//
-//                // Procesamos cada columna de Tag si existe y no está vacía
-//                for (i in 6..7) {
-//                    val tagValue = row.getOrNull(i)?.toString()
-//                    if (!tagValue.isNullOrBlank()) {
-//                        allParsedTags.add(listOf(tagValue, calle, numero))
-//                    }
-//                }
-//            }
-//            //} catch (e: Exception) {
-//            //    Log.e(TAG, "Error procesando Tags desde Google Sheets: ${e.message}")
-//            //}
-//
-//            // Retornamos la lista de [Tag, Calle, Numero]
             allParsedTags
         }
     }
@@ -599,23 +572,26 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             // 2. Aseguramos que la RAM tenga datos (Carga desde RAM -> Disco -> Red)
             if (stateResidentes?.cache == null || forceLoad) runBlocking { getResidentes(forceLoad) }
             stateResidentes?.cache?.forEach { row ->
-                //tipo == automovil
-                if (row[4].toString().startsWith("auto",true)){
-                    val placa: String? = row.firstNotNullOfOrNull { it.toString().extraerPlaca() }
-                    val tag: String? = row.firstNotNullOfOrNull { it.toString().extraerTAG(currentBytesToRead, currentFormat) }
+                val esEliminado = row.getOrNull(16)?.toString() ?: "0"
+                //tipo == automovil y no eliminado
+                if (esEliminado != "1" && row[4].toString().startsWith("auto",true)){
+                    val placa: String? = if (row[6].toString().extraerPlaca() == null) row.firstNotNullOfOrNull { it.toString().extraerPlaca() } else row[6].toString().extraerPlaca()
+                    //val tag: String? = row[8].toString() //row.firstNotNullOfOrNull { it.toString().extraerTAG(currentBytesToRead, currentFormat) }
                     if (placa != null ){
                         val userid= row[0].toString()
                         val calle = row[2].toString()
                         val numero= row[3].toString()
-                        val color = row.firstNotNullOfOrNull { it.toString().extraerColor() }
-                        val marca = row.firstNotNullOfOrNull { it.toString().extraerMarcaAuto() }
+                        val color = row.firstNotNullOfOrNull { it.toString().extraerColor() } ?: ""
+                        val marca = row.firstNotNullOfOrNull { it.toString().extraerMarcaAuto() } ?: ""
+                        val modelo = row.firstNotNullOfOrNull { it.toString().extraerModeloAuto() } ?: ""
+                        val tag: String? = if (row[8].toString().extraerTAG(currentBytesToRead,currentFormat) == null) row.firstNotNullOfOrNull { it.toString().extraerTAG(currentBytesToRead,currentFormat) } else row[8].toString().extraerTAG(currentBytesToRead,currentFormat)
                         allRows.add(listOf<Any>(
                             placa,
                             calle,
                             numero,
-                            marca.toString(),
-                            "",
-                            color.toString(),
+                            marca,
+                            modelo,
+                            color,
                             tag.toString(),
                             "",
                             userid))
@@ -679,21 +655,24 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
         mySettings.saveLong(table.timestampKey, System.currentTimeMillis())
 
         // 4. Salvar async
-        mySettings.saveList("${table.cacheKey}_CACHE", currentCache as List<List<String>>)
-        sync(table, Operation.APPEND, data = _row)
+        //sync(table, Operation.APPEND, data = _row)
         //### FIN CACHE VIRTUAL DE AUTOS
 
         //###### GUARDAR EN RESIDENTES ######
         if (userid.toInt() != -987654321) {
             val strNowTime =
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            var MarcaModeloColor:String =""
+            if (row[3].isNotEmpty()) MarcaModeloColor += " marca:${row[3]}"
+            if (row[4].isNotEmpty()) MarcaModeloColor += " modelo:${row[4]}"
+            if (row[5].isNotEmpty()) MarcaModeloColor += " color:${row[5]}"
             val rowResidente = listOf<Any>(
                 userid.toString(),
                 _get_strclave_unidad(row[1].toString(), row[2].toString()), //Clave
                 row[1].toString(),                                          //calle
                 row[2].toString(),                                          //numero
                 "Automóvil",                                                //Tipo
-                "${row[3]} ${row[4]} ${row[5]}",                            //nombre
+                MarcaModeloColor,                                           //nombre
                 row[0],                                                     //telefono (placa)
                 "",                                                         //email
                 row[6],                                                     //celular (tag)
@@ -740,17 +719,21 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
             mySettings.saveLong(table.timestampKey, System.currentTimeMillis())
 
             // Sincronizar Update (index + 2 por el encabezado de Google Sheets)
-            sync(table, Operation.UPDATE, data = newData, index = indexFind + 2)
+            //sync(table, Operation.UPDATE, data = newData, index = indexFind + 2)
 
             //UPDATE RESIDENTE
             val strNowTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            var MarcaModeloColor:String =""
+            if (newData[3].isNotEmpty()) MarcaModeloColor += " marca:${newData[3]}"
+            if (newData[4].isNotEmpty()) MarcaModeloColor += " modelo:${newData[4]}"
+            if (newData[5].isNotEmpty()) MarcaModeloColor += " color:${newData[5]}"
             val rowResidente = listOf<Any>(
                 newData[8],                                                 //userid
                 _get_strclave_unidad(newData[1].toString(), newData[2].toString()), //Clave
                 newData[1].toString(),                                      //calle
                 newData[2].toString(),                                      //numero
                 "Automóvil",                                                //Tipo
-                "${newData[3]} ${newData[4]} ${newData[5]}",                //nombre
+                MarcaModeloColor,                                           //nombre
                 newData[0],                                                 //telefono (placa)
                 "",                                                         //email
                 newData[6],                                                 //celular (tag)
@@ -768,6 +751,41 @@ class DataRawRondin(private val context: Context, private val coroutineScopeObje
         } else {
             // CASO B: ES NUEVO (APPEND)
             addAutoRegistrados(newData)
+        }
+
+        return true
+    }
+    fun deleteAutoRegistrados(vehicleRow: List<Any>): Boolean {
+        val table = SheetTable.AUTOS_REGISTRADOS
+        val state = tableStates[table] ?: return false
+        val userId = vehicleRow.getOrNull(8)?.toString() ?: return false
+
+        // 1. Remover del caché de AUTOS_REGISTRADOS
+        if (state.cache == null) runBlocking { getAutoRegistrados() }
+        val currentCache = state.cache?.toMutableList() ?: mutableListOf()
+        val indexFind = currentCache.indexOfFirst { it.size >= 9 && it[8].toString() == userId }
+        if (indexFind >= 0) {
+            currentCache.removeAt(indexFind)
+            state.cache = currentCache
+            mySettings.saveList("${table.cacheKey}_CACHE", currentCache as List<List<String>>)
+            mySettings.saveLong(table.timestampKey, System.currentTimeMillis())
+        }
+
+        // 2. Eliminación lógica en RESIDENTES_UNIDAD (es_eliminado = "1")
+        val stateResidentes = tableStates[SheetTable.RESIDENTES_UNIDAD]
+        if (stateResidentes?.cache == null) runBlocking { getResidentes() }
+        val residentesCache = stateResidentes?.cache?.toMutableList() ?: mutableListOf()
+        val resIndex = residentesCache.indexOfFirst { it.size >= 1 && it[0].toString() == userId }
+        if (resIndex >= 0) {
+            val resRow = residentesCache[resIndex].toMutableList()
+            while (resRow.size <= 16) {
+                resRow.add("")
+            }
+            val strNowTime = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+            resRow[13] = strNowTime // fecha_updated_app
+            resRow[15] = "0" // es_actualizado
+            resRow[16] = "1" // es_eliminado = "1"
+            updateResidentes(resRow.map { it.toString() })
         }
 
         return true

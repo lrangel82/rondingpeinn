@@ -26,11 +26,13 @@ import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.chip.Chip
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.larangel.rondy.ui.VehiculoFormDialog
 import com.larangel.rondy.utils.extraerPlaca
+import com.larangel.rondy.utils.extraerTAG
 import com.larangel.rondy.utils.extraerTAGConConfig
 import com.larangel.rondy.utils.stopSearchLoop
 import kotlinx.coroutines.Dispatchers
@@ -165,6 +167,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         rvResults.layoutManager = GridLayoutManager(this, spanCount)
 
         etSearch.doOnTextChanged { text, start, before, count ->
+            if (stopSearchLoop) return@doOnTextChanged
             val query = text.toString()
             if (query.isNotEmpty() && query.length > 2 ) {
                 searchJob?.cancel()
@@ -203,23 +206,36 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         //Es lectura de lector RFID
         stopSearchLoop = true
         tagEncontrado = null
+        val allrows = dataRaw.getAutoRegistrados()
         val lines = query.split("\n")
         filteredList.clear()
         for (line in lines) {
             var _query = ""
-            tagEncontrado = line.extraerTAGConConfig(currentOffset,currentBytesToRead,currentFormat) //line.extraerTAGHexToDec() //if (esLectorRFID == true)  line.extraerTAGHexToDec() else line
+            var tagLine: String?
+            if (line.length>=24) { //LECTOR TAGS AABB0000CF7A9F0000000000
+                tagLine = line.extraerTAGConConfig (currentOffset, currentBytesToRead ,currentFormat) //Extraer TAG
+            }
+            else{ //buscar numero tag formateado 9781141 or 953F95
+                tagLine = line.extraerTAG(currentBytesToRead, currentFormat) //Extraer TAG
+            }
 
-            if (tagEncontrado.isNullOrEmpty())
+            if (tagLine.isNullOrEmpty())
+                //Busqueda normal
                 _query = line
             else {
-                _query = tagEncontrado.toString()
+                //Busqueda de tag
+                _query = tagLine.toString()
             }
 
             if (_query.isNotEmpty()) {
-                filteredList.addAll(fullVehicleList.filter { row ->
-                    if (stopSearchLoop == true) false
-                    else row.any { it.toString().contains(_query.toString(), ignoreCase = true) }
+                filteredList.addAll(allrows.filter { row ->
+                    row.any { it.toString().contains(_query.toString(), ignoreCase = true) }
                 })
+            }
+            if (!tagLine.isNullOrEmpty()){
+                //Fue busqueda de tag, solo usar el primero salir del ciclo, lo demas se ignora
+                tagEncontrado = tagLine
+                break
             }
         }
         if (! tagEncontrado.isNullOrEmpty() || query.length >= 25) {
@@ -242,18 +258,17 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         // Aseguramos visibilidad
         rvResults.visibility = View.VISIBLE
         //layoutForm.visibility = View.GONE
-        findViewById<View>(R.id.notFoundActions).visibility = View.GONE
 
-        //Filtramos por calle y numero si existe
-        filteredList = lisData as MutableList<List<Any>>
+        //Filtramos por calle y numero si existe (creando una copia para no mutar el caché compartido)
+        filteredList = lisData.map { it.toMutableList() }.toMutableList()
         if (uiState.calleSeleccionada != null) {
             filteredList = filteredList.filter { row ->
-                row[1].toString().equals(uiState.calleSeleccionada.toString(), ignoreCase = true)
+                row.getOrNull(1)?.toString()?.equals(uiState.calleSeleccionada.toString(), ignoreCase = true) == true
             }.toMutableList()
         }
         if (uiState.numeroSeleccionado != null) {
             filteredList = filteredList.filter { row ->
-                row[2].toString().equals(uiState.numeroSeleccionado.toString(), ignoreCase = true)
+                row.getOrNull(2)?.toString()?.equals(uiState.numeroSeleccionado.toString(), ignoreCase = true) == true
             }.toMutableList()
         }
         val txtAyuda = findViewById<TextView>(R.id.textAyudaCatalogoV)
@@ -261,6 +276,19 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
 
         // Actualizamos los datos del adapter con la lista filtrada
         vehicleAdapter.updateData(filteredList as List<List<String>>)
+
+        // Si tenemos seleccionado un domicilio específico (calle y número), mostramos la opción de agregar nuevo auto
+        val btnAdd = findViewById<FloatingActionButton>(R.id.floatingAddAuto)
+        if (uiState.numeroSeleccionado != null) {
+            btnAdd.visibility = View.VISIBLE
+            btnAdd.setOnClickListener {
+                openVehiculoDialog(null, uiState.calleSeleccionada, uiState.numeroSeleccionado)
+            }
+        } else{
+            btnAdd.visibility = View.GONE
+        }
+        findViewById<View>(R.id.notFoundActions).visibility = View.GONE
+
     }
 
     //Calles  y numeros
@@ -287,6 +315,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         rvResults.visibility = View.GONE
         //layoutForm.visibility = View.GONE
         findViewById<View>(R.id.notFoundActions).visibility = View.GONE
+        findViewById<FloatingActionButton>(R.id.floatingAddAuto).visibility = View.GONE
         hideKeyboard()
     }
 
@@ -295,6 +324,7 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
         rvResults.visibility = View.GONE
         //layoutForm.visibility = View.GONE
         findViewById<View>(R.id.notFoundActions).visibility = View.VISIBLE
+        findViewById<FloatingActionButton>(R.id.floatingAddAuto).visibility = View.GONE
 
         val busquedaActual = etSearch.text.toString().trim()
         //val tagValido = busquedaActual.extraerTAGConConfig(currentOffset,currentBytesToRead,currentFormat) //.extraerTAGHexToDec()
@@ -366,19 +396,54 @@ class CatalgoVehiculosActivity : AppCompatActivity() {
             }
     }
 
-    private fun openVehiculoDialog(row: List<Any>?) {
-        val dialog = VehiculoFormDialog(row,dataRaw,mySettings) { datosActualizados ->
-            updateVehicle(datosActualizados)
+    private fun openVehiculoDialog(row: List<Any>?, initialCalle: String? = null, initialNumero: String? = null) {
+        val dialog = VehiculoFormDialog(
+            row = row,
+            dataRaw = dataRaw,
+            mySettings = mySettings,
+            initialCalle = initialCalle ?: uiState.calleSeleccionada,
+            initialNumero = initialNumero ?: uiState.numeroSeleccionado,
+            onDelete = {
+                row?.let { deleteVehicle(it) }
+            }
+        ) { datosActualizados ->
+            if (row == null) {
+                addNewVehicle(datosActualizados)
+            } else {
+                updateVehicle(datosActualizados)
+            }
         }
         dialog.show(supportFragmentManager, "VehiculoDialog")
+    }
+
+    private fun addNewVehicle(newRow: List<String>) = lifecycleScope.launch {
+        withContext(Dispatchers.IO) {
+            dataRaw.addAutoRegistrados(newRow)
+            withContext(Dispatchers.Main) {
+                loadInitialData(true)
+            }
+        }
+        Toast.makeText(this@CatalgoVehiculosActivity, "Vehículo agregado", Toast.LENGTH_SHORT).show()
     }
 
     private fun updateVehicle( newRow: List<String>) = lifecycleScope.launch {
         withContext(Dispatchers.IO) {
             dataRaw.updateAutoRegistrados(newRow)
-            fullVehicleList = withContext(Dispatchers.IO) { dataRaw.getAutoRegistrados() ?: emptyList() }
+            withContext(Dispatchers.Main) {
+                loadInitialData()
+            }
         }
         Toast.makeText(this@CatalgoVehiculosActivity, "Actualizado", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun deleteVehicle(row: List<Any>) = lifecycleScope.launch {
+        withContext(Dispatchers.IO) {
+            dataRaw.deleteAutoRegistrados(row)
+            withContext(Dispatchers.Main) {
+                loadInitialData(true)
+            }
+        }
+        Toast.makeText(this@CatalgoVehiculosActivity, "Eliminado correctamente", Toast.LENGTH_SHORT).show()
     }
 
     private fun hideKeyboard() {

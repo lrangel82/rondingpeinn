@@ -31,6 +31,9 @@ class VehiculoFormDialog (
     private val row: List<Any>? = null,
     private val dataRaw: DataRawRondin,
     private val mySettings: MySettings?,
+    private val initialCalle: String? = null,
+    private val initialNumero: String? = null,
+    private val onDelete: (() -> Unit)? = null,
     private val onConfirm: (List<String>) -> Unit
 ) : DialogFragment() {
     private var domicilios: List<List<Any>> = emptyList()
@@ -64,7 +67,25 @@ class VehiculoFormDialog (
         val etColor = view.findViewById<EditText>(R.id.etFormColor)
         val etTag = view.findViewById<EditText>(R.id.etFormTag)
         val btnCancel = view.findViewById<Button>(R.id.btnCancel)
+        val btnDelete = view.findViewById<Button>(R.id.btnDelete)
         val btnUpdate = view.findViewById<Button>(R.id.btnUpdate)
+
+        if (row != null) {
+            btnDelete.visibility = View.VISIBLE
+            btnDelete.setOnClickListener {
+                android.app.AlertDialog.Builder(requireContext())
+                    .setTitle("Eliminar vehículo")
+                    .setMessage("¿Está seguro de eliminar este registro?")
+                    .setPositiveButton("Sí") { _, _ ->
+                        onDelete?.invoke()
+                        dismiss()
+                    }
+                    .setNegativeButton("No", null)
+                    .show()
+            }
+        } else {
+            btnDelete.visibility = View.GONE
+        }
 
         // 1. Llenar datos si es edición
         row?.let {
@@ -91,6 +112,10 @@ class VehiculoFormDialog (
             // Si es edición, preseleccionamos ahora que los Spinners ya tienen los adapters llenos
             row?.let {
                 preseleccionarDomicilio(it.getOrNull(1).toString(), it.getOrNull(2).toString())
+            } ?: run {
+                if (!initialCalle.isNullOrEmpty() && !initialNumero.isNullOrEmpty()) {
+                    preseleccionarDomicilio(initialCalle, initialNumero)
+                }
             }
         }
 
@@ -98,6 +123,12 @@ class VehiculoFormDialog (
         btnCancel.setOnClickListener { dismiss() }
 
         btnUpdate.setOnClickListener {
+            //Tenemso que validar que el TAG no este repetido en otro lugar
+            val allTagsIguales = dataRaw.getAutoRegistrados().map { it[6].toString()==etTag.text.toString() && it[8].toString()!=row?.getOrNull(8).toString() }  ?: emptyList()
+            if (allTagsIguales.size > 0 && allTagsIguales.contains(true)) {
+                etTag.error = "El TAG ya existe"
+                return@setOnClickListener
+            }
             val valuesNew = listOf(
                 etPlaca.text.toString().filter { it.isLetterOrDigit() }.uppercase(),
                 spinnerCalle.selectedItem.toString() ?: "",
@@ -107,7 +138,7 @@ class VehiculoFormDialog (
                 etColor.text.toString(),
                 etTag.text.toString().filter { it.isDigit() },
                 row?.getOrNull(7)?.toString() ?: "", // Manejo de nulos para creación
-                row?.getOrNull(8)?.toString() ?: ""
+                row?.getOrNull(8)?.toString() ?: "" //User_id
             )
             onConfirm(valuesNew) // Devolvemos los datos al Activity
             dismiss()

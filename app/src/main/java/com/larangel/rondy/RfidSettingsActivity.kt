@@ -19,12 +19,18 @@ import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.time.Duration.Companion.seconds
 
 class RfidSettingsActivity : AppCompatActivity() {
     // Tu objeto personalizado de persistencia
     private var mySettings: MySettings? = null
     private val byteTextViews = ArrayList<TextView>()
     private var isTranslating = false
+    private var JobTranslating: Job? = null
 
     // Variables de configuración activa
     private var currentOffset = 0
@@ -125,8 +131,11 @@ class RfidSettingsActivity : AppCompatActivity() {
         txtRfidInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                if (isTranslating) return
-                processRfidTranslation()
+                JobTranslating?.cancel()
+                JobTranslating = lifecycleScope.launch {
+                    delay(2.seconds) // Espera 2000ms de silencio total del lector antes de buscar
+                    processRfidTranslation()
+                }
             }
             override fun afterTextChanged(s: Editable?) {}
         })
@@ -196,6 +205,7 @@ class RfidSettingsActivity : AppCompatActivity() {
     }
     // Procesa el texto filtrando saltos de línea y actualizando la interfaz reactiva
     private fun processRfidTranslation() {
+        if (isTranslating) return
         val txtRfidInput: EditText = findViewById(R.id.etRfidTag)
         val tvTranslatedResult: TextView = findViewById(R.id.tvTranslatedResult)
 
@@ -207,16 +217,16 @@ class RfidSettingsActivity : AppCompatActivity() {
             .lastOrNull { it.isNotEmpty() } ?: ""
 
         // Solo modificamos el texto si realmente cambió (ej. venían varias líneas o espacios)
-        if (rawInput != lastValidLine) {
-            try {
-                isTranslating = true // Bloqueamos el listener
-                txtRfidInput.setText(lastValidLine + "\n")
-                // Mueve el cursor al final del texto para que el usuario pueda seguir escribiendo cómodamente
-                txtRfidInput.setSelection(lastValidLine.length + 1)
-            } finally {
-                isTranslating = false // Desbloqueamos el listener pase lo que pase
-            }
-        }
+//        if (rawInput != lastValidLine) {
+//            try {
+//                isTranslating = true // Bloqueamos el listener
+//                txtRfidInput.setText(lastValidLine + "\n")
+//                // Mueve el cursor al final del texto para que el usuario pueda seguir escribiendo cómodamente
+//                txtRfidInput.setSelection(lastValidLine.length + 1)
+//            } finally {
+//                isTranslating = false // Desbloqueamos el listener pase lo que pase
+//            }
+//        }
 
         // Normalizar a una cadena de 24 caracteres HEX rellenando con ceros de ser necesario
         val cleanHex24 = lastValidLine.padEnd(24, '0').substring(0, 24)
@@ -254,6 +264,7 @@ class RfidSettingsActivity : AppCompatActivity() {
         } else {
             tvTranslatedResult.text = hexResult
         }
+        txtRfidInput.selectAll()
     }
 
 }
